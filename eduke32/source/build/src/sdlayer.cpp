@@ -83,6 +83,22 @@ char quitevent=0, appactive=1, novideo=0;
 
 // video
 static SDL_Surface *sdl_surface/*=NULL*/;
+#if defined __ANDROID__ && SDL_MAJOR_VERSION >= 2
+// Duke3D Android Edition: en Android la superficie de la ventana no mide siempre lo que pide el
+// juego. El juego pinta en una superficie propia del tamaño exacto y la GPU la escala a la
+// pantalla (SDL_Renderer), manteniendo la proporción.
+static SDL_Renderer *android_renderer;
+static SDL_Texture *android_texture;
+static void android_destroy_present(void)
+{
+    if (android_texture) SDL_DestroyTexture(android_texture);
+    android_texture = NULL;
+    if (android_renderer) SDL_DestroyRenderer(android_renderer);
+    android_renderer = NULL;
+    if (sdl_surface) SDL_FreeSurface(sdl_surface);
+    sdl_surface = NULL;
+}
+#endif
 
 static vec2_t sdl_resize;
 static int sdl_minimized;
@@ -1534,6 +1550,9 @@ static void destroy_window_resources()
     if (sdl_context)
         SDL_GL_DeleteContext(sdl_context);
     sdl_context = NULL;
+#ifdef __ANDROID__
+    android_destroy_present();
+#endif
     if (sdl_window)
         SDL_DestroyWindow(sdl_window);
     sdl_window = NULL;
@@ -1914,9 +1933,25 @@ int32_t videoSetMode(int32_t x, int32_t y, int32_t c, int32_t fs)
         if (!sdl_window)
             SDL2_VIDEO_ERR("SDL_CreateWindow");
 
+#ifdef __ANDROID__
+        android_destroy_present();
+        android_renderer = SDL_CreateRenderer(sdl_window, -1, SDL_RENDERER_ACCELERATED);
+        if (!android_renderer)
+            android_renderer = SDL_CreateRenderer(sdl_window, -1, 0);
+        if (!android_renderer)
+            SDL2_VIDEO_ERR("SDL_CreateRenderer");
+        SDL_RenderSetLogicalSize(android_renderer, x, y);
+        android_texture = SDL_CreateTexture(android_renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, x, y);
+        if (!android_texture)
+            SDL2_VIDEO_ERR("SDL_CreateTexture");
+        sdl_surface = SDL_CreateRGBSurfaceWithFormat(0, x, y, 32, SDL_PIXELFORMAT_ARGB8888);
+        if (!sdl_surface)
+            SDL2_VIDEO_ERR("SDL_CreateRGBSurfaceWithFormat");
+#else
         sdl_surface = SDL_GetWindowSurface(sdl_window);
         if (!sdl_surface)
             SDL2_VIDEO_ERR("SDL_GetWindowSurface");
+#endif
     }
 
     setvideomode_sdlcommonpost(x, y, c, fs, regrab);
@@ -2183,7 +2218,16 @@ void videoShowFrame(int32_t w)
     if (SDL_MUSTLOCK(sdl_surface)) SDL_LockSurface(sdl_surface);
     softsurface_blitBuffer((uint32_t*) sdl_surface->pixels, sdl_surface->format->BitsPerPixel);
     if (SDL_MUSTLOCK(sdl_surface)) SDL_UnlockSurface(sdl_surface);
-#if SDL_MAJOR_VERSION >= 2
+#if defined __ANDROID__ && SDL_MAJOR_VERSION >= 2
+    if (android_renderer && android_texture)
+    {
+        SDL_UpdateTexture(android_texture, NULL, sdl_surface->pixels, sdl_surface->pitch);
+        SDL_SetRenderDrawColor(android_renderer, 0, 0, 0, 255);
+        SDL_RenderClear(android_renderer);
+        SDL_RenderCopy(android_renderer, android_texture, NULL, NULL);
+        SDL_RenderPresent(android_renderer);
+    }
+#elif SDL_MAJOR_VERSION >= 2
     if (SDL_UpdateWindowSurface(sdl_window))
     {
         // If a fullscreen X11 window is minimized then this may be required.

@@ -18,5 +18,8 @@ Duke Nukem 3D, con estos cambios para compilarlo en Android como un Linux con SD
 6. **Manejadores de fallos** (`signal(SIGSEGV…)` en `sdlayer.cpp` y los de loguru en
    `baselayer.cpp`) desactivados en Android: lo pone
    `android/app/src/main/cpp/android_main.c`, que escribe en el registro dónde ha fallado.
+7. **Presentación en pantalla** (`sdlayer.cpp`): en Android el juego pinta en una superficie
+   propia del tamaño exacto y la GPU la escala a la ventana con `SDL_Renderer`. La superficie de
+   la ventana de Android no siempre mide lo que pide el juego y la copia se salía de la memoria.
 
 Licencias: GPL v2 (`gpl-2.0.txt`) y licencia del motor BUILD de Ken Silverman (`buildlic.txt`).
