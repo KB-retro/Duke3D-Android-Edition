@@ -1,0 +1,39 @@
+# Descarga el código de EDuke32 y lo sube a la rama "fuentes" (sin historial),
+# para tenerlo en el repositorio y poder estudiarlo y compilarlo.
+name: Fuentes
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fuentes:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar EDuke32
+        run: |
+          set -e
+          for url in https://voidpoint.io/terminx/eduke32.git https://github.com/nukeykt/NBlood.git; do
+            if git clone --depth 1 "$url" eduke32; then echo "$url" > origen.txt; break; fi
+          done
+          test -d eduke32
+          git -C eduke32 log -1 --format='%H %cd' >> origen.txt
+          cat origen.txt
+          rm -rf eduke32/.git
+          ls eduke32
+          du -sh eduke32
+
+      - name: Subir a la rama fuentes
+        run: |
+          set -e
+          mkdir subir && cd subir
+          git init -q -b fuentes
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          mv ../eduke32 ../origen.txt .
+          git add -A
+          git commit -qm "Código de EDuke32 ($(head -1 origen.txt))"
+          git remote add origin "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
+          git push -f origin fuentes
