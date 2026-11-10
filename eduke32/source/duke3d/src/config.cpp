@@ -814,6 +814,12 @@ int CONFIG_ReadSetup(void)
     // restore localization
     char locale[64] = "en";
     SCRIPT_GetString(ud.config.scripthandle, "Misc", "Locale", &locale[0]);
+#ifdef __ANDROID__
+    // Duke3D Android Edition: manda el idioma elegido en el lanzador, no el guardado.
+    if (char const * lang = getenv("DUKE3D_LANG"))
+        if (*lang)
+            Bstrncpyz(locale, lang, sizeof(locale));
+#endif
     localeSetCurrent(locale);
 
     ud.config.setupread = 1;

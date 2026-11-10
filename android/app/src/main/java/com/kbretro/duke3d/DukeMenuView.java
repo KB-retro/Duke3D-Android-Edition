@@ -57,9 +57,9 @@ final class DukeMenuView extends View {
             return this;
         }
 
-        /** Un juego: su icono pequeño en la lista y su caja grande a la derecha. */
+        /** Un juego: solo el nombre en la lista y su caja grande a la derecha. */
         Page addGame(String label, Bitmap cover, Runnable action) {
-            Entry e = new Entry(label, cover, action, null);
+            Entry e = new Entry(label, null, action, null);
             e.cover = cover;
             entries.add(e);
             return this;
@@ -106,6 +106,9 @@ final class DukeMenuView extends View {
         shade.setFilterBitmap(false);
         setFocusable(true);
         setFocusableInTouchMode(true);
+        // Sin esto Android tiñe de blanco toda la vista al moverse con el mando (resalte de
+        // foco); el menú ya marca él mismo la opción elegida.
+        setDefaultFocusHighlightEnabled(false);
         setBackgroundColor(Color.BLACK);
     }
 
