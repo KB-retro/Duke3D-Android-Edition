@@ -57,6 +57,7 @@ public class LauncherActivity extends Activity {
     }
 
     private MenuAssets assets;
+    private final MenuMusic music = new MenuMusic();
     private DukeMenuView menuView;
     private boolean loading;
     /** Últimas líneas del registro de la última partida (para ver por qué se cerró). */
@@ -103,9 +104,25 @@ public class LauncherActivity extends Activity {
     }
 
     @Override
+    protected void onPause() {
+        super.onPause();
+        music.pause();
+    }
+
+    @Override
     protected void onDestroy() {
         super.onDestroy();
+        music.stop();
         closeAssets();
+    }
+
+    private boolean musicOn() {
+        return getSharedPreferences("ajustes", MODE_PRIVATE).getBoolean("musica_menu", true);
+    }
+
+    private void startMusic(File gameDir) {
+        if (musicOn() && assets != null && !assets.open.isEmpty()) music.play(this, gameDir, assets.open.get(0));
+        else music.stop();
     }
 
     // ---- Menú con los gráficos del juego ----
@@ -200,6 +217,7 @@ public class LauncherActivity extends Activity {
         setContentView(menuView);
         menuView.requestFocus();
         hideSystemBars();
+        startMusic(gameDir);
     }
 
     private DukeMenuView.Page rootPage(File gameDir) {
@@ -239,6 +257,10 @@ public class LauncherActivity extends Activity {
             menuView.setRoot(rootPage(gameDir), this::finish);
             menuView.push(optionsPage(gameDir));
         });
+        p.addValue(I18n.t("menu_music"), () -> I18n.t(musicOn() ? "yes" : "no"), () -> {
+            getSharedPreferences("ajustes", MODE_PRIVATE).edit().putBoolean("musica_menu", !musicOn()).apply();
+            startMusic(gameDir);
+        });
         p.add(I18n.t("folder"), null, this::pickFolder);
         p.add(I18n.t("back"), null, () -> menuView.pop());
         p.footer = () -> I18n.t("data") + gameDir.getAbsolutePath();
@@ -267,6 +289,7 @@ public class LauncherActivity extends Activity {
     }
 
     private void showClassic() {
+        music.stop();
         if (classicRoot.getParent() == null) setContentView(classicRoot);
         showSystemBars();
         list.removeAllViews();
@@ -357,6 +380,7 @@ public class LauncherActivity extends Activity {
     private void launch(File gameDir, GameData.Game game) {
         if (launching) return;
         launching = true;
+        music.stop();
         boolean spanish = I18n.ES.equals(I18n.lang());
         // La traducción se prepara aparte (lee los .CON y hace las letras con tilde).
         new Thread(() -> {

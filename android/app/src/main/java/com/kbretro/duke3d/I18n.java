@@ -30,6 +30,9 @@ final class I18n {
         put("loading", "Cargando...", "Loading...");
         put("data", "Datos: ", "Data: ");
         put("caribbean", "Caribbean", "Caribbean");
+        put("menu_music", "Música del menú", "Menu music");
+        put("yes", "Sí", "On");
+        put("no", "No", "Off");
     }
 
     static void load(Context c) {

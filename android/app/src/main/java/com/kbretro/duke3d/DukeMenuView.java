@@ -79,7 +79,6 @@ final class DukeMenuView extends View {
     private final DukeArt art;
     /** Fondo propio (imagen del APK); si es null, la pantalla de título del juego. */
     private Bitmap background;
-    private Bitmap lastCover;
     private final Paint smooth = new Paint(Paint.FILTER_BITMAP_FLAG);
     private final Paint frame = new Paint();
     private final List<Page> stack = new ArrayList<>();
@@ -194,9 +193,9 @@ final class DukeMenuView extends View {
         float centerX = covers ? 108 : 160;
         float maxW = covers ? 196 : 270;
         if (covers) {
+            // Solo con un juego elegido (en Opciones o Salir no se ve ninguna caja).
             Entry cur = n > 0 ? p.entries.get(p.selected) : null;
-            if (cur != null && cur.cover != null) lastCover = cur.cover;
-            if (lastCover != null) drawCover(c, lastCover, 214, 50, 98, 136);
+            if (cur != null && cur.cover != null) drawCover(c, cur.cover, 214, 50, 98, 136);
         }
         float top = 60, bottom = 182;
         float step = Math.min(19f, (bottom - top) / Math.max(1, n));
