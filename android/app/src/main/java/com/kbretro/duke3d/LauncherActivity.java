@@ -3,6 +3,7 @@ package com.kbretro.duke3d;
 import android.Manifest;
 import android.app.Activity;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Color;
@@ -41,6 +42,8 @@ import java.util.Map;
  */
 public class LauncherActivity extends Activity {
     private static final int REQUEST_STORAGE = 1;
+    /** Desde el menú rápido del juego: cerrar también el lanzador. */
+    static final String EXTRA_QUIT = "salir";
     private static final int COLOR_BG = 0xFF101010;
     private static final int COLOR_ACCENT = 0xFFFFC21A;
 
@@ -101,6 +104,12 @@ public class LauncherActivity extends Activity {
             }
         }
         showClassic();
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        if (intent.getBooleanExtra(EXTRA_QUIT, false)) finishAffinity();
     }
 
     @Override
@@ -309,6 +318,16 @@ public class LauncherActivity extends Activity {
             getSharedPreferences("ajustes", MODE_PRIVATE).edit().putBoolean("musica_menu", !musicOn()).apply();
             startMusic(gameDir);
         });
+        p.addValue("FPS", () -> {
+            int f = getSharedPreferences("ajustes", MODE_MULTI_PROCESS).getInt("fps", 60);
+            return f <= 0 ? I18n.t("unlimited") : f + " FPS";
+        }, () -> {
+            SharedPreferences sp = getSharedPreferences("ajustes", MODE_MULTI_PROCESS);
+            int[] values = {60, 90, 120, 0};
+            int cur = sp.getInt("fps", 60), i = 0;
+            for (int k = 0; k < values.length; k++) if (values[k] == cur) i = k;
+            sp.edit().putInt("fps", values[(i + 1) % values.length]).apply();
+        });
         p.add(I18n.t("folder"), null, this::pickFolder);
         p.add(I18n.t("back"), null, () -> menuView.pop());
         p.footer = () -> I18n.t("data") + gameDir.getAbsolutePath();
@@ -450,6 +469,8 @@ public class LauncherActivity extends Activity {
                 intent.putExtra(GameActivity.EXTRA_DIR, gameDir.getAbsolutePath());
                 intent.putExtra(GameActivity.EXTRA_ARGS, GameData.arguments(gameDir, game, defFile));
                 intent.putExtra(GameActivity.EXTRA_LANG, defFile != null ? "es" : "en");
+                List<GameData.Game> all = GameData.games(gameDir);
+                if (!all.isEmpty()) intent.putExtra(GameActivity.EXTRA_BASE_GRP, all.get(0).grp.getAbsolutePath());
                 startActivity(intent);
             });
         }, "Traduccion").start();

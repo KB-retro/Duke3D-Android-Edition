@@ -35,6 +35,28 @@ final class I18n {
         put("music", "Música", "Music");
         put("playing", "Sonando: ", "Now playing: ");
         put("no_tracks", "No hay pistas", "No tracks");
+        // Menú rápido (durante la partida)
+        put("continue", "Continuar", "Continue");
+        put("quicksave", "Guardado rápido", "Quick save");
+        put("quickload", "Carga rápida", "Quick load");
+        put("cheats", "Trucos", "Cheats");
+        put("graphics", "Gráficos", "Graphics");
+        put("game_menu", "Menú del juego", "Game menu");
+        put("to_launcher", "Volver al lanzador", "Back to launcher");
+        put("quit_game", "Salir del juego", "Quit game");
+        put("unlimited", "Sin límite", "Unlimited");
+        put("resolution", "Resolución", "Resolution");
+        put("enhanced_soon", "Modo mejorado: pronto", "Enhanced mode: soon");
+        put("cheat_god", "Modo dios", "God mode");
+        put("cheat_noclip", "Atravesar paredes", "No clipping");
+        put("cheat_weapons", "Todas las armas", "All weapons");
+        put("cheat_ammo", "Munición", "Ammo");
+        put("cheat_keys", "Todas las llaves", "All keys");
+        put("cheat_health", "Salud", "Health");
+        put("cheat_armor", "Blindaje", "Armor");
+        put("cheat_inventory", "Inventario", "Inventory");
+        put("cheat_all", "Todo", "Everything");
+        put("cheat_done", "Hecho: ", "Done: ");
         put("yes", "Sí", "On");
         put("no", "No", "Off");
     }

@@ -2834,10 +2834,23 @@ int32_t handleevents_pollsdl(void)
 }
 #endif
 
+#ifdef __ANDROID__
+// Duke3D Android Edition: órdenes de consola que manda el menú r�pido (android_main.c).
+extern "C" int duke3d_android_next_command(char *buf, int len);
+#endif
+
 int32_t handleevents(void)
 {
 #ifdef EDUKE32_ANDROID_LEGACY
     if (mobile_halted) return 0;
+#endif
+
+#ifdef __ANDROID__
+    {
+        char cmd[256];
+        while (duke3d_android_next_command(cmd, sizeof(cmd)))
+            OSD_Dispatch(cmd);
+    }
 #endif
 
     int32_t rv;

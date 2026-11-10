@@ -30,5 +30,9 @@ Duke Nukem 3D, con estos cambios para compilarlo en Android como un Linux con SD
    - `defs.cpp`: en `localization`, `\n` dentro de un texto es un salto de línea.
    - `menus.cpp`: las preguntas que se montan con `printf` (cargar, borrar, etc.) traducen su
      plantilla con `localeLookup`.
+10. **Menú rápido** (Atrás durante la partida):
+    - `sdlayer.cpp`: en `handleevents` se ejecutan las órdenes de consola que manda el menú
+      (cola en `android_main.c`, `GameActivity.nativeCommand`).
+    - `osdcmds.cpp`: orden `pausegame 0|1`, la pausa de la tecla Pausa pero sin el cartel.
 
 Licencias: GPL v2 (`gpl-2.0.txt`) y licencia del motor BUILD de Ken Silverman (`buildlic.txt`).

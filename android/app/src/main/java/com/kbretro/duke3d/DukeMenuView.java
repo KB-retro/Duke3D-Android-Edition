@@ -115,6 +115,20 @@ final class DukeMenuView extends View {
         setBackgroundColor(Color.BLACK);
     }
 
+    private boolean overlay;
+
+    /** Menú encima de la partida (menú rápido): sin fondo propio. */
+    void setOverlay(boolean on) {
+        overlay = on;
+        setBackgroundColor(on ? Color.TRANSPARENT : Color.BLACK);
+        invalidate();
+    }
+
+    /** Para el mando: mover la selección desde fuera (crucetas que llegan como ejes). */
+    void moveSelection(int d) {
+        move(d);
+    }
+
     void setBackground(Bitmap b) {
         background = b;
         invalidate();
@@ -154,14 +168,17 @@ final class DukeMenuView extends View {
         if (w == 0 || h == 0 || stack.isEmpty()) return;
 
         // Fondo: la imagen propia cubriendo toda la pantalla, o la pantalla de título del juego.
-        if (background != null) {
+        if (overlay) {
+            // Encima de la partida: solo un velo oscuro, el juego se ve detrás en pausa.
+            c.drawColor(Color.argb(175, 0, 0, 0));
+        } else if (background != null) {
             float k = Math.max(w / (float) background.getWidth(), h / (float) background.getHeight());
             float bw = background.getWidth() * k, bh = background.getHeight() * k;
             dst.set((w - bw) / 2f, (h - bh) / 2f, (w + bw) / 2f, (h + bh) / 2f);
             c.drawBitmap(background, null, dst, smooth);
         }
-        Bitmap bg = background != null ? null : art.tile(DukeArt.BETASCREEN);
-        if (bg == null && background == null) bg = art.tile(DukeArt.MENUSCREEN);
+        Bitmap bg = background != null || overlay ? null : art.tile(DukeArt.BETASCREEN);
+        if (bg == null && background == null && !overlay) bg = art.tile(DukeArt.MENUSCREEN);
         if (bg != null) {
             float bw = w, bh = w * 3f / 4f;
             if (bh < h) {
@@ -171,7 +188,7 @@ final class DukeMenuView extends View {
             dst.set((w - bw) / 2f, (h - bh) / 2f, (w + bw) / 2f, (h + bh) / 2f);
             c.drawBitmap(bg, null, dst, pixel);
         }
-        c.drawRect(0, 0, w, h, dim);
+        if (!overlay) c.drawRect(0, 0, w, h, dim);
 
         // Zona 4:3 para el contenido.
         float aw = w, ah = w * 3f / 4f;
@@ -302,7 +319,7 @@ final class DukeMenuView extends View {
         c.drawBitmap(b, null, dst, smooth);
     }
 
-    private static final int MAX_VISIBLE = 8;
+    private static final int MAX_VISIBLE = 9;
     private final List<Integer> hitIndex = new ArrayList<>();
     private final Paint arrow = new Paint(Paint.ANTI_ALIAS_FLAG);
     private float stepPx = 1;

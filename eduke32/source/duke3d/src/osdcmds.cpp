@@ -1085,6 +1085,40 @@ static int osdcmd_unbound(osdcmdptr_t parm)
     return OSDCMD_OK;
 }
 
+#ifdef __ANDROID__
+// Duke3D Android Edition: pausa del menú rápido. Como la tecla Pausa, pero con pause_on = 2
+// (sin el cartel "Juego en pausa", que quedar�a detrás del menú).
+static int osdcmd_pausegame(osdcmdptr_t parm)
+{
+    if (parm->numparms != 1)
+        return OSDCMD_SHOWHELP;
+
+    auto const ps = g_player[myconnectindex].ps;
+    if (!(ps->gm & MODE_GAME) || (ps->gm & MODE_MENU) || ud.multimode > 1)
+        return OSDCMD_OK;
+
+    bool const on = Batoi(parm->parms[0]) != 0;
+    if (on == (ud.pause_on != 0))
+        return OSDCMD_OK;
+
+    ud.pause_on = on ? 2 : 0;
+    if (on)
+    {
+        S_PauseMusic(true);
+        S_PauseSounds(true);
+    }
+    else
+    {
+        if (ud.config.MusicToggle)
+            S_PauseMusic(false);
+        S_PauseSounds(false);
+        pub = NUMPAGES;
+        pus = NUMPAGES;
+    }
+    return OSDCMD_OK;
+}
+#endif
+
 static int osdcmd_quicksave(osdcmdptr_t UNUSED(parm))
 {
     UNREFERENCED_CONST_PARAMETER(parm);
@@ -1833,6 +1867,9 @@ int32_t registerosdcommands(void)
     OSD_RegisterFunction("purgesaves", "purgesaves: deletes obsolete and unreadable save files", osdcmd_purgesaves);
 
     OSD_RegisterFunction("quicksave","quicksave: performs a quick save", osdcmd_quicksave);
+#ifdef __ANDROID__
+    OSD_RegisterFunction("pausegame","pausegame <0|1>: pauses the game without the pause banner", osdcmd_pausegame);
+#endif
     OSD_RegisterFunction("quickload","quickload: performs a quick load", osdcmd_quickload);
     OSD_RegisterFunction("quit","quit: exits the game immediately", osdcmd_quit);
     OSD_RegisterFunction("exit","exit: exits the game immediately", osdcmd_quit);

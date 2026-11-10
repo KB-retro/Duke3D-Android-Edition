@@ -4,6 +4,7 @@
 // exporta SDL_main (lo que busca SDL en Android), se entra en la carpeta del juego que
 // indica la app (variable DUKE3D_DIR) y se llama al main() de siempre.
 #include <dlfcn.h>
+#include <jni.h>
 #include <pthread.h>
 #include <signal.h>
 #include <stdint.h>
@@ -105,6 +106,50 @@ static void install_crash_handler(void)
     int sigs[] = { SIGSEGV, SIGBUS, SIGILL, SIGFPE, SIGABRT };
     for (unsigned i = 0; i < sizeof(sigs) / sizeof(sigs[0]); i++)
         sigaction(sigs[i], &sa, NULL);
+}
+
+// ---- Órdenes del menú rápido ----
+// GameActivity.nativeCommand() las encola desde Java y el juego las ejecuta en su hilo
+// (handleevents en sdlayer.cpp) con OSD_Dispatch, como si se escribieran en la consola.
+
+#define CMD_MAX 32
+#define CMD_LEN 256
+static char cmd_queue[CMD_MAX][CMD_LEN];
+static int cmd_head, cmd_count;
+static pthread_mutex_t cmd_lock = PTHREAD_MUTEX_INITIALIZER;
+
+JNIEXPORT void JNICALL Java_com_kbretro_duke3d_GameActivity_nativeCommand(JNIEnv *env, jclass cls, jstring cmd)
+{
+    (void)cls;
+    const char *c = (*env)->GetStringUTFChars(env, cmd, NULL);
+    if (!c) return;
+    pthread_mutex_lock(&cmd_lock);
+    if (cmd_count < CMD_MAX)
+    {
+        int slot = (cmd_head + cmd_count) % CMD_MAX;
+        strncpy(cmd_queue[slot], c, CMD_LEN - 1);
+        cmd_queue[slot][CMD_LEN - 1] = '\0';
+        cmd_count++;
+    }
+    pthread_mutex_unlock(&cmd_lock);
+    (*env)->ReleaseStringUTFChars(env, cmd, c);
+}
+
+__attribute__((visibility("default")))
+int duke3d_android_next_command(char *buf, int len)
+{
+    int got = 0;
+    pthread_mutex_lock(&cmd_lock);
+    if (cmd_count > 0)
+    {
+        strncpy(buf, cmd_queue[cmd_head], len - 1);
+        buf[len - 1] = '\0';
+        cmd_head = (cmd_head + 1) % CMD_MAX;
+        cmd_count--;
+        got = 1;
+    }
+    pthread_mutex_unlock(&cmd_lock);
+    return got;
 }
 
 struct game_args { int argc; char **argv; int rc; };
