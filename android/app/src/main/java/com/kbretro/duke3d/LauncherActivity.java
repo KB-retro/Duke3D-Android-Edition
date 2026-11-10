@@ -228,6 +228,7 @@ public class LauncherActivity extends Activity {
             else root.add(g.menuLabel(), assets.icons.get(g.title), () -> launch(gameDir, g));
         }
         root.add(I18n.t("options"), null, () -> menuView.push(optionsPage(gameDir)));
+        root.add(I18n.t("extras"), null, () -> menuView.push(extrasPage(gameDir)));
         root.add(I18n.t("quit"), null, this::finishAffinity);
         return root;
     }
@@ -249,10 +250,57 @@ public class LauncherActivity extends Activity {
         return b;
     }
 
+    private DukeMenuView.Page extrasPage(File gameDir) {
+        DukeMenuView.Page p = new DukeMenuView.Page();
+        p.add(I18n.t("music"), null, () -> menuView.push(musicPage(gameDir)));
+        p.add(I18n.t("back"), null, () -> menuView.pop());
+        return p;
+    }
+
+    private List<MusicTracks.Track> tracks;
+    private String nowPlaying;
+
+    /** Reproductor: todas las pistas del juego y de las expansiones, con el nombre de su nivel. */
+    private DukeMenuView.Page musicPage(File gameDir) {
+        if (tracks == null) {
+            List<GrpArchive> grps = new ArrayList<>();
+            List<GameData.Game> games = new ArrayList<>();
+            for (GameData.Game g : assets.games) {
+                for (GrpArchive a : assets.open) {
+                    if (a.file.equals(g.grp)) {
+                        grps.add(a);
+                        games.add(g);
+                        break;
+                    }
+                }
+            }
+            tracks = MusicTracks.load(this, games, grps);
+        }
+        DukeMenuView.Page p = new DukeMenuView.Page();
+        for (MusicTracks.Track t : tracks) {
+            p.add(t.label, null, () -> {
+                music.playFile(this, gameDir, t.grp, t.file, true);
+                nowPlaying = t.label;
+            });
+            p.entries.get(p.entries.size() - 1).active = () -> t.file.equals(music.current());
+        }
+        if (tracks.isEmpty()) p.add(I18n.t("no_tracks"), null, null);
+        p.add(I18n.t("back"), null, () -> menuView.pop());
+        p.footer = () -> nowPlaying != null && music.current() != null ? I18n.t("playing") + nowPlaying : "";
+        // Al salir del reproductor vuelve el tema del menú.
+        p.onLeave = () -> {
+            nowPlaying = null;
+            music.stop();
+            startMusic(gameDir);
+        };
+        return p;
+    }
+
     private DukeMenuView.Page optionsPage(File gameDir) {
         DukeMenuView.Page p = new DukeMenuView.Page();
         p.addValue(I18n.t("language"), () -> I18n.t("language_value"), () -> {
             I18n.set(this, I18n.EN.equals(I18n.lang()) ? I18n.ES : I18n.EN);
+            tracks = null; // los nombres de las pistas, en el idioma nuevo
             // Los textos del menú se rehacen en el idioma nuevo.
             menuView.setRoot(rootPage(gameDir), this::finish);
             menuView.push(optionsPage(gameDir));

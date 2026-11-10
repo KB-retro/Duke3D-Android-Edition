@@ -147,6 +147,27 @@ final class Translator {
         }
     }
 
+    /** Un nombre del juego (p. ej. de un nivel) en el idioma del lanzador. */
+    static String lookup(Context c, String text) {
+        if (!I18n.ES.equals(I18n.lang())) return text;
+        try {
+            Map<String, String> dict = dictionary(c);
+            String es = dict.get(text);
+            if (es == null) {
+                String n = norm(text);
+                for (Map.Entry<String, String> e : dict.entrySet()) {
+                    if (norm(e.getKey()).equals(n)) {
+                        es = e.getValue();
+                        break;
+                    }
+                }
+            }
+            return es != null ? adaptCase(text, es) : text;
+        } catch (IOException e) {
+            return text;
+        }
+    }
+
     // ---- Textos de los .CON ----
 
     private static final Pattern QUOTE = Pattern.compile("^\\s*(?:re)?definequote\\s+\\d+\\s+(.*)$", Pattern.CASE_INSENSITIVE);

@@ -36,6 +36,8 @@ final class DukeMenuView extends View {
         final Supplier<String> value;
         /** Imagen grande (la caja del juego) que se ve a la derecha mientras está elegida. */
         Bitmap cover;
+        /** Si devuelve true, la opción se pinta de otro color (p. ej. la pista que suena). */
+        java.util.function.BooleanSupplier active;
 
         Entry(String label, Bitmap icon, Runnable action, Supplier<String> value) {
             this.label = label;
@@ -50,6 +52,8 @@ final class DukeMenuView extends View {
         final List<Entry> entries = new ArrayList<>();
         /** Texto pequeño opcional abajo (p. ej. la carpeta de los datos). */
         Supplier<String> footer;
+        /** Se llama al salir de la página con B/Atrás. */
+        Runnable onLeave;
         int selected;
 
         Page add(String label, Bitmap icon, Runnable action) {
@@ -130,7 +134,8 @@ final class DukeMenuView extends View {
 
     void pop() {
         if (stack.size() > 1) {
-            stack.remove(stack.size() - 1);
+            Page left = stack.remove(stack.size() - 1);
+            if (left.onLeave != null) left.onLeave.run();
             invalidate();
         } else if (onBackFromRoot != null) {
             onBackFromRoot.run();
@@ -198,16 +203,27 @@ final class DukeMenuView extends View {
             if (cur != null && cur.cover != null) drawCover(c, cur.cover, 214, 50, 98, 136);
         }
         float top = 60, bottom = 182;
-        float step = Math.min(19f, (bottom - top) / Math.max(1, n));
+        // Listas largas (las pistas de música): se ven 8 y se desplazan con la elegida.
+        int visible = Math.min(n, MAX_VISIBLE);
+        int first = 0;
+        if (n > MAX_VISIBLE) first = Math.max(0, Math.min(p.selected - MAX_VISIBLE / 2, n - MAX_VISIBLE));
+        float step = Math.min(19f, (bottom - top) / Math.max(1, visible));
         float textScale = step >= 17 ? 1f : step / 17f;
         long now = SystemClock.uptimeMillis();
         int frame = (int) ((now / 66) % 7);
 
         hit.clear();
-        for (int i = 0; i < n; i++) {
+        hitIndex.clear();
+        stepPx = step * sy;
+        if (n > MAX_VISIBLE) {
+            arrow.setColor(Color.rgb(255, 200, 40));
+            if (first > 0) drawArrow(c, centerX, top - 3, true);
+            if (first + visible < n) drawArrow(c, centerX, bottom + 2, false);
+        }
+        for (int i = first; i < first + visible; i++) {
             Entry e = p.entries.get(i);
             boolean sel = i == p.selected;
-            float cy = top + step * i + step / 2f;
+            float cy = top + step * (i - first) + step / 2f;
             String text = e.value != null ? e.label + ": " + e.value.get() : e.label;
 
             float scale = textScale * (e.value != null ? 0.8f : 1f);
@@ -234,7 +250,9 @@ final class DukeMenuView extends View {
 
             // Las opciones no elegidas, algo más oscuras; la elegida, con un brillo que late.
             int lvl = sel ? 205 + (int) (50 * Math.abs(Math.sin(now / 300.0))) : 150;
-            LightingColorFilter lf = new LightingColorFilter(Color.rgb(lvl, lvl, lvl), 0);
+            boolean on = e.active != null && e.active.getAsBoolean();
+            LightingColorFilter lf = new LightingColorFilter(Color.rgb(lvl, lvl, lvl),
+                    on ? Color.rgb(90, 80, 0) : 0);
             shade.setColorFilter(lf);
             iconPaint.setColorFilter(lf);
 
@@ -260,12 +278,11 @@ final class DukeMenuView extends View {
                 drawTileCentered(c, tileR, left + total + 4 + nw / 2f, cy, ns);
             }
             hit.add(new RectF(0, vy(cy - step / 2f), covers ? vx(206) : w, vy(cy + step / 2f)));
+            hitIndex.add(i);
         }
 
-        // Pie: ayuda de botones y, si la hay, una línea de información.
-        if (p.footer != null) drawSmall(c, p.footer.get(), 160, 186, 0.55f, true);
-        Entry cur = n > 0 ? p.entries.get(p.selected) : null;
-        drawSmall(c, I18n.t(cur != null && cur.value != null ? "hint_value" : "hint"), 160, 193, 0.7f, true);
+        // Pie: una línea de información si la hay (carpeta, pista que suena...).
+        if (p.footer != null) drawSmall(c, p.footer.get(), 160, 191, 0.6f, true);
 
         postInvalidateDelayed(50);
     }
@@ -283,6 +300,30 @@ final class DukeMenuView extends View {
         c.drawRect(l - 3, t - 3, l + dw + 3, t + dh + 3, frame);
         dst.set(l, t, l + dw, t + dh);
         c.drawBitmap(b, null, dst, smooth);
+    }
+
+    private static final int MAX_VISIBLE = 8;
+    private final List<Integer> hitIndex = new ArrayList<>();
+    private final Paint arrow = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private float stepPx = 1;
+    private float dragY;
+    private boolean dragged;
+
+    /** Flecha de "hay más" arriba o abajo de la lista. */
+    private void drawArrow(Canvas c, float x, float y, boolean up) {
+        android.graphics.Path path = new android.graphics.Path();
+        float hw = 5, h = 3;
+        if (up) {
+            path.moveTo(vx(x - hw), vy(y));
+            path.lineTo(vx(x + hw), vy(y));
+            path.lineTo(vx(x), vy(y - h));
+        } else {
+            path.moveTo(vx(x - hw), vy(y));
+            path.lineTo(vx(x + hw), vy(y));
+            path.lineTo(vx(x), vy(y + h));
+        }
+        path.close();
+        c.drawPath(path, arrow);
     }
 
     private float vx(float x) {
@@ -417,7 +458,8 @@ final class DukeMenuView extends View {
         Page p = page();
         int n = p.entries.size();
         if (n == 0) return;
-        p.selected = (p.selected + d + n) % n;
+        if (Math.abs(d) > 1) p.selected = Math.max(0, Math.min(n - 1, p.selected + d));
+        else p.selected = (p.selected + d + n) % n;
         invalidate();
     }
 
@@ -437,6 +479,14 @@ final class DukeMenuView extends View {
                 return true;
             case KeyEvent.KEYCODE_DPAD_DOWN:
                 move(1);
+                return true;
+            case KeyEvent.KEYCODE_BUTTON_L1:
+            case KeyEvent.KEYCODE_PAGE_UP:
+                move(-MAX_VISIBLE);
+                return true;
+            case KeyEvent.KEYCODE_BUTTON_R1:
+            case KeyEvent.KEYCODE_PAGE_DOWN:
+                move(MAX_VISIBLE);
                 return true;
             case KeyEvent.KEYCODE_DPAD_LEFT:
             case KeyEvent.KEYCODE_DPAD_RIGHT: {
@@ -466,20 +516,34 @@ final class DukeMenuView extends View {
         int idx = -1;
         for (int i = 0; i < hit.size(); i++) {
             if (hit.get(i).contains(ev.getX(), ev.getY())) {
-                idx = i;
+                idx = hitIndex.get(i);
                 break;
             }
         }
         switch (ev.getActionMasked()) {
             case MotionEvent.ACTION_DOWN:
                 touched = idx;
+                dragY = ev.getY();
+                dragged = false;
                 if (idx >= 0) {
                     page().selected = idx;
                     invalidate();
                 }
                 return true;
+            case MotionEvent.ACTION_MOVE: {
+                // Arrastrar el dedo desplaza la lista una opción por cada alto de línea.
+                float dy = ev.getY() - dragY;
+                if (Math.abs(dy) >= stepPx && page().entries.size() > MAX_VISIBLE) {
+                    Page p = page();
+                    p.selected = Math.max(0, Math.min(p.entries.size() - 1, p.selected + (dy < 0 ? 1 : -1)));
+                    invalidate();
+                    dragY = ev.getY();
+                    dragged = true;
+                }
+                return true;
+            }
             case MotionEvent.ACTION_UP:
-                if (idx >= 0 && idx == touched) activate();
+                if (!dragged && idx >= 0 && idx == touched) activate();
                 touched = -1;
                 return true;
             default:

@@ -31,6 +31,10 @@ final class I18n {
         put("data", "Datos: ", "Data: ");
         put("caribbean", "Caribbean", "Caribbean");
         put("menu_music", "Música del menú", "Menu music");
+        put("extras", "Extras", "Extras");
+        put("music", "Música", "Music");
+        put("playing", "Sonando: ", "Now playing: ");
+        put("no_tracks", "No hay pistas", "No tracks");
         put("yes", "Sí", "On");
         put("no", "No", "Off");
     }

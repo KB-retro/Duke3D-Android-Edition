@@ -21,10 +21,26 @@ final class MenuMusic {
     private MediaPlayer player;
     private String playing;
 
-    /** Empieza (o sigue) con la música de esta carpeta. */
+    /** Empieza (o sigue) con el tema del menú. */
     void play(Context c, File gameDir, GrpArchive base) {
-        File src = find(gameDir);
-        if (src == null) src = extract(c, base);
+        playFile(c, gameDir, base, NAME + ".MID", true);
+    }
+
+    /** Lo que suena ahora (nombre del archivo en el GRP), o null. */
+    String current() {
+        return player != null ? currentName : null;
+    }
+
+    private String currentName;
+
+    /**
+     * Toca una pista: la versión suelta si la hay (OGG, MP3...), si no la del GRP.
+     * @param file nombre en el GRP, p. ej. STALKER.MID
+     */
+    void playFile(Context c, File gameDir, GrpArchive grp, String file, boolean loop) {
+        String base = file.replaceAll("\\..*$", "").toUpperCase(Locale.ROOT);
+        File src = find(gameDir, base);
+        if (src == null) src = extract(c, grp, file);
         if (src == null) return;
         if (player != null && src.getAbsolutePath().equals(playing)) {
             if (!player.isPlaying()) player.start();
@@ -37,11 +53,12 @@ final class MenuMusic {
                     .setUsage(AudioAttributes.USAGE_GAME)
                     .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build());
             p.setDataSource(src.getAbsolutePath());
-            p.setLooping(true);
+            p.setLooping(loop);
             p.prepare();
             p.start();
             player = p;
             playing = src.getAbsolutePath();
+            currentName = file.toUpperCase(Locale.ROOT);
         } catch (Exception e) {
             Log.w("Duke3D", "No se pudo tocar la música del menú: " + src, e);
             stop();
@@ -62,43 +79,46 @@ final class MenuMusic {
         }
         player = null;
         playing = null;
+        currentName = null;
     }
 
     /** GRABBAG.ogg (u otro formato) suelto en la carpeta del juego o en music/, sin mirar mayúsculas. */
-    private static File find(File gameDir) {
-        File hit = findIn(gameDir);
+    private static File find(File gameDir, String name) {
+        File hit = findIn(gameDir, name);
         if (hit != null) return hit;
         File music = GameData.findChild(gameDir, "music");
         if (music != null && music.isDirectory()) {
-            hit = findIn(music);
+            hit = findIn(music, name);
             if (hit != null) return hit;
             File[] subs = music.listFiles();
             if (subs != null) {
                 for (File d : subs) {
-                    if (d.isDirectory() && (hit = findIn(d)) != null) return hit;
+                    if (d.isDirectory() && (hit = findIn(d, name)) != null) return hit;
                 }
             }
         }
         return null;
     }
 
-    private static File findIn(File dir) {
+    private static File findIn(File dir, String name) {
         File[] files = dir.listFiles();
         if (files == null) return null;
         for (File f : files) {
             String n = f.getName().toUpperCase(Locale.ROOT);
-            if (!f.isFile() || !n.startsWith(NAME + ".")) continue;
+            if (!f.isFile() || !n.startsWith(name + ".")) continue;
             for (String ext : EXTS) if (n.endsWith(ext.toUpperCase(Locale.ROOT))) return f;
         }
         return null;
     }
 
-    /** El MIDI del GRP, copiado a la caché de la app (Android no lo puede leer de dentro del GRP). */
-    private static File extract(Context c, GrpArchive base) {
-        if (base == null || !base.has(NAME + ".MID")) return null;
-        File out = new File(c.getCacheDir(), "grabbag.mid");
+    /** La pista del GRP, copiada a la caché de la app (Android no la puede leer de dentro del GRP). */
+    private static File extract(Context c, GrpArchive grp, String file) {
+        if (grp == null || !grp.has(file)) return null;
+        String ext = file.contains(".") ? file.substring(file.lastIndexOf('.')).toLowerCase(Locale.ROOT) : ".mid";
+        File out = new File(c.getCacheDir(), "musica_" + file.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9.]", "_"));
+        if (!out.getName().endsWith(ext)) out = new File(out.getPath() + ext);
         try {
-            byte[] data = base.read(NAME + ".MID");
+            byte[] data = grp.read(file);
             if (!out.isFile() || out.length() != data.length) {
                 try (FileOutputStream o = new FileOutputStream(out)) {
                     o.write(data);
@@ -106,7 +126,7 @@ final class MenuMusic {
             }
             return out;
         } catch (Exception e) {
-            Log.w("Duke3D", "No se pudo sacar " + NAME + ".MID del GRP", e);
+            Log.w("Duke3D", "No se pudo sacar " + file + " del GRP", e);
             return null;
         }
     }
