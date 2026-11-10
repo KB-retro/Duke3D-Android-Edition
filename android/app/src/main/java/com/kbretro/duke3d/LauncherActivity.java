@@ -332,12 +332,35 @@ public class LauncherActivity extends Activity {
         }
     }
 
+    private boolean launching;
+
     private void launch(File gameDir, GameData.Game game) {
-        getPreferences(MODE_PRIVATE).edit().putBoolean("jugando", true).apply();
-        Intent intent = new Intent(this, GameActivity.class);
-        intent.putExtra(GameActivity.EXTRA_DIR, gameDir.getAbsolutePath());
-        intent.putExtra(GameActivity.EXTRA_ARGS, GameData.arguments(gameDir, game));
-        startActivity(intent);
+        if (launching) return;
+        launching = true;
+        boolean spanish = I18n.ES.equals(I18n.lang());
+        // La traducción se prepara aparte (lee los .CON y hace las letras con tilde).
+        new Thread(() -> {
+            String def = null;
+            if (spanish) {
+                try {
+                    List<GameData.Game> games = GameData.games(gameDir);
+                    def = Translator.prepare(this, gameDir, games.get(0), game);
+                } catch (Exception e) {
+                    android.util.Log.e("Duke3D", "No se pudo preparar la traducción", e);
+                }
+            }
+            String defFile = def;
+            runOnUiThread(() -> {
+                launching = false;
+                if (isFinishing() || isDestroyed()) return;
+                getPreferences(MODE_PRIVATE).edit().putBoolean("jugando", true).apply();
+                Intent intent = new Intent(this, GameActivity.class);
+                intent.putExtra(GameActivity.EXTRA_DIR, gameDir.getAbsolutePath());
+                intent.putExtra(GameActivity.EXTRA_ARGS, GameData.arguments(gameDir, game, defFile));
+                intent.putExtra(GameActivity.EXTRA_LANG, defFile != null ? "es" : "en");
+                startActivity(intent);
+            });
+        }, "Traduccion").start();
     }
 
     // ---- Registro ----

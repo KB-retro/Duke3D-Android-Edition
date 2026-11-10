@@ -32,6 +32,7 @@ final class DukeArt {
     static final int BIGSEMI = 3006;
     static final int BIGCOLIN = 3007;
     static final int BIGAPPOS = 3022;
+    static final int MINIFONT = 3072;
     static final int LOADSCREEN = 3281;
 
     private static final class TileRef {

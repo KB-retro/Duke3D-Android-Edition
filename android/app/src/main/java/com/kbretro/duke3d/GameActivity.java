@@ -15,16 +15,18 @@ import org.libsdl.app.SDLActivity;
 public class GameActivity extends SDLActivity {
     public static final String EXTRA_DIR = "dir";
     public static final String EXTRA_ARGS = "args";
+    public static final String EXTRA_LANG = "lang";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         // android_main.c entra en esta carpeta antes de arrancar el juego.
         String dir = getIntent().getStringExtra(EXTRA_DIR);
-        if (dir != null) {
-            try {
-                Os.setenv("DUKE3D_DIR", dir, true);
-            } catch (ErrnoException ignored) {
-            }
+        try {
+            if (dir != null) Os.setenv("DUKE3D_DIR", dir, true);
+            // Idioma del juego (el motor lo aplica tras cargar las traducciones).
+            String lang = getIntent().getStringExtra(EXTRA_LANG);
+            Os.setenv("DUKE3D_LANG", lang != null ? lang : "en", true);
+        } catch (ErrnoException ignored) {
         }
         super.onCreate(savedInstanceState);
     }

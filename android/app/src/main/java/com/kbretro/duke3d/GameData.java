@@ -98,11 +98,20 @@ final class GameData {
 
     /** Argumentos de EDuke32 para lanzar un juego desde gameDir. */
     static String[] arguments(File gameDir, Game game) {
+        return arguments(gameDir, game, null);
+    }
+
+    /** @param def módulo .def extra (la traducción), relativo a la carpeta del juego, o null. */
+    static String[] arguments(File gameDir, Game game, String def) {
         List<String> args = new ArrayList<>();
         args.add("-usecwd");          // configuración y partidas guardadas en la carpeta del juego
         for (File d : addonDirs(gameDir)) {
             args.add("-j");
             args.add(d.getAbsolutePath());
+        }
+        if (def != null) {
+            args.add("-mh");
+            args.add(def);
         }
         args.add("-gamegrp");
         args.add(game.grpName);

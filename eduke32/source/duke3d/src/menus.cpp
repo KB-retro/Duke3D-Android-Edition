@@ -3059,7 +3059,7 @@ static void Menu_PreDraw(MenuID_t cm, MenuEntry_t* entry, const vec2_t origin)
 
     case MENU_RESETPLAYER:
         videoFadeToBlack(1);
-        Bsprintf(tempbuf, "Load last game:\n\"%s\"", g_quickload->name);
+        Bsprintf(tempbuf, localeLookup("Load last game:\n\"%s\""), g_quickload->name);
         Menu_DrawVerifyPrompt(origin.x, origin.y, tempbuf, 2);
         break;
 
@@ -3195,7 +3195,7 @@ static void Menu_PreDraw(MenuID_t cm, MenuEntry_t* entry, const vec2_t origin)
 
         if (g_oldSaveCnt)
         {
-            Bsprintf(tempbuf, "Delete %d obsolete saves?\nThis action cannot be undone.", g_oldSaveCnt);
+            Bsprintf(tempbuf, localeLookup("Delete %d obsolete saves?\nThis action cannot be undone."), g_oldSaveCnt);
             Menu_DrawVerifyPrompt(origin.x, origin.y, tempbuf, 2);
         }
         else
@@ -3222,7 +3222,7 @@ static void Menu_PreDraw(MenuID_t cm, MenuEntry_t* entry, const vec2_t origin)
         menusave_t & msv = g_menusaves[M_LOAD.currentEntry];
         if (msv.isOldVer && msv.brief.isExt)
         {
-            Bsprintf(tempbuf, "Resume game from sequence point:\n\"%s\"", msv.brief.name);
+            Bsprintf(tempbuf, localeLookup("Resume game from sequence point:\n\"%s\""), msv.brief.name);
             Menu_DrawVerifyPrompt(origin.x, origin.y, tempbuf, 2);
         }
         else if (msv.isOldVer)
@@ -3244,7 +3244,7 @@ static void Menu_PreDraw(MenuID_t cm, MenuEntry_t* entry, const vec2_t origin)
         }
         else
         {
-            Bsprintf(tempbuf, "Load game:\n\"%s\"", msv.brief.name);
+            Bsprintf(tempbuf, localeLookup("Load game:\n\"%s\""), msv.brief.name);
             Menu_DrawVerifyPrompt(origin.x, origin.y, tempbuf, 2);
         }
         break;
@@ -3260,7 +3260,7 @@ static void Menu_PreDraw(MenuID_t cm, MenuEntry_t* entry, const vec2_t origin)
     {
         videoFadeToBlack(1);
         menusave_t & msv = cm == MENU_LOADDELVERIFY ? g_menusaves[M_LOAD.currentEntry] : g_menusaves[M_SAVE.currentEntry-1];
-        Bsprintf(tempbuf, "Delete saved game:\n\"%s\"?", msv.brief.name);
+        Bsprintf(tempbuf, localeLookup("Delete saved game:\n\"%s\"?"), msv.brief.name);
         Menu_DrawVerifyPrompt(origin.x, origin.y, tempbuf, 2);
         break;
     }
@@ -3290,7 +3290,7 @@ static void Menu_PreDraw(MenuID_t cm, MenuEntry_t* entry, const vec2_t origin)
         videoFadeToBlack(1);
         if (s_overrideGamefuncMessage[0])
         {
-            Bsnprintf(tempbuf, ARRAY_SIZE(tempbuf), "Key already assigned to:\n\n%s\nClear existing binds?", s_overrideGamefuncMessage);
+            Bsnprintf(tempbuf, ARRAY_SIZE(tempbuf), localeLookup("Key already assigned to:\n\n%s\nClear existing binds?"), s_overrideGamefuncMessage);
             Menu_DrawVerifyPrompt(origin.x, origin.y - (4<<16) - (numConflictingGamefuncs * (3<<16)), tempbuf, numConflictingGamefuncs + 4);
         }
         break;
@@ -3656,7 +3656,7 @@ static void Menu_PreOptionListDraw(MenuEntry_t *entry, const vec2_t origin)
     case MENU_JOYSTICKAXIS:
         mgametextcenter(origin.x, origin.y + (31<<16), "Select a function to assign");
 
-        Bsprintf(tempbuf, "to %s", g_currentMenu == MENU_JOYSTICKAXIS ? M_JOYSTICKAXIS.title : entry->name);
+        Bsprintf(tempbuf, localeLookup("to %s"), g_currentMenu == MENU_JOYSTICKAXIS ? M_JOYSTICKAXIS.title : entry->name);
 
         mgametextcenter(origin.x, origin.y + ((31+9)<<16), tempbuf);
 

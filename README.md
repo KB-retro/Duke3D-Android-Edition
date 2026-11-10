@@ -31,6 +31,14 @@ guarda entero en `registro.txt`, dentro de la carpeta del juego.
 
 La configuración y las partidas guardadas se quedan en la misma carpeta del juego.
 
+## Castellano
+
+En **Opciones → Idioma** del lanzador se elige castellano o inglés para el lanzador y el juego.
+La traducción (`android/app/src/main/assets/traduccion_es.txt`) se aplica por encima de tus
+archivos al arrancar: el lanzador genera `duke3d_android/es.def` en la carpeta del juego con los
+textos y las letras con tilde, hechas a partir de las del juego. Lo que quede sin traducir se
+apunta en `duke3d_android/sin_traducir.txt` y `duke3d_android/textos_sin_traducir_con.txt`.
+
 ## Controles
 
 - **Mando:** los controles por defecto de EDuke32 para mando (se cambian en el menú del juego).

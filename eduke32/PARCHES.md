@@ -23,5 +23,12 @@ Duke Nukem 3D, con estos cambios para compilarlo en Android como un Linux con SD
    la ventana de Android no siempre mide lo que pide el juego y la copia se salía de la memoria.
 8. **Limitador de fotogramas** (`engineFPSLimit` en `baselayer.cpp`): en Android duerme hasta el
    siguiente fotograma en lugar de dejar el bucle principal dando vueltas (núcleo al 100 %).
+9. **Traducción** (para el castellano del lanzador):
+   - `game.cpp`: tras cargar los `.def`, se aplica el idioma de la variable `DUKE3D_LANG`.
+   - `screentext.cpp`: los textos que se pintan sin traducción se apuntan una vez en
+     `duke3d_android/sin_traducir.txt`.
+   - `defs.cpp`: en `localization`, `\n` dentro de un texto es un salto de línea.
+   - `menus.cpp`: las preguntas que se montan con `printf` (cargar, borrar, etc.) traducen su
+     plantilla con `localeLookup`.
 
 Licencias: GPL v2 (`gpl-2.0.txt`) y licencia del motor BUILD de Ken Silverman (`buildlic.txt`).

@@ -3764,6 +3764,24 @@ static int32_t defsparser(scriptfile *script)
                             break;
                         }
 
+                        // Duke3D Android Edition: "\\n" en el texto es un salto de línea (el
+                        // lector de .def no deja poner saltos dentro de las comillas).
+                        for (char * str : { key, val })
+                        {
+                            char * w = str;
+                            for (char * r = str; *r; ++r)
+                            {
+                                if (r[0] == '\\' && r[1] == 'n')
+                                {
+                                    *w++ = '\n';
+                                    ++r;
+                                }
+                                else
+                                    *w++ = *r;
+                            }
+                            *w = '\0';
+                        }
+
                         localeDefineMapping(localePtr, key, val);
                         break;
                     }

@@ -618,6 +618,68 @@ const char ** localeGetKeys(int32_t& localeCount)
     return localeKeyList;
 }
 
+#ifdef __ANDROID__
+#include <string>
+#include <unordered_set>
+
+// Duke3D Android Edition: apunta en duke3d_android/sin_traducir.txt (en la carpeta del juego)
+// cada texto que se pinta sin traducción, una sola vez, para ir completando el diccionario.
+static void localeLogMissing(char const * str)
+{
+    static std::unordered_set<std::string> seen;
+    static std::unordered_set<std::string> values;
+    static locale_map_t * valuesOf;
+    static int count;
+
+    if (count > 3000 || currentLocale == nullptr)
+        return;
+
+    char const * cur = localeGetCurrent();
+    if (cur == nullptr || !Bstrcmp(cur, "en"))
+        return;
+
+    // Hace falta texto de verdad: al menos dos letras seguidas.
+    bool letters = false;
+    for (char const * p = str; p[0] && p[1]; ++p)
+        if (isalpha((unsigned char)p[0]) && isalpha((unsigned char)p[1]))
+        {
+            letters = true;
+            break;
+        }
+    if (!letters)
+        return;
+
+    // Lo que ya es una traducción (p. ej. "Cargar partida:\n...") no se apunta.
+    if (valuesOf != currentLocale)
+    {
+        values.clear();
+        for (auto & kv : *currentLocale)
+            values.insert(kv.second.str);
+        valuesOf = currentLocale;
+    }
+    if (values.count(str))
+        return;
+
+    if (!seen.insert(str).second)
+        return;
+    ++count;
+
+    if (FILE * f = fopen("duke3d_android/sin_traducir.txt", "a"))
+    {
+        // Una línea por texto; los saltos de línea se escriben como \n.
+        for (char const * p = str; *p; ++p)
+        {
+            if (*p == '\n')
+                fputs("\\n", f);
+            else
+                fputc(*p, f);
+        }
+        fputc('\n', f);
+        fclose(f);
+    }
+}
+#endif
+
 const char * localeLookup(char const * str)
 {
     if (currentLocale == nullptr)
@@ -627,7 +689,12 @@ const char * localeLookup(char const * str)
     auto iter = currentLocale->find(wrappedStr);
 
     if (iter == currentLocale->end())
+    {
+#ifdef __ANDROID__
+        localeLogMissing(str);
+#endif
         return str;
+    }
 
     return iter->second.str;
 }

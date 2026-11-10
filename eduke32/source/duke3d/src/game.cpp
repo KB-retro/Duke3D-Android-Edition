@@ -6835,6 +6835,14 @@ int app_main(int argc, char const* const* argv)
         Xfree(m);
     g_defModules.clear();
 
+#ifdef __ANDROID__
+    // Duke3D Android Edition: el idioma lo elige el lanzador (variable DUKE3D_LANG). Se aplica
+    // aquí, con las traducciones de los .def ya cargadas, y gana al guardado en la configuración.
+    if (char const * lang = getenv("DUKE3D_LANG"))
+        if (*lang)
+            localeSetCurrent(lang);
+#endif
+
     cacheAllSounds();
 
     if (enginePostInit())
