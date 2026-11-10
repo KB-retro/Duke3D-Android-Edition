@@ -1,0 +1,2 @@
+https://voidpoint.io/terminx/eduke32.git
+ec5824db81817866f70da326d3811bb0f52b3517 Fri Aug 7 21:34:40 2026 -0500
