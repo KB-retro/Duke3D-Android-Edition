@@ -45,7 +45,9 @@ Opcional, para que cada APK se instale encima del anterior, añade estos secreto
 repositorio (si no, se firma con una clave de depuración distinta en cada compilación):
 
 - `SIGNING_KEYSTORE_BASE64`: el `.p12` en base64.
-- `SIGNING_STORE_PASSWORD`, `SIGNING_KEY_ALIAS` (por defecto `duke3d`) y `SIGNING_KEY_PASSWORD`.
+- `SIGNING_STORE_PASSWORD`: su contraseña.
+- Opcionales: `SIGNING_KEY_ALIAS` (si no, se usa el primer alias de la clave) y
+  `SIGNING_KEY_PASSWORD` (si no, la misma que la del almacén).
 
 ## Estructura
 

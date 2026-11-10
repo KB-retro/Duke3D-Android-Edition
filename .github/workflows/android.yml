@@ -67,12 +67,23 @@ jobs:
       - name: Clave de firma
         env:
           SIGNING_KEYSTORE_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
+          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
         run: |
           if [ -n "$SIGNING_KEYSTORE_BASE64" ]; then
             echo "$SIGNING_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/duke3d.p12"
             echo "SIGNING_KEYSTORE_FILE=$RUNNER_TEMP/duke3d.p12" >> "$GITHUB_ENV"
+            # Sin SIGNING_KEY_ALIAS se usa el primer alias que haya en la clave.
+            if [ -z "$SIGNING_KEY_ALIAS" ]; then
+              alias=$(keytool -list -keystore "$RUNNER_TEMP/duke3d.p12" -storetype PKCS12 \
+                -storepass "$SIGNING_STORE_PASSWORD" | grep -i PrivateKeyEntry | head -1 | cut -d, -f1)
+              echo "Alias de la clave: $alias"
+              echo "SIGNING_KEY_ALIAS=$alias" >> "$GITHUB_ENV"
+            else
+              echo "SIGNING_KEY_ALIAS=$SIGNING_KEY_ALIAS" >> "$GITHUB_ENV"
+            fi
           else
-            echo "Sin clave de firma en los secretos: se firma con la clave de depuración."
+            echo "::warning::Sin SIGNING_KEYSTORE_BASE64: se firma con una clave de depuración temporal y no se podrá actualizar sin desinstalar."
           fi
 
       - name: Compilar
@@ -81,7 +92,6 @@ jobs:
         env:
           VERSION_CODE: ${{ github.run_number }}
           SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
-          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
           SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
         run: |
           chmod +x gradlew
