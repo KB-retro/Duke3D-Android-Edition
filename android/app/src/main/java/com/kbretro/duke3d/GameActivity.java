@@ -48,7 +48,7 @@ public class GameActivity extends SDLActivity {
         }
     }
 
-    private static final int[] FPS_VALUES = {60, 90, 120, 0};
+    private static final int[] FPS_VALUES = {60, 120, 0};
     private static final int[] SCALE_VALUES = {100, 75, 50};
 
     private final Handler ui = new Handler(Looper.getMainLooper());
@@ -214,17 +214,6 @@ public class GameActivity extends SDLActivity {
         });
         p.add(I18n.t("cheats"), null, () -> quickMenu.push(cheatsPage()));
         p.add(I18n.t("graphics"), null, () -> quickMenu.push(graphicsPage()));
-        p.addValue("FPS", () -> fpsLabel(fps()), () -> {
-            int i = indexOf(FPS_VALUES, fps());
-            int next = FPS_VALUES[(i + 1) % FPS_VALUES.length];
-            prefs().edit().putInt("fps", next).apply();
-            applyRefreshRate(next);
-            command("r_maxfps " + next);
-        });
-        p.add(I18n.t("game_menu"), null, () -> {
-            closeMenu();
-            sendKey(KeyEvent.KEYCODE_ESCAPE);
-        });
         p.add(I18n.t("to_launcher"), null, this::finish);
         p.add(I18n.t("quit_game"), null, () -> {
             Intent i = new Intent(this, LauncherActivity.class);
@@ -267,6 +256,13 @@ public class GameActivity extends SDLActivity {
             int next = SCALE_VALUES[(i + 1) % SCALE_VALUES.length];
             prefs().edit().putInt("escala", next).apply();
             applyScale(next);
+        });
+        p.addValue("FPS", () -> fpsLabel(fps()), () -> {
+            int i = indexOf(FPS_VALUES, fps());
+            int next = FPS_VALUES[(i + 1) % FPS_VALUES.length];
+            prefs().edit().putInt("fps", next).apply();
+            applyRefreshRate(next);
+            command("r_maxfps " + next);
         });
         p.add(I18n.t("enhanced_soon"), null, null);
         p.add(I18n.t("back"), null, () -> quickMenu.pop());

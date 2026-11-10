@@ -323,7 +323,7 @@ public class LauncherActivity extends Activity {
             return f <= 0 ? I18n.t("unlimited") : f + " FPS";
         }, () -> {
             SharedPreferences sp = getSharedPreferences("ajustes", MODE_MULTI_PROCESS);
-            int[] values = {60, 90, 120, 0};
+            int[] values = {60, 120, 0};
             int cur = sp.getInt("fps", 60), i = 0;
             for (int k = 0; k < values.length; k++) if (values[k] == cur) i = k;
             sp.edit().putInt("fps", values[(i + 1) % values.length]).apply();

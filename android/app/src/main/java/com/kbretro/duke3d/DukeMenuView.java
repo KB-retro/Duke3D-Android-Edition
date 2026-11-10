@@ -201,8 +201,10 @@ final class DukeMenuView extends View {
         sx = aw / 320f;
         sy = ah / 200f;
 
-        // Logo.
-        if (art.has(DukeArt.INGAMEDUKETHREEDEE)) {
+        // Logo: solo en el menú rápido (en el lanzador ya está en el fondo y las cajas).
+        if (!overlay) {
+            // nada
+        } else if (art.has(DukeArt.INGAMEDUKETHREEDEE)) {
             drawTile(c, DukeArt.INGAMEDUKETHREEDEE, 160, 30, 1f, null);
         } else if (art.has(DukeArt.DUKENUKEM)) {
             drawTile(c, DukeArt.DUKENUKEM, 160, 28, 0.6f, null);
@@ -212,18 +214,35 @@ final class DukeMenuView extends View {
         int n = p.entries.size();
         // Con cajas, la lista va a la izquierda y la caja del juego elegido a la derecha.
         boolean covers = p.hasCovers();
-        float centerX = covers ? 108 : 160;
-        float maxW = covers ? 196 : 270;
+        // Con cajas, la pantalla entera (también en 16:9) se reparte en dos mitades: la lista
+        // centrada en la izquierda y la caja centrada en la derecha.
+        float leftEdge = -ax / sx, span = w / sx;
+        float centerX = 160, maxW = 270;
         if (covers) {
+            // La caja, centrada en la parte derecha; la lista, centrada en el hueco de la izquierda.
+            float boxW = Math.min(span * 0.36f, 150), boxH = 150;
+            float boxLeft = leftEdge + span * 0.73f - boxW / 2f;
+            float listLeft = leftEdge + 8, listRight = boxLeft - 10;
+            centerX = (listLeft + listRight) / 2f;
+            maxW = Math.min(listRight - listLeft, 240);
             // Solo con un juego elegido (en Opciones o Salir no se ve ninguna caja).
             Entry cur = n > 0 ? p.entries.get(p.selected) : null;
-            if (cur != null && cur.cover != null) drawCover(c, cur.cover, 214, 50, 98, 136);
+            if (cur != null && cur.cover != null) drawCover(c, cur.cover, boxLeft, 100 - boxH / 2f, boxW, boxH);
         }
-        float top = 60, bottom = 182;
-        // Listas largas (las pistas de música): se ven 8 y se desplazan con la elegida.
+        // Listas largas (las pistas de música): se ven unas cuantas y se desplazan con la elegida.
         int visible = Math.min(n, MAX_VISIBLE);
         int first = 0;
         if (n > MAX_VISIBLE) first = Math.max(0, Math.min(p.selected - MAX_VISIBLE / 2, n - MAX_VISIBLE));
+        // En el lanzador la lista va centrada en vertical; en el menú rápido, bajo el logo.
+        float top, bottom;
+        if (overlay) {
+            top = 60;
+            bottom = 182;
+        } else {
+            float block = Math.min(19f, 156f / Math.max(1, visible)) * visible;
+            top = 100 - block / 2f;
+            bottom = top + block;
+        }
         float step = Math.min(19f, (bottom - top) / Math.max(1, visible));
         float textScale = step >= 17 ? 1f : step / 17f;
         long now = SystemClock.uptimeMillis();
@@ -294,7 +313,7 @@ final class DukeMenuView extends View {
                 drawTileCentered(c, tile, left - 4 - nw / 2f, cy, ns);
                 drawTileCentered(c, tileR, left + total + 4 + nw / 2f, cy, ns);
             }
-            hit.add(new RectF(0, vy(cy - step / 2f), covers ? vx(206) : w, vy(cy + step / 2f)));
+            hit.add(new RectF(0, vy(cy - step / 2f), covers ? vx(centerX + maxW / 2f + 12) : w, vy(cy + step / 2f)));
             hitIndex.add(i);
         }
 
