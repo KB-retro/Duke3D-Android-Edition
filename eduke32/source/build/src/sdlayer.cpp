@@ -479,7 +479,7 @@ int main(int argc, char *argv[])
 
     engineSetupAllocator();
 
-#ifndef EDUKE32_ANDROID_LEGACY
+#if !defined EDUKE32_ANDROID_LEGACY && !defined __ANDROID__  // en Android lo hace android_main.c
     signal(SIGSEGV, sighandler);
     signal(SIGILL, sighandler);  /* clang -fcatch-undefined-behavior uses an ill. insn */
     signal(SIGABRT, sighandler);

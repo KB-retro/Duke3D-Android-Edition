@@ -68,6 +68,7 @@ public class LauncherActivity extends Activity {
         addTitle("DUKE NUKEM 3D");
         addText("Android Edition", 16, COLOR_ACCENT);
         addSpace(16);
+        showCrash();
 
         if (!hasStoragePermission()) {
             addText("La app necesita permiso para leer los archivos del juego en la memoria.", 16, Color.WHITE);
@@ -183,6 +184,25 @@ public class LauncherActivity extends Activity {
             important.add("No se pudo leer el registro: " + e);
         }
         return important;
+    }
+
+    /** Si el juego se ha roto, las líneas del fallo (función y cadena de llamadas). */
+    private void showCrash() {
+        if (lastLog == null) return;
+        StringBuilder sb = new StringBuilder();
+        for (String line : lastLog) {
+            if (line.contains("F/Duke3D")) {
+                int i = line.indexOf("): ");
+                sb.append(i >= 0 ? line.substring(i + 3) : line).append('\n');
+            }
+        }
+        if (sb.length() == 0) return;
+        addText("El juego se ha cerrado por un fallo:", 15, 0xFFFF5040);
+        TextView t = addText(sb.toString(), 11, Color.WHITE);
+        t.setTypeface(Typeface.MONOSPACE);
+        t.setGravity(Gravity.START);
+        t.setTextIsSelectable(true);
+        addSpace(12);
     }
 
     private void showLastLog() {

@@ -3,7 +3,12 @@
 // EDuke32 define SDL_MAIN_HANDLED, así que su main() no se renombra a SDL_main. Aquí se
 // exporta SDL_main (lo que busca SDL en Android), se entra en la carpeta del juego que
 // indica la app (variable DUKE3D_DIR) y se llama al main() de siempre.
+#include <dlfcn.h>
 #include <pthread.h>
+#include <signal.h>
+#include <stdint.h>
+#include <ucontext.h>
+#include <unwind.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -47,10 +52,66 @@ static void redirect_output(void)
     if (pthread_create(&t, NULL, log_thread, NULL) == 0) pthread_detach(t);
 }
 
+// ---- Fallos: escribe en el registro la función donde se ha roto y la cadena de llamadas ----
+
+static void log_addr(const char *what, uintptr_t pc)
+{
+    Dl_info info;
+    if (pc && dladdr((void *)pc, &info) && info.dli_fname)
+    {
+        const char *lib = strrchr(info.dli_fname, '/');
+        lib = lib ? lib + 1 : info.dli_fname;
+        __android_log_print(ANDROID_LOG_FATAL, "Duke3D", "%s %s+0x%lx %s+0x%lx", what, lib,
+                            (unsigned long)(pc - (uintptr_t)info.dli_fbase),
+                            info.dli_sname ? info.dli_sname : "?",
+                            info.dli_saddr ? (unsigned long)(pc - (uintptr_t)info.dli_saddr) : 0UL);
+    }
+    else
+        __android_log_print(ANDROID_LOG_FATAL, "Duke3D", "%s 0x%lx", what, (unsigned long)pc);
+}
+
+static _Unwind_Reason_Code unwind_step(struct _Unwind_Context *ctx, void *arg)
+{
+    int *n = (int *)arg;
+    char what[8];
+    snprintf(what, sizeof(what), "#%02d", *n);
+    log_addr(what, (uintptr_t)_Unwind_GetIP(ctx));
+    return ++*n >= 32 ? _URC_END_OF_STACK : _URC_NO_REASON;
+}
+
+static void crash_handler(int sig, siginfo_t *si, void *ucv)
+{
+    __android_log_print(ANDROID_LOG_FATAL, "Duke3D", "FALLO: señal %d en la dirección %p", sig, si ? si->si_addr : NULL);
+#if defined __aarch64__
+    ucontext_t *uc = (ucontext_t *)ucv;
+    log_addr("pc", (uintptr_t)uc->uc_mcontext.pc);
+    log_addr("lr", (uintptr_t)uc->uc_mcontext.regs[30]);
+#else
+    (void)ucv;
+#endif
+    int n = 0;
+    _Unwind_Backtrace(unwind_step, &n);
+    signal(sig, SIG_DFL);
+    raise(sig);
+}
+
+static void install_crash_handler(void)
+{
+    struct sigaction sa;
+    memset(&sa, 0, sizeof(sa));
+    sa.sa_sigaction = crash_handler;
+    sa.sa_flags = SA_SIGINFO | SA_RESETHAND;
+    sigemptyset(&sa.sa_mask);
+    int sigs[] = { SIGSEGV, SIGBUS, SIGILL, SIGFPE, SIGABRT };
+    for (unsigned i = 0; i < sizeof(sigs) / sizeof(sigs[0]); i++)
+        sigaction(sigs[i], &sa, NULL);
+}
+
 __attribute__((visibility("default")))
 int SDL_main(int argc, char *argv[])
 {
     redirect_output();
+    install_crash_handler();
 
     const char *dir = getenv("DUKE3D_DIR");
     __android_log_print(ANDROID_LOG_INFO, "Duke3D", "Carpeta del juego: %s", dir ? dir : "(ninguna)");

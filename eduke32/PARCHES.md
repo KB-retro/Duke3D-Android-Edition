@@ -15,4 +15,7 @@ Duke Nukem 3D, con estos cambios para compilarlo en Android como un Linux con SD
    Android: copia estructuras `FILE`, que en Android son opacas.
 5. **Volcado de pila al fallar** (`execinfo.h`) desactivado en Android (`sdlayer.cpp`).
 
+6. **Manejador de fallos** (`signal(SIGSEGV…)` en `sdlayer.cpp`) desactivado en Android: lo pone
+   `android/app/src/main/cpp/android_main.c`, que escribe en el registro dónde ha fallado.
+
 Licencias: GPL v2 (`gpl-2.0.txt`) y licencia del motor BUILD de Ken Silverman (`buildlic.txt`).
