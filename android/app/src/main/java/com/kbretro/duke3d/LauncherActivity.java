@@ -4,6 +4,7 @@ import android.Manifest;
 import android.app.Activity;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.net.Uri;
@@ -26,22 +27,47 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
-/** Menú inicial: pide permiso de archivos, busca los datos de Steam y lanza el juego elegido. */
+/**
+ * Menú inicial: pide permiso de archivos, busca los datos de Steam y lanza el juego elegido.
+ *
+ * Si encuentra los archivos del juego, enseña el menú con los gráficos del propio juego
+ * (DukeMenuView). Si no (falta el permiso o la carpeta, o el juego se cerró por un fallo), usa
+ * el menú sencillo de Android de siempre.
+ */
 public class LauncherActivity extends Activity {
     private static final int REQUEST_STORAGE = 1;
     private static final int COLOR_BG = 0xFF101010;
     private static final int COLOR_ACCENT = 0xFFFFC21A;
 
     private LinearLayout list;
+    private ScrollView classicRoot;
+
+    /** Gráficos del juego ya cargados para el menú (se cargan una vez por carpeta). */
+    private static final class MenuAssets {
+        String dir;
+        DukeArt art;
+        List<GameData.Game> games;
+        final Map<String, Bitmap> icons = new HashMap<>();
+        final List<GrpArchive> open = new ArrayList<>();
+    }
+
+    private MenuAssets assets;
+    private DukeMenuView menuView;
+    private boolean loading;
     /** Últimas líneas del registro de la última partida (para ver por qué se cerró). */
     private List<String> lastLog;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        I18n.load(this);
         ScrollView scroll = new ScrollView(this);
+        classicRoot = scroll;
         scroll.setBackgroundColor(COLOR_BG);
         scroll.setFillViewport(true);
         list = new LinearLayout(this);
@@ -65,6 +91,164 @@ public class LauncherActivity extends Activity {
     }
 
     private void refresh() {
+        // Con permiso, datos y sin fallo que enseñar: el menú con los gráficos del juego.
+        if (hasStoragePermission() && !hasCrash()) {
+            File gameDir = GameData.findGameDir(baseDir());
+            if (gameDir != null) {
+                showDukeMenu(gameDir);
+                return;
+            }
+        }
+        showClassic();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        closeAssets();
+    }
+
+    // ---- Menú con los gráficos del juego ----
+
+    private void showDukeMenu(File gameDir) {
+        if (assets != null && assets.dir.equals(gameDir.getAbsolutePath())) {
+            buildMenu(gameDir, false);
+            return;
+        }
+        if (loading) return;
+        loading = true;
+        TextView wait = new TextView(this);
+        wait.setText(I18n.t("loading"));
+        wait.setTextColor(Color.WHITE);
+        wait.setGravity(Gravity.CENTER);
+        wait.setBackgroundColor(Color.BLACK);
+        setContentView(wait);
+        new Thread(() -> {
+            MenuAssets a = null;
+            try {
+                a = loadAssets(gameDir);
+            } catch (Exception e) {
+                android.util.Log.e("Duke3D", "No se pudieron leer los gráficos del juego", e);
+            }
+            MenuAssets result = a;
+            runOnUiThread(() -> {
+                loading = false;
+                if (isFinishing() || isDestroyed()) return;
+                if (result == null) {
+                    showClassic();
+                    return;
+                }
+                closeAssets();
+                assets = result;
+                buildMenu(gameDir, true);
+            });
+        }, "CargaMenu").start();
+    }
+
+    /** Lee los gráficos del juego base y el icono de cada expansión (su pantalla de carga). */
+    private static MenuAssets loadAssets(File gameDir) throws Exception {
+        MenuAssets a = new MenuAssets();
+        a.dir = gameDir.getAbsolutePath();
+        a.games = GameData.games(gameDir);
+        if (a.games.isEmpty()) throw new Exception("Sin juegos");
+        GrpArchive base = new GrpArchive(a.games.get(0).grp);
+        a.open.add(base);
+        a.art = new DukeArt(Arrays.asList(base));
+        Bitmap baseIcon = icon(a.art, null);
+        a.icons.put(a.games.get(0).title, baseIcon);
+        for (int i = 1; i < a.games.size(); i++) {
+            GameData.Game g = a.games.get(i);
+            try {
+                GrpArchive addon = new GrpArchive(g.grp);
+                a.open.add(addon);
+                DukeArt art = new DukeArt(Arrays.asList(base, addon));
+                a.icons.put(g.title, icon(art, baseIcon));
+            } catch (Exception e) {
+                a.icons.put(g.title, baseIcon);
+            }
+        }
+        return a;
+    }
+
+    /** La pantalla de carga del juego; si una expansión no trae la suya, su pantalla de título. */
+    private static Bitmap icon(DukeArt art, Bitmap baseIcon) {
+        Bitmap b = art.tile(DukeArt.LOADSCREEN);
+        if (b == null || (baseIcon != null && b.sameAs(baseIcon))) {
+            Bitmap t = art.tile(DukeArt.BETASCREEN);
+            if (t != null) b = t;
+        }
+        return b;
+    }
+
+    private void closeAssets() {
+        if (assets == null) return;
+        for (GrpArchive g : assets.open) {
+            try {
+                g.close();
+            } catch (Exception ignored) {
+            }
+        }
+        assets = null;
+    }
+
+    private void buildMenu(File gameDir, boolean fresh) {
+        if (menuView == null || fresh) {
+            menuView = new DukeMenuView(this, assets.art);
+        }
+        menuView.setRoot(rootPage(gameDir), this::finish);
+        setContentView(menuView);
+        menuView.requestFocus();
+        hideSystemBars();
+    }
+
+    private DukeMenuView.Page rootPage(File gameDir) {
+        DukeMenuView.Page root = new DukeMenuView.Page();
+        for (GameData.Game g : assets.games) {
+            root.add(g.menuLabel(), assets.icons.get(g.title), () -> launch(gameDir, g));
+        }
+        root.add(I18n.t("options"), null, () -> menuView.push(optionsPage(gameDir)));
+        root.add(I18n.t("quit"), null, this::finishAffinity);
+        return root;
+    }
+
+    private DukeMenuView.Page optionsPage(File gameDir) {
+        DukeMenuView.Page p = new DukeMenuView.Page();
+        p.addValue(I18n.t("language"), () -> I18n.t("language_value"), () -> {
+            I18n.set(this, I18n.EN.equals(I18n.lang()) ? I18n.ES : I18n.EN);
+            // Los textos del menú se rehacen en el idioma nuevo.
+            menuView.setRoot(rootPage(gameDir), this::finish);
+            menuView.push(optionsPage(gameDir));
+        });
+        p.add(I18n.t("folder"), null, this::pickFolder);
+        p.add(I18n.t("back"), null, () -> menuView.pop());
+        p.footer = () -> I18n.t("data") + gameDir.getAbsolutePath();
+        return p;
+    }
+
+    @SuppressWarnings("deprecation")
+    private void hideSystemBars() {
+        getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                | View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
+    }
+
+    @SuppressWarnings("deprecation")
+    private void showSystemBars() {
+        getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_VISIBLE);
+    }
+
+    // ---- Menú sencillo (sin permiso, sin datos o tras un fallo) ----
+
+    private boolean hasCrash() {
+        if (lastLog == null) return false;
+        for (String line : lastLog) if (line.contains("F/Duke3D")) return true;
+        return false;
+    }
+
+    private void showClassic() {
+        if (classicRoot.getParent() == null) setContentView(classicRoot);
+        showSystemBars();
         list.removeAllViews();
         addBanner();
         addSpace(12);
@@ -202,6 +386,10 @@ public class LauncherActivity extends Activity {
         t.setTypeface(Typeface.MONOSPACE);
         t.setGravity(Gravity.START);
         t.setTextIsSelectable(true);
+        addButton("Continuar", v -> {
+            lastLog = null;
+            refresh();
+        }).requestFocus();
         addSpace(12);
     }
 

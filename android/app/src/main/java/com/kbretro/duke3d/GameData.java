@@ -20,10 +20,18 @@ final class GameData {
     static final class Game {
         final String title;
         final String grpName;   // nombre real del archivo (con sus mayúsculas)
+        final File grp;
 
-        Game(String title, String grpName) {
+        Game(String title, File grp) {
             this.title = title;
-            this.grpName = grpName;
+            this.grpName = grp.getName();
+            this.grp = grp;
+        }
+
+        /** Nombre corto para el menú (el de Caribbean no cabe entero con las letras del juego). */
+        String menuLabel() {
+            int colon = title.indexOf(':');
+            return colon > 0 && title.startsWith("Caribbean") ? title.substring(0, colon) : title;
         }
     }
 
@@ -67,7 +75,7 @@ final class GameData {
         List<Game> games = new ArrayList<>();
         File base = findChild(gameDir, "DUKE3D.GRP");
         if (base == null) return games;
-        games.add(new Game("Duke Nukem 3D", base.getName()));
+        games.add(new Game("Duke Nukem 3D", base));
 
         List<File> dirs = new ArrayList<>(addonDirs(gameDir));
         dirs.add(gameDir); // también si las expansiones están sueltas junto a DUKE3D.GRP
@@ -80,7 +88,7 @@ final class GameData {
             for (File d : dirs) {
                 File grp = findChild(d, addon[1]);
                 if (grp != null) {
-                    games.add(new Game(addon[0], grp.getName()));
+                    games.add(new Game(addon[0], grp));
                     break;
                 }
             }
