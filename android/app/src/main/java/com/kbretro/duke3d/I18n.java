@@ -57,6 +57,7 @@ final class I18n {
         put("cheat_inventory", "Inventario", "Inventory");
         put("cheat_all", "Todo", "Everything");
         put("cheat_done", "Hecho: ", "Done: ");
+        put("vibration", "Vibración", "Vibration");
         put("yes", "Sí", "On");
         put("no", "No", "Off");
     }

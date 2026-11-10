@@ -135,6 +135,42 @@ JNIEXPORT void JNICALL Java_com_kbretro_duke3d_GameActivity_nativeCommand(JNIEnv
     (*env)->ReleaseStringUTFChars(env, cmd, c);
 }
 
+// ---- Vibración ----
+// El juego pide vibrar (daño, disparos, explosiones...) en su hilo; se llama al método
+// estático GameActivity.vibrate(int fuerza, int ms), que usa el motor de la consola.
+
+static JavaVM *java_vm;
+static jclass game_class;
+static jmethodID vibrate_method;
+
+JNIEXPORT jint JNI_OnLoad(JavaVM *vm, void *reserved)
+{
+    (void)reserved;
+    java_vm = vm;
+    return JNI_VERSION_1_6;
+}
+
+/** Desde Java (hilo principal): se guarda la clase, que el hilo del juego no puede buscar. */
+JNIEXPORT void JNICALL Java_com_kbretro_duke3d_GameActivity_nativeInit(JNIEnv *env, jclass cls)
+{
+    if (!game_class) game_class = (*env)->NewGlobalRef(env, cls);
+    vibrate_method = (*env)->GetStaticMethodID(env, cls, "vibrate", "(II)V");
+}
+
+__attribute__((visibility("default")))
+void duke3d_android_rumble(int low, int high, int ms)
+{
+    if (!java_vm || !game_class || !vibrate_method) return;
+    JNIEnv *env = NULL;
+    if ((*java_vm)->GetEnv(java_vm, (void **)&env, JNI_VERSION_1_6) != JNI_OK)
+    {
+        if ((*java_vm)->AttachCurrentThread(java_vm, &env, NULL) != JNI_OK) return;
+    }
+    int strength = (low > high ? low : high) / 257; // 0..255
+    (*env)->CallStaticVoidMethod(env, game_class, vibrate_method, strength, ms);
+    if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
+}
+
 int duke3d_android_in_game(void);
 
 JNIEXPORT jboolean JNICALL Java_com_kbretro_duke3d_GameActivity_nativeInGame(JNIEnv *env, jclass cls)

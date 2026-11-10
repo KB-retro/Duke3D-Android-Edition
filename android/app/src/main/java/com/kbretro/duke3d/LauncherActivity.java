@@ -328,6 +328,11 @@ public class LauncherActivity extends Activity {
             for (int k = 0; k < values.length; k++) if (values[k] == cur) i = k;
             sp.edit().putInt("fps", values[(i + 1) % values.length]).apply();
         });
+        p.addValue(I18n.t("vibration"), () -> I18n.t(
+                getSharedPreferences("ajustes", MODE_MULTI_PROCESS).getBoolean("vibracion", true) ? "yes" : "no"), () -> {
+            SharedPreferences sp = getSharedPreferences("ajustes", MODE_MULTI_PROCESS);
+            sp.edit().putBoolean("vibracion", !sp.getBoolean("vibracion", true)).apply();
+        });
         p.add(I18n.t("folder"), null, this::pickFolder);
         p.add(I18n.t("back"), null, () -> menuView.pop());
         p.footer = () -> I18n.t("data") + gameDir.getAbsolutePath();

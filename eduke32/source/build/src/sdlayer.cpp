@@ -2843,6 +2843,7 @@ int32_t handleevents_pollsdl(void)
 #ifdef __ANDROID__
 // Duke3D Android Edition: órdenes de consola que manda el menú rápido (android_main.c).
 extern "C" int duke3d_android_next_command(char *buf, int len);
+extern "C" void duke3d_android_rumble(int low, int high, int ms);
 #endif
 
 int32_t handleevents(void)
@@ -2868,7 +2869,17 @@ int32_t handleevents(void)
         g_ImGuiFrameActive = false;
     }
 
+#ifdef __ANDROID__
+    // Duke3D Android Edition: la vibración la hace la app (motor de la consola o del mando).
+    if (joystick.rumbleLow || joystick.rumbleHigh)
+    {
+        duke3d_android_rumble(joystick.rumbleLow, joystick.rumbleHigh, joystick.rumbleTime);
+        joystick.rumbleTime = joystick.rumbleLow = joystick.rumbleHigh = 0;
+    }
+    if (0)
+#else
     if (EDUKE32_SDL_LINKED_PREREQ(linked, 2, 0, 9))
+#endif
     {
         if (joystick.hasRumble)
         {

@@ -83,8 +83,13 @@ extern int32_t I_EnterText(char *t, int32_t maxlength, int32_t flags);
 
 static FORCE_INLINE void I_AddForceFeedback(int const lo, int const hi, int const time)
 {
+#ifdef __ANDROID__
+    // Duke3D Android Edition: la vibración va al motor de la consola (lo decide la app),
+    // aunque el mando no tenga vibración propia.
+#else
     if (!joystick.hasRumble || !ud.config.controllerRumble)
         return;
+#endif
 
     joystick.rumbleHigh = min<int>(UINT16_MAX, joystick.rumbleHigh + hi);
     joystick.rumbleLow  = min<int>(UINT16_MAX, joystick.rumbleLow + lo);

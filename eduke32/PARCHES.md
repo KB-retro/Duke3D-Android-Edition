@@ -34,5 +34,9 @@ Duke Nukem 3D, con estos cambios para compilarlo en Android como un Linux con SD
     - `sdlayer.cpp`: en `handleevents` se ejecutan las órdenes de consola que manda el menú
       (cola en `android_main.c`, `GameActivity.nativeCommand`).
     - `osdcmds.cpp`: orden `pausegame 0|1`, la pausa de la tecla Pausa pero sin el cartel.
+11. **Vibración** (`input.h`, `sdlayer.cpp`): en Android la vibración que pide el juego (daño,
+    disparos, explosiones, caídas) no depende del mando: va a la app (`duke3d_android_rumble`
+    en `android_main.c`), que usa el motor de la consola.
+12. **Menú rápido solo en plena partida** (`game.cpp`): `duke3d_android_in_game()`.
 
 Licencias: GPL v2 (`gpl-2.0.txt`) y licencia del motor BUILD de Ken Silverman (`buildlic.txt`).

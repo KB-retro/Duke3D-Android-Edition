@@ -37,6 +37,58 @@ public class GameActivity extends SDLActivity {
     /** Orden de consola para el juego (la ejecuta en su hilo; ver android_main.c). */
     static native void nativeCommand(String cmd);
 
+    /** Guarda la clase para que el hilo del juego pueda llamar a vibrate(). */
+    static native void nativeInit();
+
+    private static GameActivity instance;
+    private static volatile boolean vibrationOn = true;
+    private static long lastVibration;
+
+    /**
+     * Lo llama el juego (desde su hilo) al recibir daño, disparar, en explosiones...
+     * @param strength 0..255
+     */
+    static void vibrate(int strength, int ms) {
+        GameActivity a = instance;
+        if (a == null || !vibrationOn || strength <= 0) return;
+        long now = android.os.SystemClock.uptimeMillis();
+        if (now - lastVibration < 40) return; // sin saturar el motor
+        lastVibration = now;
+        ms = Math.max(20, Math.min(ms, 500));
+        int amp = Math.max(40, Math.min(255, strength));
+        try {
+            android.os.Vibrator v = a.vibrator();
+            if (v == null) return;
+            if (v.hasAmplitudeControl()) v.vibrate(android.os.VibrationEffect.createOneShot(ms, amp));
+            else v.vibrate(android.os.VibrationEffect.createOneShot(ms, android.os.VibrationEffect.DEFAULT_AMPLITUDE));
+        } catch (Exception ignored) {
+        }
+    }
+
+    private android.os.Vibrator vibratorCache;
+
+    /** El motor de la consola; si no tiene, el del mando conectado. */
+    private android.os.Vibrator vibrator() {
+        if (vibratorCache != null) return vibratorCache;
+        android.os.Vibrator v = (android.os.Vibrator) getSystemService(VIBRATOR_SERVICE);
+        if (v == null || !v.hasVibrator()) {
+            v = null;
+            for (int id : InputDevice.getDeviceIds()) {
+                InputDevice d = InputDevice.getDevice(id);
+                if (d != null && d.getVibrator() != null && d.getVibrator().hasVibrator()) {
+                    v = d.getVibrator();
+                    break;
+                }
+            }
+        }
+        vibratorCache = v;
+        return v;
+    }
+
+    private boolean vibrationPref() {
+        return prefs().getBoolean("vibracion", true);
+    }
+
     /** true en plena partida (no en los menús del juego, el título, demos o fin de nivel). */
     static native boolean nativeInGame();
 
@@ -70,6 +122,13 @@ public class GameActivity extends SDLActivity {
         }
         super.onCreate(savedInstanceState);
         I18n.load(this);
+        instance = this;
+        vibrationOn = vibrationPref();
+        try {
+            nativeInit();
+        } catch (UnsatisfiedLinkError e) {
+            Log.w("Duke3D", "Sin vibración", e);
+        }
         // Sin el resalte de foco de Android (salía un contorno verde alrededor del juego).
         if (mSurface != null) mSurface.setDefaultFocusHighlightEnabled(false);
         getWindow().getDecorView().setDefaultFocusHighlightEnabled(false);
@@ -214,6 +273,11 @@ public class GameActivity extends SDLActivity {
         });
         p.add(I18n.t("cheats"), null, () -> quickMenu.push(cheatsPage()));
         p.add(I18n.t("graphics"), null, () -> quickMenu.push(graphicsPage()));
+        p.addValue(I18n.t("vibration"), () -> I18n.t(vibrationOn ? "yes" : "no"), () -> {
+            vibrationOn = !vibrationOn;
+            prefs().edit().putBoolean("vibracion", vibrationOn).apply();
+            if (vibrationOn) vibrate(200, 120); // para notar que está activa
+        });
         p.add(I18n.t("to_launcher"), null, this::finish);
         p.add(I18n.t("quit_game"), null, () -> {
             Intent i = new Intent(this, LauncherActivity.class);
@@ -325,6 +389,7 @@ public class GameActivity extends SDLActivity {
 
     @Override
     protected void onDestroy() {
+        instance = null;
         super.onDestroy();
         // EDuke32 no está pensado para arrancar dos veces en el mismo proceso.
         android.os.Process.killProcess(android.os.Process.myPid());
