@@ -1087,7 +1087,7 @@ static int osdcmd_unbound(osdcmdptr_t parm)
 
 #ifdef __ANDROID__
 // Duke3D Android Edition: pausa del menú rápido. Como la tecla Pausa, pero con pause_on = 2
-// (sin el cartel "Juego en pausa", que quedar�a detrás del menú).
+// (sin el cartel "Juego en pausa", que quedaría detrás del menú).
 static int osdcmd_pausegame(osdcmdptr_t parm)
 {
     if (parm->numparms != 1)

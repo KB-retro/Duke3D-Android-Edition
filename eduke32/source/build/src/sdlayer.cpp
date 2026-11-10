@@ -1941,6 +1941,12 @@ int32_t videoSetMode(int32_t x, int32_t y, int32_t c, int32_t fs)
         if (!android_renderer)
             SDL2_VIDEO_ERR("SDL_CreateRenderer");
         SDL_RenderSetLogicalSize(android_renderer, x, y);
+        {
+            // A tamaño de pantalla, píxel a píxel; con resolución interna menor, suavizado.
+            int ww = 0, wh = 0;
+            SDL_GetWindowSize(sdl_window, &ww, &wh);
+            SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, (x >= ww && y >= wh) ? "nearest" : "linear");
+        }
         android_texture = SDL_CreateTexture(android_renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, x, y);
         if (!android_texture)
             SDL2_VIDEO_ERR("SDL_CreateTexture");
@@ -2835,7 +2841,7 @@ int32_t handleevents_pollsdl(void)
 #endif
 
 #ifdef __ANDROID__
-// Duke3D Android Edition: órdenes de consola que manda el menú r�pido (android_main.c).
+// Duke3D Android Edition: órdenes de consola que manda el menú rápido (android_main.c).
 extern "C" int duke3d_android_next_command(char *buf, int len);
 #endif
 
