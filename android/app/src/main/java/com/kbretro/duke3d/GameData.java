@@ -2,11 +2,17 @@ package com.kbretro.duke3d;
 
 import android.os.Environment;
 
+import android.net.Uri;
+import android.provider.DocumentsContract;
+
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Busca los archivos de Duke Nukem 3D: Megaton Edition (Steam) en la carpeta /Duke3D. */
+/**
+ * Busca los archivos de Duke Nukem 3D: Megaton Edition (Steam). Por defecto en /Duke3D; el
+ * usuario puede elegir cualquier otra carpeta desde el menú.
+ */
 final class GameData {
     static final String FOLDER = "Duke3D";
 
@@ -21,8 +27,8 @@ final class GameData {
         }
     }
 
-    /** Carpeta donde el usuario copia los archivos: /storage/emulated/0/Duke3D. */
-    static File baseDir() {
+    /** Carpeta por defecto: /storage/emulated/0/Duke3D. */
+    static File defaultDir() {
         return new File(Environment.getExternalStorageDirectory(), FOLDER);
     }
 
@@ -30,15 +36,14 @@ final class GameData {
      * La carpeta con DUKE3D.GRP. Vale copiar la carpeta "gameroot", su contenido o la carpeta
      * entera del juego de Steam ("Duke Nukem 3D").
      */
-    static File findGameDir() {
-        File base = baseDir();
+    static File findGameDir(File base) {
         File[] candidates = {
                 base,
                 new File(base, "gameroot"),
                 new File(base, "Duke Nukem 3D/gameroot"),
         };
         for (File dir : candidates) {
-            File d = resolve(dir);
+            File d = resolve(base, dir);
             if (d != null && findChild(d, "DUKE3D.GRP") != null) return d;
         }
         return null;
@@ -96,6 +101,21 @@ final class GameData {
         return args.toArray(new String[0]);
     }
 
+    /**
+     * Convierte la carpeta elegida en el selector de Android (content://…/tree/primary:Juegos/Duke)
+     * en una ruta normal (/storage/emulated/0/Juegos/Duke). Las tarjetas SD van en /storage/XXXX-XXXX.
+     */
+    static File treeUriToFile(Uri uri) {
+        String id = DocumentsContract.getTreeDocumentId(uri);
+        int colon = id.indexOf(':');
+        String volume = colon >= 0 ? id.substring(0, colon) : id;
+        String path = colon >= 0 ? id.substring(colon + 1) : "";
+        File root = "primary".equalsIgnoreCase(volume)
+                ? Environment.getExternalStorageDirectory()
+                : new File("/storage/" + volume);
+        return path.isEmpty() ? root : new File(root, path);
+    }
+
     /** Busca un archivo o carpeta sin distinguir mayúsculas. */
     static File findChild(File dir, String name) {
         File[] files = dir.listFiles();
@@ -107,8 +127,7 @@ final class GameData {
     }
 
     /** Resuelve una ruta tramo a tramo sin distinguir mayúsculas. */
-    private static File resolve(File path) {
-        File base = baseDir();
+    private static File resolve(File base, File path) {
         if (!path.getPath().startsWith(base.getPath())) return path.isDirectory() ? path : null;
         if (!base.isDirectory()) return null;
         String rest = path.getPath().substring(base.getPath().length());

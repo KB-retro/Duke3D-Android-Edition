@@ -20,7 +20,11 @@ import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileWriter;
+import java.io.InputStreamReader;
+import java.util.ArrayList;
 import java.util.List;
 
 /** Menú inicial: pide permiso de archivos, busca los datos de Steam y lanza el juego elegido. */
@@ -30,6 +34,8 @@ public class LauncherActivity extends Activity {
     private static final int COLOR_ACCENT = 0xFFFFC21A;
 
     private LinearLayout list;
+    /** Últimas líneas del registro de la última partida (para ver por qué se cerró). */
+    private List<String> lastLog;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -50,6 +56,10 @@ public class LauncherActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        if (getPreferences(MODE_PRIVATE).getBoolean("jugando", false)) {
+            getPreferences(MODE_PRIVATE).edit().putBoolean("jugando", false).apply();
+            lastLog = saveLog();
+        }
         refresh();
     }
 
@@ -65,19 +75,25 @@ public class LauncherActivity extends Activity {
             return;
         }
 
-        File gameDir = GameData.findGameDir();
+        File base = baseDir();
+        File gameDir = GameData.findGameDir(base);
         if (gameDir == null) {
-            File base = GameData.baseDir();
-            if (!base.exists()) base.mkdirs();
-            addText("No se encuentra DUKE3D.GRP.", 18, COLOR_ACCENT);
+            if (base.equals(GameData.defaultDir()) && !base.exists()) base.mkdirs();
+            addText("No se encuentra DUKE3D.GRP en:\n" + base.getAbsolutePath(), 18, COLOR_ACCENT);
             addSpace(8);
-            addText("Copia la carpeta \"gameroot\" de Duke Nukem 3D: Megaton Edition (Steam) a:\n\n"
-                    + base.getAbsolutePath() + "/gameroot\n\n"
+            addText("Copia la carpeta \"gameroot\" de Duke Nukem 3D: Megaton Edition (Steam) en esa "
+                    + "carpeta, o elige con el botón la carpeta donde la tengas (puede llamarse como "
+                    + "quieras y estar en la tarjeta SD).\n\n"
                     + "En Steam: clic derecho en el juego → Administrar → Ver archivos locales.\n"
                     + "Las expansiones (Duke It Out in D.C., Nuclear Winter y Caribbean) están dentro, "
                     + "en gameroot/addons.", 15, Color.WHITE);
             addSpace(16);
-            addButton("Volver a buscar", v -> refresh()).requestFocus();
+            addButton("Elegir carpeta", v -> pickFolder()).requestFocus();
+            addButton("Volver a buscar", v -> refresh());
+            if (!base.equals(GameData.defaultDir())) {
+                addButton("Usar la carpeta por defecto (" + GameData.FOLDER + ")", v -> setBaseDir(null));
+            }
+            showLastLog();
             return;
         }
 
@@ -90,14 +106,97 @@ public class LauncherActivity extends Activity {
         if (first != null) first.requestFocus();
         addSpace(16);
         addText("Datos: " + gameDir.getAbsolutePath(), 13, Color.GRAY);
+        addButton("Elegir otra carpeta", v -> pickFolder());
         addText("Atrás o Start: menú del juego", 13, Color.GRAY);
+        showLastLog();
+    }
+
+    // ---- Carpeta del juego ----
+
+    private static final int REQUEST_FOLDER = 2;
+
+    /** Carpeta elegida por el usuario, o /Duke3D si no ha elegido ninguna. */
+    private File baseDir() {
+        String path = getPreferences(MODE_PRIVATE).getString("carpeta", null);
+        return path != null ? new File(path) : GameData.defaultDir();
+    }
+
+    private void setBaseDir(File dir) {
+        getPreferences(MODE_PRIVATE).edit()
+                .putString("carpeta", dir != null ? dir.getAbsolutePath() : null).apply();
+        refresh();
+    }
+
+    private void pickFolder() {
+        try {
+            startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE), REQUEST_FOLDER);
+        } catch (Exception e) {
+            addText("Este dispositivo no tiene selector de carpetas.", 14, COLOR_ACCENT);
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_FOLDER && resultCode == RESULT_OK && data != null && data.getData() != null) {
+            try {
+                setBaseDir(GameData.treeUriToFile(data.getData()));
+            } catch (Exception e) {
+                refresh();
+            }
+        }
     }
 
     private void launch(File gameDir, GameData.Game game) {
+        getPreferences(MODE_PRIVATE).edit().putBoolean("jugando", true).apply();
         Intent intent = new Intent(this, GameActivity.class);
         intent.putExtra(GameActivity.EXTRA_DIR, gameDir.getAbsolutePath());
         intent.putExtra(GameActivity.EXTRA_ARGS, GameData.arguments(gameDir, game));
         startActivity(intent);
+    }
+
+    // ---- Registro ----
+
+    /**
+     * Guarda el registro del sistema de esta app (juego incluido) en /Duke3D/registro.txt y
+     * devuelve las líneas del juego y de los errores, para enseñar las últimas en pantalla.
+     */
+    private List<String> saveLog() {
+        List<String> important = new ArrayList<>();
+        File out = new File(baseDir(), "registro.txt");
+        try {
+            Process p = Runtime.getRuntime().exec(new String[]{"logcat", "-d", "-v", "time", "-b", "main,system,crash"});
+            try (BufferedReader r = new BufferedReader(new InputStreamReader(p.getInputStream()));
+                 FileWriter w = new FileWriter(out)) {
+                String line;
+                while ((line = r.readLine()) != null) {
+                    w.write(line);
+                    w.write('\n');
+                    if (line.contains("EDuke32") || line.contains("Duke3D") || line.contains("SDL")
+                            || line.contains("AndroidRuntime") || line.contains("DEBUG")
+                            || line.contains(" F/") || line.contains(" E/")) {
+                        important.add(line);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            important.add("No se pudo leer el registro: " + e);
+        }
+        return important;
+    }
+
+    private void showLastLog() {
+        if (lastLog == null || lastLog.isEmpty()) return;
+        addSpace(16);
+        addText("Registro de la última partida (completo en " + new File(baseDir(), "registro.txt") + "):", 13, COLOR_ACCENT);
+        StringBuilder sb = new StringBuilder();
+        for (String line : lastLog.subList(Math.max(0, lastLog.size() - 40), lastLog.size())) {
+            sb.append(line).append('\n');
+        }
+        TextView t = addText(sb.toString(), 10, Color.LTGRAY);
+        t.setTypeface(Typeface.MONOSPACE);
+        t.setGravity(Gravity.START);
+        t.setTextIsSelectable(true);
     }
 
     // ---- Permiso de archivos ----

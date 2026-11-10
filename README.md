@@ -21,7 +21,13 @@ El APK **no incluye ningún archivo del juego**: hay que copiarlos de tu copia d
    ```
 
    También vale copiar solo el contenido de `gameroot` directamente en `Duke3D`.
+
+   ¿Prefieres otra carpeta? Con **Elegir carpeta** la app lee los archivos de la carpeta que
+   quieras, con el nombre que quieras (también en la tarjeta SD).
 3. Abre la app, da el permiso de archivos y elige el juego o la expansión.
+
+Si el juego se cierra, al volver al menú la app enseña las últimas líneas del registro y lo
+guarda entero en `registro.txt`, dentro de la carpeta del juego.
 
 La configuración y las partidas guardadas se quedan en la misma carpeta del juego.
 
