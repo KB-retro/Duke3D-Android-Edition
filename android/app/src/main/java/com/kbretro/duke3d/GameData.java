@@ -1,0 +1,126 @@
+package com.kbretro.duke3d;
+
+import android.os.Environment;
+
+import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
+
+/** Busca los archivos de Duke Nukem 3D: Megaton Edition (Steam) en la carpeta /Duke3D. */
+final class GameData {
+    static final String FOLDER = "Duke3D";
+
+    /** Un juego que se puede lanzar: el principal o una expansión. */
+    static final class Game {
+        final String title;
+        final String grpName;   // nombre real del archivo (con sus mayúsculas)
+
+        Game(String title, String grpName) {
+            this.title = title;
+            this.grpName = grpName;
+        }
+    }
+
+    /** Carpeta donde el usuario copia los archivos: /storage/emulated/0/Duke3D. */
+    static File baseDir() {
+        return new File(Environment.getExternalStorageDirectory(), FOLDER);
+    }
+
+    /**
+     * La carpeta con DUKE3D.GRP. Vale copiar la carpeta "gameroot", su contenido o la carpeta
+     * entera del juego de Steam ("Duke Nukem 3D").
+     */
+    static File findGameDir() {
+        File base = baseDir();
+        File[] candidates = {
+                base,
+                new File(base, "gameroot"),
+                new File(base, "Duke Nukem 3D/gameroot"),
+        };
+        for (File dir : candidates) {
+            File d = resolve(dir);
+            if (d != null && findChild(d, "DUKE3D.GRP") != null) return d;
+        }
+        return null;
+    }
+
+    /** Carpetas de las expansiones de Megaton (gameroot/addons/dc, nw y vacation). */
+    static List<File> addonDirs(File gameDir) {
+        List<File> dirs = new ArrayList<>();
+        File addons = findChild(gameDir, "addons");
+        if (addons != null && addons.isDirectory()) {
+            for (String name : new String[]{"dc", "nw", "vacation"}) {
+                File d = findChild(addons, name);
+                if (d != null && d.isDirectory()) dirs.add(d);
+            }
+        }
+        return dirs;
+    }
+
+    /** El juego principal y las expansiones que haya. */
+    static List<Game> games(File gameDir) {
+        List<Game> games = new ArrayList<>();
+        File base = findChild(gameDir, "DUKE3D.GRP");
+        if (base == null) return games;
+        games.add(new Game("Duke Nukem 3D", base.getName()));
+
+        List<File> dirs = new ArrayList<>(addonDirs(gameDir));
+        dirs.add(gameDir); // también si las expansiones están sueltas junto a DUKE3D.GRP
+        String[][] addons = {
+                {"Duke It Out in D.C.", "DUKEDC.GRP"},
+                {"Nuclear Winter", "NWINTER.GRP"},
+                {"Caribbean: Life's a Beach", "VACATION.GRP"},
+        };
+        for (String[] addon : addons) {
+            for (File d : dirs) {
+                File grp = findChild(d, addon[1]);
+                if (grp != null) {
+                    games.add(new Game(addon[0], grp.getName()));
+                    break;
+                }
+            }
+        }
+        return games;
+    }
+
+    /** Argumentos de EDuke32 para lanzar un juego desde gameDir. */
+    static String[] arguments(File gameDir, Game game) {
+        List<String> args = new ArrayList<>();
+        args.add("-usecwd");          // configuración y partidas guardadas en la carpeta del juego
+        for (File d : addonDirs(gameDir)) {
+            args.add("-j");
+            args.add(d.getAbsolutePath());
+        }
+        args.add("-gamegrp");
+        args.add(game.grpName);
+        return args.toArray(new String[0]);
+    }
+
+    /** Busca un archivo o carpeta sin distinguir mayúsculas. */
+    static File findChild(File dir, String name) {
+        File[] files = dir.listFiles();
+        if (files == null) return null;
+        for (File f : files) {
+            if (f.getName().equalsIgnoreCase(name)) return f;
+        }
+        return null;
+    }
+
+    /** Resuelve una ruta tramo a tramo sin distinguir mayúsculas. */
+    private static File resolve(File path) {
+        File base = baseDir();
+        if (!path.getPath().startsWith(base.getPath())) return path.isDirectory() ? path : null;
+        if (!base.isDirectory()) return null;
+        String rest = path.getPath().substring(base.getPath().length());
+        File cur = base;
+        for (String part : rest.split("/")) {
+            if (part.isEmpty()) continue;
+            cur = findChild(cur, part);
+            if (cur == null || !cur.isDirectory()) return null;
+        }
+        return cur;
+    }
+
+    private GameData() {
+    }
+}

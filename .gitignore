@@ -1,0 +1,8 @@
+android/.gradle/
+android/build/
+android/app/build/
+android/app/.cxx/
+android/SDL2/
+android/local.properties
+salida/
+*.p12
