@@ -100,11 +100,27 @@ static void install_crash_handler(void)
     struct sigaction sa;
     memset(&sa, 0, sizeof(sa));
     sa.sa_sigaction = crash_handler;
-    sa.sa_flags = SA_SIGINFO | SA_RESETHAND;
+    sa.sa_flags = SA_SIGINFO | SA_RESETHAND | SA_ONSTACK;
     sigemptyset(&sa.sa_mask);
     int sigs[] = { SIGSEGV, SIGBUS, SIGILL, SIGFPE, SIGABRT };
     for (unsigned i = 0; i < sizeof(sigs) / sizeof(sigs[0]); i++)
         sigaction(sigs[i], &sa, NULL);
+}
+
+struct game_args { int argc; char **argv; int rc; };
+
+static void *game_thread(void *p)
+{
+    struct game_args *ga = (struct game_args *)p;
+    // Pila aparte para el manejador de fallos: si el fallo es por quedarse sin pila, el
+    // manejador necesita otra para poder escribir en el registro.
+    stack_t ss;
+    ss.ss_sp = malloc(256 * 1024);
+    ss.ss_size = 256 * 1024;
+    ss.ss_flags = 0;
+    if (ss.ss_sp) sigaltstack(&ss, NULL);
+    ga->rc = main(ga->argc, ga->argv);
+    return NULL;
 }
 
 __attribute__((visibility("default")))
@@ -126,7 +142,25 @@ int SDL_main(int argc, char *argv[])
         setenv("HOME", dir, 1);
     }
 
-    int rc = main(argc, argv);
+    // El hilo de SDL en Android tiene ~1 MB de pila y EDuke32 cuenta con los 8 MB de un PC:
+    // se queda sin pila y falla. El juego va en un hilo propio con pila de sobra.
+    struct game_args ga = { argc, argv, 0 };
+    pthread_attr_t attr;
+    pthread_attr_init(&attr);
+    pthread_attr_setstacksize(&attr, 64 * 1024 * 1024);
+    pthread_t t;
+    int rc;
+    if (pthread_create(&t, &attr, game_thread, &ga) == 0)
+    {
+        pthread_join(t, NULL);
+        rc = ga.rc;
+    }
+    else
+    {
+        __android_log_print(ANDROID_LOG_ERROR, "Duke3D", "No se pudo crear el hilo del juego");
+        rc = main(argc, argv);
+    }
+    pthread_attr_destroy(&attr);
     __android_log_print(ANDROID_LOG_INFO, "Duke3D", "El juego ha terminado (código %d)", rc);
     return rc;
 }

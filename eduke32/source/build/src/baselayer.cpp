@@ -243,6 +243,10 @@ void engineSetupLogging(int &argc, char **argv)
     loguru::Options initopts;
     initopts.verbosity_flag = nullptr;
     initopts.signal_options.unsafe_signal_handler = false;
+#ifdef __ANDROID__
+    // En Android los fallos los registra android_main.c (con la función donde ocurren).
+    initopts.signal_options = loguru::SignalOptions::none();
+#endif
     loguru::init(argc, argv, initopts);
 }
 
