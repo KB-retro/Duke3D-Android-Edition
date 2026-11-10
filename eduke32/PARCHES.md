@@ -11,6 +11,8 @@ Duke Nukem 3D, con estos cambios para compilarlo en Android como un Linux con SD
 2. **ALSA** (MIDI por hardware en Linux) solo con `EDUKE32_HAVE_ALSA`, que `compat.h` define en
    Linux salvo en Android.
 3. **Steam (voidwrap)** desactivado en Android (`communityapi.cpp`).
-4. **Volcado de pila al fallar** (`execinfo.h`) desactivado en Android (`sdlayer.cpp`).
+4. **Redirigir stdout a un archivo** (`maybe_redirect_outputs` en `baselayer.cpp`) desactivado en
+   Android: copia estructuras `FILE`, que en Android son opacas.
+5. **Volcado de pila al fallar** (`execinfo.h`) desactivado en Android (`sdlayer.cpp`).
 
 Licencias: GPL v2 (`gpl-2.0.txt`) y licencia del motor BUILD de Ken Silverman (`buildlic.txt`).

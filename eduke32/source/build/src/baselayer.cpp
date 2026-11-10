@@ -862,7 +862,7 @@ int32_t baselayer_init(void)
 
 void maybe_redirect_outputs(void)
 {
-#if !(defined __APPLE__ && defined __BIG_ENDIAN__)
+#if !(defined __APPLE__ && defined __BIG_ENDIAN__) && !defined __ANDROID__  // en Android FILE no se puede copiar
     char *argp;
 
     // pipe standard outputs to files
