@@ -1,5 +1,7 @@
 #include "baselayer.h"
 
+#include <time.h>
+
 #include "a.h"
 #include "build.h"
 #include "cache1d.h"
@@ -910,6 +912,22 @@ int engineFPSLimit(bool const throttle)
 
         return true;
     }
+
+#ifdef __ANDROID__
+    // Duke3D Android Edition: si aún no toca dibujar, dormir hasta el siguiente fotograma en vez
+    // de dar vueltas en el bucle principal (dejaba un núcleo al 100 % y la consola se calentaba).
+    // Se deja 1 ms de margen para no llegar tarde al fotograma.
+    {
+        uint64_t const rate = timerGetNanoTickRate();
+        uint64_t const left = g_frameDelay - (frameTicks - lastFrameTicks);
+        uint64_t const leftNs = left * 1000000000ull / rate;
+        if (leftNs > 2000000ull)
+        {
+            struct timespec ts = { 0, (long)(leftNs - 1000000ull) };
+            nanosleep(&ts, NULL);
+        }
+    }
+#endif
 
     return false;
 }

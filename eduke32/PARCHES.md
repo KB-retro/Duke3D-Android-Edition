@@ -21,5 +21,7 @@ Duke Nukem 3D, con estos cambios para compilarlo en Android como un Linux con SD
 7. **Presentación en pantalla** (`sdlayer.cpp`): en Android el juego pinta en una superficie
    propia del tamaño exacto y la GPU la escala a la ventana con `SDL_Renderer`. La superficie de
    la ventana de Android no siempre mide lo que pide el juego y la copia se salía de la memoria.
+8. **Limitador de fotogramas** (`engineFPSLimit` en `baselayer.cpp`): en Android duerme hasta el
+   siguiente fotograma en lugar de dejar el bucle principal dando vueltas (núcleo al 100 %).
 
 Licencias: GPL v2 (`gpl-2.0.txt`) y licencia del motor BUILD de Ken Silverman (`buildlic.txt`).
