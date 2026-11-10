@@ -34,6 +34,8 @@ final class DukeMenuView extends View {
         final Runnable action;
         /** Si no es null, la opción tiene un valor (p. ej. el idioma) que se cambia con izquierda/derecha. */
         final Supplier<String> value;
+        /** Imagen grande (la caja del juego) que se ve a la derecha mientras está elegida. */
+        Bitmap cover;
 
         Entry(String label, Bitmap icon, Runnable action, Supplier<String> value) {
             this.label = label;
@@ -55,6 +57,19 @@ final class DukeMenuView extends View {
             return this;
         }
 
+        /** Un juego: su icono pequeño en la lista y su caja grande a la derecha. */
+        Page addGame(String label, Bitmap cover, Runnable action) {
+            Entry e = new Entry(label, cover, action, null);
+            e.cover = cover;
+            entries.add(e);
+            return this;
+        }
+
+        boolean hasCovers() {
+            for (Entry e : entries) if (e.cover != null) return true;
+            return false;
+        }
+
         Page addValue(String label, Supplier<String> value, Runnable change) {
             entries.add(new Entry(label, null, change, value));
             return this;
@@ -62,6 +77,11 @@ final class DukeMenuView extends View {
     }
 
     private final DukeArt art;
+    /** Fondo propio (imagen del APK); si es null, la pantalla de título del juego. */
+    private Bitmap background;
+    private Bitmap lastCover;
+    private final Paint smooth = new Paint(Paint.FILTER_BITMAP_FLAG);
+    private final Paint frame = new Paint();
     private final List<Page> stack = new ArrayList<>();
     private Runnable onBackFromRoot;
 
@@ -82,11 +102,16 @@ final class DukeMenuView extends View {
         this.art = art;
         pixel.setFilterBitmap(false);
         pixel.setAntiAlias(false);
-        dim.setColor(Color.argb(110, 0, 0, 0));
+        dim.setColor(Color.argb(130, 0, 0, 0));
         shade.setFilterBitmap(false);
         setFocusable(true);
         setFocusableInTouchMode(true);
         setBackgroundColor(Color.BLACK);
+    }
+
+    void setBackground(Bitmap b) {
+        background = b;
+        invalidate();
     }
 
     void setRoot(Page root, Runnable onBack) {
@@ -121,9 +146,15 @@ final class DukeMenuView extends View {
         int w = getWidth(), h = getHeight();
         if (w == 0 || h == 0 || stack.isEmpty()) return;
 
-        // Fondo: la pantalla de título del juego, cubriendo toda la pantalla.
-        Bitmap bg = art.tile(DukeArt.BETASCREEN);
-        if (bg == null) bg = art.tile(DukeArt.MENUSCREEN);
+        // Fondo: la imagen propia cubriendo toda la pantalla, o la pantalla de título del juego.
+        if (background != null) {
+            float k = Math.max(w / (float) background.getWidth(), h / (float) background.getHeight());
+            float bw = background.getWidth() * k, bh = background.getHeight() * k;
+            dst.set((w - bw) / 2f, (h - bh) / 2f, (w + bw) / 2f, (h + bh) / 2f);
+            c.drawBitmap(background, null, dst, smooth);
+        }
+        Bitmap bg = background != null ? null : art.tile(DukeArt.BETASCREEN);
+        if (bg == null && background == null) bg = art.tile(DukeArt.MENUSCREEN);
         if (bg != null) {
             float bw = w, bh = w * 3f / 4f;
             if (bh < h) {
@@ -155,6 +186,15 @@ final class DukeMenuView extends View {
 
         Page p = page();
         int n = p.entries.size();
+        // Con cajas, la lista va a la izquierda y la caja del juego elegido a la derecha.
+        boolean covers = p.hasCovers();
+        float centerX = covers ? 108 : 160;
+        float maxW = covers ? 196 : 270;
+        if (covers) {
+            Entry cur = n > 0 ? p.entries.get(p.selected) : null;
+            if (cur != null && cur.cover != null) lastCover = cur.cover;
+            if (lastCover != null) drawCover(c, lastCover, 214, 50, 98, 136);
+        }
         float top = 60, bottom = 182;
         float step = Math.min(19f, (bottom - top) / Math.max(1, n));
         float textScale = step >= 17 ? 1f : step / 17f;
@@ -173,19 +213,22 @@ final class DukeMenuView extends View {
             float iconW = 0, iconH = 0, gap = 0;
             if (e.icon != null) {
                 iconH = 14 * textScale;
-                iconW = iconH * 1.6f;
+                // Las pantallas del juego son 320x200 (se ven 4:3); las cajas, con su proporción real.
+                iconW = e.cover != null
+                        ? iconH * e.icon.getWidth() / (float) e.icon.getHeight() * (sy / sx)
+                        : iconH * 1.6f;
                 gap = 5;
             }
             float total = iconW + gap + textW;
-            if (total > 270) {
-                float k = 270 / total;
+            if (total > maxW) {
+                float k = maxW / total;
                 scale *= k;
                 textW *= k;
                 iconW *= k;
                 iconH *= k;
-                total = 270;
+                total = maxW;
             }
-            float left = 160 - total / 2f;
+            float left = centerX - total / 2f;
 
             // Las opciones no elegidas, algo más oscuras; la elegida, con un brillo que late.
             int lvl = sel ? 205 + (int) (50 * Math.abs(Math.sin(now / 300.0))) : 150;
@@ -214,7 +257,7 @@ final class DukeMenuView extends View {
                 drawTileCentered(c, tile, left - 4 - nw / 2f, cy, ns);
                 drawTileCentered(c, tileR, left + total + 4 + nw / 2f, cy, ns);
             }
-            hit.add(new RectF(0, vy(cy - step / 2f), w, vy(cy + step / 2f)));
+            hit.add(new RectF(0, vy(cy - step / 2f), covers ? vx(206) : w, vy(cy + step / 2f)));
         }
 
         // Pie: ayuda de botones y, si la hay, una línea de información.
@@ -223,6 +266,21 @@ final class DukeMenuView extends View {
         drawSmall(c, I18n.t(cur != null && cur.value != null ? "hint_value" : "hint"), 160, 193, 0.7f, true);
 
         postInvalidateDelayed(50);
+    }
+
+    /** La caja entera dentro del rectángulo (x, y, w, h) del 320x200, con marco. */
+    private void drawCover(Canvas c, Bitmap b, float x, float y, float bw, float bh) {
+        // El 320x200 se ve estirado a 4:3: en píxeles de pantalla se mantiene la proporción real.
+        float pw = bw * sx, ph = bh * sy;
+        float k = Math.min(pw / b.getWidth(), ph / b.getHeight());
+        float dw = b.getWidth() * k, dh = b.getHeight() * k;
+        float l = vx(x) + (pw - dw) / 2f, t = vy(y) + (ph - dh) / 2f;
+        frame.setColor(Color.argb(200, 0, 0, 0));
+        c.drawRect(l - 6, t - 6, l + dw + 6, t + dh + 6, frame);
+        frame.setColor(Color.rgb(255, 200, 40));
+        c.drawRect(l - 3, t - 3, l + dw + 3, t + dh + 3, frame);
+        dst.set(l, t, l + dw, t + dh);
+        c.drawBitmap(b, null, dst, smooth);
     }
 
     private float vx(float x) {

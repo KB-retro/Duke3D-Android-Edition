@@ -194,6 +194,7 @@ public class LauncherActivity extends Activity {
     private void buildMenu(File gameDir, boolean fresh) {
         if (menuView == null || fresh) {
             menuView = new DukeMenuView(this, assets.art);
+            menuView.setBackground(android.graphics.BitmapFactory.decodeResource(getResources(), R.drawable.fondo_menu));
         }
         menuView.setRoot(rootPage(gameDir), this::finish);
         setContentView(menuView);
@@ -204,11 +205,30 @@ public class LauncherActivity extends Activity {
     private DukeMenuView.Page rootPage(File gameDir) {
         DukeMenuView.Page root = new DukeMenuView.Page();
         for (GameData.Game g : assets.games) {
-            root.add(g.menuLabel(), assets.icons.get(g.title), () -> launch(gameDir, g));
+            Bitmap cover = cover(g);
+            if (cover != null) root.addGame(g.menuLabel(), cover, () -> launch(gameDir, g));
+            else root.add(g.menuLabel(), assets.icons.get(g.title), () -> launch(gameDir, g));
         }
         root.add(I18n.t("options"), null, () -> menuView.push(optionsPage(gameDir)));
         root.add(I18n.t("quit"), null, this::finishAffinity);
         return root;
+    }
+
+    private final Map<Integer, Bitmap> covers = new HashMap<>();
+
+    /** La caja de cada juego (imágenes del APK). */
+    private Bitmap cover(GameData.Game g) {
+        String t = g.title.toLowerCase(java.util.Locale.ROOT);
+        int res = t.contains("d.c.") ? R.drawable.caja_dc
+                : t.contains("winter") ? R.drawable.caja_nw
+                : t.contains("caribbean") ? R.drawable.caja_caribbean
+                : R.drawable.caja_duke3d;
+        Bitmap b = covers.get(res);
+        if (b == null) {
+            b = android.graphics.BitmapFactory.decodeResource(getResources(), res);
+            covers.put(res, b);
+        }
+        return b;
     }
 
     private DukeMenuView.Page optionsPage(File gameDir) {
