@@ -16,6 +16,7 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -65,9 +66,8 @@ public class LauncherActivity extends Activity {
 
     private void refresh() {
         list.removeAllViews();
-        addTitle("DUKE NUKEM 3D");
-        addText("Android Edition", 16, COLOR_ACCENT);
-        addSpace(16);
+        addBanner();
+        addSpace(12);
         showCrash();
 
         if (!hasStoragePermission()) {
@@ -250,9 +250,15 @@ public class LauncherActivity extends Activity {
 
     // ---- Vistas ----
 
-    private void addTitle(String text) {
-        TextView t = addText(text, 34, COLOR_ACCENT);
-        t.setTypeface(Typeface.DEFAULT_BOLD);
+    /** Portada arriba del menú, a lo ancho y sin pasarse de 600 dp. */
+    private void addBanner() {
+        ImageView img = new ImageView(this);
+        img.setImageResource(R.drawable.portada);
+        img.setAdjustViewBounds(true);
+        img.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        img.setContentDescription("Duke Nukem 3D: Megaton Edition");
+        int w = Math.min(getResources().getDisplayMetrics().widthPixels - dp(48), dp(600));
+        list.addView(img, new LinearLayout.LayoutParams(w, ViewGroup.LayoutParams.WRAP_CONTENT));
     }
 
     private TextView addText(String text, int sp, int color) {
