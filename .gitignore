@@ -6,3 +6,5 @@ android/SDL2/
 android/local.properties
 salida/
 *.p12
+nativo/
+nativo.log
