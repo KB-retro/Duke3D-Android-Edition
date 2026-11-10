@@ -6577,6 +6577,18 @@ static const char* dukeVerbosityCallback(loguru::Verbosity verbosity)
     }
 }
 
+#ifdef __ANDROID__
+// Duke3D Android Edition: el menú rápido solo se abre en plena partida (no en los menús del
+// juego, el título, una demo o la pantalla de fin de nivel).
+extern "C" __attribute__((visibility("default"))) int duke3d_android_in_game(void)
+{
+    auto const ps = g_player[myconnectindex].ps;
+    if (ps == nullptr)
+        return 0;
+    return (ps->gm & MODE_GAME) && !(ps->gm & (MODE_MENU | MODE_TYPE | MODE_DEMO | MODE_EOL));
+}
+#endif
+
 int app_main(int argc, char const* const* argv)
 {
 #ifdef _WIN32

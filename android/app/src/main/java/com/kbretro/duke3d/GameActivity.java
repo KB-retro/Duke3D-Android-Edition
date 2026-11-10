@@ -37,6 +37,17 @@ public class GameActivity extends SDLActivity {
     /** Orden de consola para el juego (la ejecuta en su hilo; ver android_main.c). */
     static native void nativeCommand(String cmd);
 
+    /** true en plena partida (no en los menús del juego, el título, demos o fin de nivel). */
+    static native boolean nativeInGame();
+
+    private static boolean inGame() {
+        try {
+            return nativeInGame();
+        } catch (UnsatisfiedLinkError e) {
+            return false;
+        }
+    }
+
     private static final int[] FPS_VALUES = {60, 90, 120, 0};
     private static final int[] SCALE_VALUES = {100, 75, 50};
 
@@ -59,10 +70,14 @@ public class GameActivity extends SDLActivity {
         }
         super.onCreate(savedInstanceState);
         I18n.load(this);
+        // Sin el resalte de foco de Android (salía un contorno verde alrededor del juego).
+        if (mSurface != null) mSurface.setDefaultFocusHighlightEnabled(false);
+        getWindow().getDecorView().setDefaultFocusHighlightEnabled(false);
 
         applyRefreshRate(fps());
         // Los ajustes guardados, cuando el juego ya ha arrancado (si no, su configuración los pisa).
         ui.postDelayed(() -> {
+            applyRefreshRate(fps()); // otra vez, ya con la superficie del juego creada
             command("r_maxfps " + fps());
             if (scale() != 100) applyScale(scale());
         }, 4000);
@@ -121,7 +136,10 @@ public class GameActivity extends SDLActivity {
             Display.Mode best = cur;
             float want = fps <= 0 ? 1000f : fps;
             float bestDiff = Float.MAX_VALUE;
+            StringBuilder modes = new StringBuilder();
             for (Display.Mode m : d.getSupportedModes()) {
+                modes.append(' ').append(m.getPhysicalWidth()).append('x').append(m.getPhysicalHeight())
+                        .append('@').append(Math.round(m.getRefreshRate()));
                 if (m.getPhysicalWidth() != cur.getPhysicalWidth() || m.getPhysicalHeight() != cur.getPhysicalHeight()) continue;
                 float diff = Math.abs(m.getRefreshRate() - want);
                 if (fps <= 0) diff = -m.getRefreshRate(); // sin límite: la más alta
@@ -130,9 +148,17 @@ public class GameActivity extends SDLActivity {
                     best = m;
                 }
             }
+            Log.i("Duke3D", "Modos de pantalla:" + modes);
             WindowManager.LayoutParams lp = getWindow().getAttributes();
             lp.preferredDisplayModeId = best.getModeId();
+            lp.preferredRefreshRate = best.getRefreshRate();
             getWindow().setAttributes(lp);
+            // Y a la superficie del juego: algunos sistemas solo hacen caso a esto.
+            if (android.os.Build.VERSION.SDK_INT >= 30 && mSurface != null
+                    && mSurface.getHolder().getSurface() != null && mSurface.getHolder().getSurface().isValid()) {
+                mSurface.getHolder().getSurface().setFrameRate(best.getRefreshRate(),
+                        android.view.Surface.FRAME_RATE_COMPATIBILITY_FIXED_SOURCE);
+            }
             Log.i("Duke3D", "Pantalla a " + best.getRefreshRate() + " Hz (pedido: " + fpsLabel(fps) + ")");
         } catch (Exception e) {
             Log.w("Duke3D", "No se pudo cambiar la frecuencia de pantalla", e);
@@ -141,8 +167,8 @@ public class GameActivity extends SDLActivity {
 
     /** Resolución interna del juego (la GPU la escala a la pantalla). */
     private void applyScale(int percent) {
-        View v = getWindow().getDecorView();
-        int w = Math.max(v.getWidth(), v.getHeight()), h = Math.min(v.getWidth(), v.getHeight());
+        View v = mSurface != null ? mSurface : getWindow().getDecorView();
+        int w = v.getWidth(), h = v.getHeight();
         if (w == 0 || h == 0) return;
         int sw = (w * percent / 100) & ~1, sh = (h * percent / 100) & ~1;
         command("vidmode " + sw + " " + sh + " 8 1");
@@ -274,8 +300,9 @@ public class GameActivity extends SDLActivity {
         }
         if (key == KeyEvent.KEYCODE_BACK) {
             if (e.getAction() == KeyEvent.ACTION_DOWN && e.getRepeatCount() == 0) {
-                if (art != null) openMenu();
-                else sendKey(KeyEvent.KEYCODE_ESCAPE); // sin gráficos aún: el menú del juego
+                // En plena partida, el menú rápido; en los menús del juego, el título, etc., Escape.
+                if (art != null && inGame()) openMenu();
+                else sendKey(KeyEvent.KEYCODE_ESCAPE);
             }
             return true;
         }

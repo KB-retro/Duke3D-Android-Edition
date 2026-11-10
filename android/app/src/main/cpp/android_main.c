@@ -135,6 +135,15 @@ JNIEXPORT void JNICALL Java_com_kbretro_duke3d_GameActivity_nativeCommand(JNIEnv
     (*env)->ReleaseStringUTFChars(env, cmd, c);
 }
 
+int duke3d_android_in_game(void);
+
+JNIEXPORT jboolean JNICALL Java_com_kbretro_duke3d_GameActivity_nativeInGame(JNIEnv *env, jclass cls)
+{
+    (void)env;
+    (void)cls;
+    return duke3d_android_in_game() ? JNI_TRUE : JNI_FALSE;
+}
+
 __attribute__((visibility("default")))
 int duke3d_android_next_command(char *buf, int len)
 {
