@@ -36,19 +36,24 @@ jobs:
           tar xzf sdl.tar.gz
           mv "SDL2-${SDL_VERSION}" android/SDL2
 
+      - name: NDK y CMake
+        run: |
+          SDKM=$(ls -d $ANDROID_HOME/cmdline-tools/*/bin | head -1)/sdkmanager
+          yes | $SDKM --install "ndk;27.2.12479018" "cmake;3.22.1" > /dev/null
+
       # Compila solo el código nativo sin parar en el primer fallo, para ver todos los errores
-      # de una vez en el resumen. Si todo va bien, Gradle reutiliza poco de esto (es rápido).
+      # de una vez en el resumen del run.
       - name: Código nativo (todos los errores)
         run: |
-          SDK=/usr/local/lib/android/sdk
-          NDK=$SDK/ndk/27.2.12479018
-          command -v ninja >/dev/null || sudo apt-get install -y ninja-build
-          cmake -S android/app/src/main/cpp -B nativo -G Ninja \
+          NDK=$ANDROID_HOME/ndk/27.2.12479018
+          CMAKE_BIN=$ANDROID_HOME/cmake/3.22.1/bin
+          $CMAKE_BIN/cmake -S android/app/src/main/cpp -B nativo -G Ninja \
+            -DCMAKE_MAKE_PROGRAM=$CMAKE_BIN/ninja \
             -DCMAKE_TOOLCHAIN_FILE=$NDK/build/cmake/android.toolchain.cmake \
             -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=26 -DANDROID_STL=c++_shared \
             -DCMAKE_BUILD_TYPE=Release -DSDL2_DIR=$PWD/android/SDL2
           set +e
-          ninja -C nativo -k 0 main > nativo.log 2>&1
+          $CMAKE_BIN/ninja -C nativo -k 0 main > nativo.log 2>&1
           rc=$?
           set -e
           if [ $rc -ne 0 ]; then
