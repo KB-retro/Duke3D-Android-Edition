@@ -28,7 +28,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #include "vfs.h"
 
-#ifdef __ANDROID__
+#ifdef EDUKE32_ANDROID_LEGACY
 # include "android.h"
 #endif
 
@@ -183,7 +183,7 @@ void CONFIG_SetDefaults(void)
 {
     ud.config.scripthandle = -1;
 
-#ifdef __ANDROID__
+#ifdef EDUKE32_ANDROID_LEGACY
     droidinput.forward_sens = 5.f;
     droidinput.gameControlsAlpha = 0.5;
     droidinput.hideStick = 0;
@@ -225,7 +225,7 @@ void CONFIG_SetDefaults(void)
 
 #if defined(_WIN32)
     ud.config.MixRate = 44100;
-#elif defined __ANDROID__
+#elif defined EDUKE32_ANDROID_LEGACY
     ud.config.MixRate = droidinfo.audio_sample_rate;
 #else
     ud.config.MixRate = 48000;

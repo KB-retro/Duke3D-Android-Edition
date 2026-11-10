@@ -5,6 +5,11 @@
 #ifndef compat_h_
 #define compat_h_
 
+// Duke3D Android Edition: ALSA solo existe en Linux de escritorio, no en Android.
+#if defined __linux__ && !defined __ANDROID__
+# define EDUKE32_HAVE_ALSA
+#endif
+
 #pragma once
 
 #ifndef __APPLE__
@@ -382,7 +387,7 @@ defined __x86_64__ || defined __amd64__ || defined _M_X64 || defined _M_IA64 || 
 #  define B_BIG_ENDIAN    1
 # endif
 
-#elif defined(GEKKO) || defined(__ANDROID__)
+#elif defined(GEKKO) || defined(EDUKE32_ANDROID_LEGACY)
 # define B_LITTLE_ENDIAN 0
 # define B_BIG_ENDIAN 1
 
@@ -623,7 +628,7 @@ typedef FILE BFILE;
 # define Bassert assert
 #endif
 
-#ifdef __ANDROID__
+#if defined __ANDROID__ || defined EDUKE32_ANDROID_LEGACY
 # define BS_IWRITE S_IWUSR
 # define BS_IREAD  S_IRUSR
 #else
@@ -728,7 +733,7 @@ static FORCE_INLINE int32_t Blrintf(const float x)
 # define Bsqrtf sqrtf
 #endif
 
-#ifdef __ANDROID__
+#ifdef EDUKE32_ANDROID_LEGACY
 void eduke32_exit_return(int) ATTRIBUTE((noreturn));
 # define exit(x) eduke32_exit_return(x)
 #endif
@@ -1536,7 +1541,7 @@ static inline void maybe_grow_buffer(char ** const buffer, int32_t * const buffe
 
 #define WITHKPLIB
 
-#if defined __ANDROID__ || defined EDUKE32_IOS
+#if defined EDUKE32_ANDROID_LEGACY || defined EDUKE32_IOS
 # define EDUKE32_TOUCH_DEVICES
 # define EDUKE32_GLES
 #endif

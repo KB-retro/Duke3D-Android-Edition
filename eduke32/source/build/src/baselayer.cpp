@@ -382,7 +382,7 @@ void (*g_fileDropCallback)(char const *);
 # include <sys/mman.h>
 #endif
 
-#if !defined(NOASM) && !defined(GEKKO) && !defined(__ANDROID__)
+#if !defined(NOASM) && !defined(GEKKO) && !defined(EDUKE32_ANDROID_LEGACY)
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -392,7 +392,7 @@ extern "C" {
 #endif
 #endif
 
-#if !defined(NOASM) && !defined(GEKKO) && !defined(__ANDROID__)
+#if !defined(NOASM) && !defined(GEKKO) && !defined(EDUKE32_ANDROID_LEGACY)
 static int32_t nx_unprotect(intptr_t beg, intptr_t end, int prot)
 {
 # if defined _WIN32
@@ -474,7 +474,7 @@ void calc_ylookup(int32_t bpl, int32_t lastyidx)
 
 void makeasmwriteable(void)
 {
-#if !defined(NOASM) && !defined(GEKKO) && !defined(__ANDROID__)
+#if !defined(NOASM) && !defined(GEKKO) && !defined(EDUKE32_ANDROID_LEGACY)
     nx_unprotect((intptr_t)&dep_begin, (intptr_t)&dep_end, B_PROT_RWX);
 #endif
 }

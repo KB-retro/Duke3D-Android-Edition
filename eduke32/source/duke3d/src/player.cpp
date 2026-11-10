@@ -26,7 +26,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "input.h"
 #include "savegame.h"
 
-#ifdef __ANDROID__
+#ifdef EDUKE32_ANDROID_LEGACY
 #include "android.h"
 #endif
 

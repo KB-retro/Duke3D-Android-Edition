@@ -33,7 +33,7 @@
 # include "gtkbits.h"
 #endif
 
-#ifdef __ANDROID__
+#ifdef EDUKE32_ANDROID_LEGACY
 # include <android/log.h>
 #elif defined __APPLE__
 # include "osxbits.h"
@@ -323,14 +323,14 @@ void wm_setapptitle(const char *name)
 //
 
 /* XXX: libexecinfo could be used on systems without gnu libc. */
-#if !defined _WIN32 && defined __GNUC__ && !defined __OpenBSD__ && !(defined __APPLE__ && defined __BIG_ENDIAN__) && !defined GEKKO && !defined EDUKE32_TOUCH_DEVICES && !defined __OPENDINGUX__
+#if !defined _WIN32 && defined __GNUC__ && !defined __OpenBSD__ && !(defined __APPLE__ && defined __BIG_ENDIAN__) && !defined GEKKO && !defined EDUKE32_TOUCH_DEVICES && !defined __OPENDINGUX__ && !defined __ANDROID__
 # define PRINTSTACKONSEGV 1
 # include <execinfo.h>
 #endif
 
 static inline char grabmouse_low(char a);
 
-#ifndef __ANDROID__
+#ifndef EDUKE32_ANDROID_LEGACY
 static void attach_debugger_here(void)
 {
 #ifdef DEBUGGINGAIDS
@@ -363,7 +363,7 @@ static void sighandler(int signum)
 }
 #endif
 
-#ifdef __ANDROID__
+#ifdef EDUKE32_ANDROID_LEGACY
 int mobile_halted = 0;
 #ifdef __cplusplus
 extern "C"
@@ -452,7 +452,7 @@ void sdlayer_sethints()
 
 #ifdef _WIN32
 int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nCmdShow)
-#elif defined __ANDROID__
+#elif defined EDUKE32_ANDROID_LEGACY
 # ifdef __cplusplus
 extern "C" int eduke32_android_main(int argc, char const *argv[]);
 # endif
@@ -479,7 +479,7 @@ int main(int argc, char *argv[])
 
     engineSetupAllocator();
 
-#ifndef __ANDROID__
+#ifndef EDUKE32_ANDROID_LEGACY
     signal(SIGSEGV, sighandler);
     signal(SIGILL, sighandler);  /* clang -fcatch-undefined-behavior uses an ill. insn */
     signal(SIGABRT, sighandler);
@@ -498,7 +498,7 @@ int main(int argc, char *argv[])
     MicroProfileSetEnableAllGroups(true);
     MicroProfileSetForceMetaCounters(true);
 
-#ifdef __ANDROID__
+#ifdef EDUKE32_ANDROID_LEGACY
     if (setjmp(eduke32_exit_jmp_buf))
     {
         return eduke32_return_value;
@@ -527,7 +527,7 @@ int main(int argc, char *argv[])
 
     buildkeytranslationtable();
 
-#ifdef __ANDROID__
+#ifdef EDUKE32_ANDROID_LEGACY
     SDL_SetEventFilter(sdlayer_mobilefilter, NULL);
 #endif
 
@@ -2042,7 +2042,7 @@ void videoEndDrawing(void)
 //
 // showframe() -- update the display
 //
-#ifdef __ANDROID__
+#ifdef EDUKE32_ANDROID_LEGACY
 extern "C" void AndroidDrawControls();
 #endif
 
@@ -2054,7 +2054,7 @@ void videoShowFrame(int32_t w)
     if (sdl_resize.x || sdl_minimized)
         return;
 
-#ifdef __ANDROID__
+#ifdef EDUKE32_ANDROID_LEGACY
     if (mobile_halted) return;
 #endif
 
@@ -2066,7 +2066,7 @@ void videoShowFrame(int32_t w)
             if (palfadedelta)
                 fullscreen_tint_gl(palfadergb.r, palfadergb.g, palfadergb.b, palfadedelta);
 
-#ifdef __ANDROID__
+#ifdef EDUKE32_ANDROID_LEGACY
             AndroidDrawControls();
 #endif
         }
@@ -2792,7 +2792,7 @@ int32_t handleevents_pollsdl(void)
 
 int32_t handleevents(void)
 {
-#ifdef __ANDROID__
+#ifdef EDUKE32_ANDROID_LEGACY
     if (mobile_halted) return 0;
 #endif
 

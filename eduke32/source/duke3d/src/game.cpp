@@ -44,7 +44,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "sbar.h"
 #include "screens.h"
 
-#ifdef __ANDROID__
+#ifdef EDUKE32_ANDROID_LEGACY
 #include "android.h"
 #endif
 
@@ -5192,7 +5192,7 @@ FAKE_F3:
             ud.last_overhead = ud.overhead_on;
         }
 
-#ifdef __ANDROID__
+#ifdef EDUKE32_ANDROID_LEGACY
         if (ud.overhead_on == 1)
             ud.scrollmode = 0;
         else if (ud.overhead_on == 2)

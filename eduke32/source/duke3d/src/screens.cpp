@@ -20,7 +20,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 //-------------------------------------------------------------------------
 
-#ifdef __ANDROID__
+#ifdef EDUKE32_ANDROID_LEGACY
 #include "android.h"
 #endif
 
@@ -1103,7 +1103,7 @@ void G_DisplayRest(int32_t smoothratio)
             }
             else
             {
-#ifdef __ANDROID__
+#ifdef EDUKE32_ANDROID_LEGACY
                 CONTROL_Android_ScrollMap(&ud.fola, &ud.folx, &ud.foly, &pp->zoom);
 #else
                 if (!ud.pause_on)
@@ -1472,13 +1472,13 @@ static void fadepaltile(int32_t r, int32_t g, int32_t b, int32_t start, int32_t 
     } while (start != end+step);
 }
 
-#ifdef __ANDROID__
+#ifdef EDUKE32_ANDROID_LEGACY
 int inExtraScreens = 0;
 #endif
 
 void gameDisplayTENScreen()
 {
-#ifdef __ANDROID__
+#ifdef EDUKE32_ANDROID_LEGACY
     inExtraScreens = 1;
 #endif
     videoSetViewableArea(0, 0, xdim - 1, ydim - 1);
@@ -1495,14 +1495,14 @@ void gameDisplayTENScreen()
 
     fadepaltile(0, 0, 0, 0, 252, 28, TENSCREEN);
     I_ClearAllInput();
-#ifdef __ANDROID__
+#ifdef EDUKE32_ANDROID_LEGACY
     inExtraScreens = 0;
 #endif
 }
 
 void gameDisplaySharewareScreens()
 {
-#ifdef __ANDROID__
+#ifdef EDUKE32_ANDROID_LEGACY
     inExtraScreens = 1;
 #endif
     videoSetViewableArea(0, 0, xdim - 1, ydim - 1);
@@ -1523,7 +1523,7 @@ void gameDisplaySharewareScreens()
     while (!I_GeneralTrigger())
         gameHandleEvents();
 
-#ifdef __ANDROID__
+#ifdef EDUKE32_ANDROID_LEGACY
     inExtraScreens = 0;
 #endif
 }

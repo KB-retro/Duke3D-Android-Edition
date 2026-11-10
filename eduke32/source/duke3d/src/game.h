@@ -51,7 +51,7 @@ extern "C" {
 
 #if defined(GEKKO) || defined(__OPENDINGUX__)
 # define VIEWSCREENFACTOR 0
-#elif defined(__ANDROID__)
+#elif defined(EDUKE32_ANDROID_LEGACY)
 # define VIEWSCREENFACTOR 1
 #else
 # define VIEWSCREENFACTOR 2

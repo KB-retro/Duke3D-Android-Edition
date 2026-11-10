@@ -39,7 +39,7 @@
 # include "driver_winmm.h"
 #endif
 
-#ifdef __linux__
+#ifdef EDUKE32_HAVE_ALSA
 # include "driver_alsa.h"
 #endif
 
@@ -176,7 +176,7 @@ static struct
     // ALSA MIDI synthesiser
     {
         "ALSA",
-    #ifdef __linux__
+    #ifdef EDUKE32_HAVE_ALSA
         ALSADrv_GetError,
         ALSADrv_ErrorString,
 

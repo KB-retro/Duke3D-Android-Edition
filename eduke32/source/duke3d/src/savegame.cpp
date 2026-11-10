@@ -843,7 +843,7 @@ uint16_t G_CountOldSaves(void)
 
 int32_t G_SavePlayer(savebrief_t & sv, bool isAutoSave)
 {
-#ifdef __ANDROID__
+#ifdef EDUKE32_ANDROID_LEGACY
     G_SavePalette();
 #endif
 
@@ -1758,7 +1758,7 @@ int32_t sv_saveandmakesnapshot(buildvfs_FILE fil, char const *name, int8_t spot,
     {
         // savegame
         Bstrncpyz(h.savename, name, sizeof(h.savename));
-#ifdef __ANDROID__
+#ifdef EDUKE32_ANDROID_LEGACY
         Bstrncpyz(h.volname, g_volumeNames[ud.volume_number], sizeof(h.volname));
         Bstrncpyz(h.skillname, g_skillNames[ud.player_skill], sizeof(h.skillname));
 #endif

@@ -38,7 +38,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "sbar.h"
 #include "joystick.h"
 
-#ifndef __ANDROID__
+#ifndef EDUKE32_ANDROID_LEGACY
 droidinput_t droidinput;
 #endif
 
@@ -55,7 +55,7 @@ static FORCE_INLINE void Menu_StartTextInput()
     KB_FlushKeyboardQueue();
     KB_ClearKeysDown();
 #if defined EDUKE32_TOUCH_DEVICES && defined SDL_MAJOR_VERSION && SDL_MAJOR_VERSION >= 2
-# if defined __ANDROID__
+# if defined EDUKE32_ANDROID_LEGACY
     AndroidShowKeyboard(1);
 # else
     SDL_StartTextInput();
@@ -66,7 +66,7 @@ static FORCE_INLINE void Menu_StartTextInput()
 static FORCE_INLINE void Menu_StopTextInput()
 {
 #if defined EDUKE32_TOUCH_DEVICES && defined SDL_MAJOR_VERSION && SDL_MAJOR_VERSION >= 2
-# if defined __ANDROID__
+# if defined EDUKE32_ANDROID_LEGACY
     AndroidShowKeyboard(0);
 # else
     SDL_StopTextInput();
@@ -1236,7 +1236,7 @@ static MenuEntry_t ME_SAVE_NEW = MAKE_MENUENTRY( s_NewSaveGame, &MF_Minifont, &M
 static MenuEntry_t *ME_SAVE;
 static MenuEntry_t **MEL_SAVE;
 
-#ifdef __linux__
+#ifdef EDUKE32_HAVE_ALSA
 static int32_t alsadevice;
 static std::vector<alsa_mididevinfo_t> alsadevices;
 #endif
@@ -1294,7 +1294,7 @@ static MenuEntry_t  ME_SOUND_EXTMUSIC  = MAKE_MENUENTRY("Load OGG/FLAC music:", 
 static MenuRangeInt32_t MEO_SOUND_NUMVOICES = MAKE_MENURANGE( &soundvoices, &MF_Redfont, 16, 128, 0, 8, DisplayTypeInteger );
 static MenuEntry_t ME_SOUND_NUMVOICES = MAKE_MENUENTRY( "Voices:", &MF_Redfont, &MEF_BigOptionsRt, &MEO_SOUND_NUMVOICES, RangeInt32 );
 
-#ifdef __linux__
+#ifdef EDUKE32_HAVE_ALSA
 static char const *MEOSN_SOUND_ALSADEVICE[MAXVALIDMODES];
 static MenuOptionSet_t MEOS_SOUND_ALSADEVICE = MAKE_MENUOPTIONSETDYN( MEOSN_SOUND_ALSADEVICE, NULL, 0, 0x0 );
 static MenuOption_t MEO_SOUND_ALSADEVICE = MAKE_MENUOPTION( &MF_Redfont, &MEOS_SOUND_ALSADEVICE, &alsadevice );
@@ -1307,7 +1307,7 @@ static char const *MEOSN_SOUND_MIDIDRIVER[] = {
     "Windows MME",
 #endif
     ".sf2 synth",
-#ifdef __linux__
+#ifdef EDUKE32_HAVE_ALSA
     "ALSA MIDI",
 #endif
 };
@@ -1317,7 +1317,7 @@ static int32_t MEOSV_SOUND_MIDIDRIVER[] = {
     ASS_WinMM,
 #endif
     ASS_SF2,
-#ifdef __linux__
+#ifdef EDUKE32_HAVE_ALSA
     ASS_ALSA,
 #endif
 };
@@ -1353,7 +1353,7 @@ static MenuEntry_t *MEL_SOUND_DEVSETUP[] = {
 #ifndef EDUKE32_RETAIL_MENU
     &ME_SOUND_NUMVOICES,
     &ME_SOUND_MIDIDRIVER,
-#ifdef __linux__
+#ifdef EDUKE32_HAVE_ALSA
     &ME_SOUND_ALSADEVICE,
 #endif
     &ME_SOUND_OPL3AMP,
@@ -2697,7 +2697,7 @@ static void Menu_Pre(MenuID_t cm)
 #ifndef EDUKE32_RETAIL_MENU
         MenuEntry_DisableOnCondition(&ME_SOUND_MIDIDRIVER, !ud.config.MusicToggle);
         MenuEntry_DisableOnCondition(&ME_SOUND_NUMVOICES, !ud.config.SoundToggle);
-#ifdef __linux__
+#ifdef EDUKE32_HAVE_ALSA
         MenuEntry_DisableOnCondition(&ME_SOUND_ALSADEVICE, !ud.config.MusicToggle);
         MenuEntry_HideOnCondition(&ME_SOUND_ALSADEVICE, musicdevice != ASS_ALSA);
 #endif
@@ -2719,7 +2719,7 @@ static void Menu_Pre(MenuID_t cm)
                                                         extmusic == g_maybeUpgradeMusic &&
 #endif
                                                         !Bstrcmp(sf2bankfile, SF2_BankFile)
-#ifdef __linux__
+#ifdef EDUKE32_HAVE_ALSA
                                                         && alsadevices.size() > 0
                                                         && alsadevices[alsadevice].clntid == ALSA_ClientID
                                                         && alsadevices[alsadevice].portid == ALSA_PortID
@@ -3843,7 +3843,7 @@ static void Menu_RefreshSoundProperties()
     ud.config.MixRate     = FX_MixRate;
     ud.config.MusicDevice = MIDI_GetDevice();
 
-#if !defined(EDUKE32_RETAIL_MENU) && defined (__linux__)
+#if !defined(EDUKE32_RETAIL_MENU) && defined (EDUKE32_HAVE_ALSA)
     MEOS_SOUND_ALSADEVICE.numOptions = 0;
     alsadevices = ALSADrv_MIDI_ListPorts();
     if (alsadevices.size() == 0)
@@ -4032,7 +4032,7 @@ static void Menu_EntryLinkActivate(MenuEntry_t *entry)
             MUSIC_GetSongPosition(&pos);
 
         if (ud.config.MixRate != soundrate || ud.config.NumVoices != soundvoices
-#ifdef __linux__
+#ifdef EDUKE32_HAVE_ALSA
             || (musicdevice == ASS_ALSA && (size_t)alsadevice < alsadevices.size() &&
                 (ALSA_ClientID != alsadevices[alsadevice].clntid || ALSA_PortID != alsadevices[alsadevice].portid))
 #endif
@@ -4041,7 +4041,7 @@ static void Menu_EntryLinkActivate(MenuEntry_t *entry)
             S_MusicShutdown();
             S_SoundShutdown();
 
-#ifdef __linux__
+#ifdef EDUKE32_HAVE_ALSA
             ALSA_ClientID = alsadevices[alsadevice].clntid;
             ALSA_PortID = alsadevices[alsadevice].portid;
 #endif
@@ -4057,7 +4057,7 @@ static void Menu_EntryLinkActivate(MenuEntry_t *entry)
         if (ud.config.MusicToggle)
         {
             int const needsReInit = (ud.config.MusicDevice != musicdevice || (musicdevice == ASS_SF2 && Bstrcmp(SF2_BankFile, sf2bankfile))
-#ifdef __linux__
+#ifdef EDUKE32_HAVE_ALSA
                 || (musicdevice == ASS_ALSA && (size_t)alsadevice < alsadevices.size() &&
                     (ALSA_ClientID != alsadevices[alsadevice].clntid || ALSA_PortID != alsadevices[alsadevice].portid))
 #endif
@@ -4435,7 +4435,7 @@ static int32_t Menu_EntryStringSubmit(/*MenuEntry_t *entry, */char *input)
         savebrief_t & sv = g_lastusersave = M_SAVE.currentEntry == 0 ? savebrief_t{input} : g_menusaves[M_SAVE.currentEntry-1].brief;
 
         // dirty hack... char 127 in last position indicates an auto-filled name
-#ifdef __ANDROID__
+#ifdef EDUKE32_ANDROID_LEGACY
         if (1)
 #else
         if (input[0] == 0 || (sv.name[MAXSAVEGAMENAME] == 127 &&
@@ -5306,7 +5306,7 @@ static void Menu_ChangingTo(Menu_t * m)
         break;
     }
 
-#ifdef __ANDROID__
+#ifdef EDUKE32_ANDROID_LEGACY
     if (m->menuID == MENU_TOUCHBUTTONS)
         AndroidToggleButtonEditor();
 #endif

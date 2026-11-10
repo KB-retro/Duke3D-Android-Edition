@@ -64,7 +64,7 @@ typedef struct _savehead
     char scriptname[32];
 
     // 286 bytes
-#ifdef __ANDROID__
+#ifdef EDUKE32_ANDROID_LEGACY
     char skillname[32], volname[32];
 #endif
 
