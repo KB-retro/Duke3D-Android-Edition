@@ -5631,6 +5631,22 @@ static vec2_t Menu_Text(int32_t x, int32_t y, const MenuFont_t *font, const char
 
     Menu_GetFmt(font, status, &s, &z);
 
+#ifdef __ANDROID__
+    // Duke3D Android Edition: si la traducción ocupa más que el texto original en inglés, se
+    // encoge hasta ese ancho; así no pisa el valor de la derecha (el menú está hecho a medida
+    // del inglés).
+    if (!(f & TEXT_NOLOCALE) && t != nullptr && localeLookup(t) != t)
+    {
+        vec2_t const orig = G_ScreenTextSize(font->tilenum, x, y, z, 0, t, g_textstat, font->emptychar.x, font->emptychar.y,
+                                             font->between.x, ybetween, f | TEXT_NOLOCALE, 0, 0, xdim-1, ydim-1);
+        vec2_t const tran = G_ScreenTextSize(font->tilenum, x, y, z, 0, t, g_textstat, font->emptychar.x, font->emptychar.y,
+                                             font->between.x, ybetween, f, 0, 0, xdim-1, ydim-1);
+        int32_t const room = orig.x + orig.x / 16;
+        if (orig.x > 0 && tran.x > room)
+            z = scale(z, room, tran.x);
+    }
+#endif
+
     return G_ScreenText(font->tilenum, x, y, z, 0, 0, t, s, p, g_textstat, 0, font->emptychar.x, font->emptychar.y, font->between.x, ybetween, f, 0, ydim_upper, xdim-1, ydim_lower);
 }
 

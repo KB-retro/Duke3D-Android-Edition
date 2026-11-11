@@ -38,5 +38,7 @@ Duke Nukem 3D, con estos cambios para compilarlo en Android como un Linux con SD
     disparos, explosiones, caídas) no depende del mando: va a la app (`duke3d_android_rumble`
     en `android_main.c`), que usa el motor de la consola.
 12. **Menú rápido solo en plena partida** (`game.cpp`): `duke3d_android_in_game()`.
+13. **Menús traducidos sin solaparse** (`Menu_Text` en `menus.cpp`): si una traducción ocupa más
+    que el texto original en inglés, se encoge hasta ese ancho.
 
 Licencias: GPL v2 (`gpl-2.0.txt`) y licencia del motor BUILD de Ken Silverman (`buildlic.txt`).
