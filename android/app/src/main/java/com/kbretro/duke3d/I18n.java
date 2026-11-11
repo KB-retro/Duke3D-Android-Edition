@@ -61,6 +61,14 @@ final class I18n {
         put("yes", "Sí", "On");
         put("no", "No", "Off");
         put("achievements", "Logros", "Achievements");
+        put("multiplayer", "Multijugador", "Multiplayer");
+        put("net_game", "Juego", "Game");
+        put("net_name", "Nombre", "Name");
+        put("net_host", "Crear partida", "Host game");
+        put("net_join", "Unirse a partida", "Join game");
+        put("net_join_ip", "IP del anfitrión", "Host IP address");
+        put("net_your_ip", "Tu IP: ", "Your IP: ");
+        put("net_port", "Puerto ", "Port ");
         put("achievement_unlocked", "LOGRO DESBLOQUEADO", "ACHIEVEMENT UNLOCKED");
         put("unlocked_short", "OK", "OK");
     }

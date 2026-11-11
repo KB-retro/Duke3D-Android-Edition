@@ -236,6 +236,7 @@ public class LauncherActivity extends Activity {
             if (cover != null) root.addGame(g.menuLabel(), cover, () -> launch(gameDir, g));
             else root.add(g.menuLabel(), assets.icons.get(g.title), () -> launch(gameDir, g));
         }
+        root.add(I18n.t("multiplayer"), null, () -> menuView.push(netPage(gameDir)));
         root.add(I18n.t("options"), null, () -> menuView.push(optionsPage(gameDir)));
         root.add(I18n.t("extras"), null, () -> menuView.push(extrasPage(gameDir)));
         root.add(I18n.t("quit"), null, this::finishAffinity);
@@ -273,7 +274,6 @@ public class LauncherActivity extends Activity {
         for (Achievements.Def d : Achievements.ALL) {
             p.addValue(d.name, () -> {
                 if (Achievements.unlocked(this, d)) return I18n.t("unlocked_short");
-                if (d.online) return "-";
                 if (d.goal > 0) return Achievements.count(this, d) + "/" + d.goal;
                 return "-";
             }, null);
@@ -474,6 +474,94 @@ public class LauncherActivity extends Activity {
     private boolean launching;
 
     private void launch(File gameDir, GameData.Game game) {
+        launch(gameDir, game, new String[0]);
+    }
+
+    // ---- Multijugador (red local o internet, por IP; sin servidores de Steam) ----
+
+    static final int NET_PORT = 23513;
+
+    private SharedPreferences netPrefs() {
+        return getSharedPreferences("ajustes", MODE_PRIVATE);
+    }
+
+    private String playerName() {
+        return netPrefs().getString("nombre_red", "Duke");
+    }
+
+    private GameData.Game netGame() {
+        int i = netPrefs().getInt("juego_red", 0);
+        if (assets.games.isEmpty()) return null;
+        return assets.games.get(Math.max(0, Math.min(i, assets.games.size() - 1)));
+    }
+
+    private DukeMenuView.Page netPage(File gameDir) {
+        DukeMenuView.Page p = new DukeMenuView.Page();
+        p.addValue(I18n.t("net_game"), () -> {
+            GameData.Game g = netGame();
+            return g != null ? g.menuLabel() : "-";
+        }, () -> {
+            int n = assets.games.size();
+            if (n == 0) return;
+            netPrefs().edit().putInt("juego_red", (netPrefs().getInt("juego_red", 0) + 1) % n).apply();
+        });
+        p.addValue(I18n.t("net_name"), this::playerName, () ->
+                askText(I18n.t("net_name"), playerName(), android.text.InputType.TYPE_CLASS_TEXT, name -> {
+                    name = name.replaceAll("[^A-Za-z0-9 _.-]", "").trim();
+                    if (name.length() > 16) name = name.substring(0, 16);
+                    if (!name.isEmpty()) netPrefs().edit().putString("nombre_red", name).apply();
+                }));
+        p.add(I18n.t("net_host"), null, () -> {
+            GameData.Game g = netGame();
+            if (g != null) launch(gameDir, g, new String[]{"-server", "-name", playerName()});
+        });
+        p.add(I18n.t("net_join"), null, () ->
+                askText(I18n.t("net_join_ip"), netPrefs().getString("ip_red", ""),
+                        android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_URI, ip -> {
+                            ip = ip.trim();
+                            if (ip.isEmpty()) return;
+                            netPrefs().edit().putString("ip_red", ip).apply();
+                            GameData.Game g = netGame();
+                            if (g != null) launch(gameDir, g, new String[]{"-connect", ip, "-name", playerName()});
+                        }));
+        p.add(I18n.t("back"), null, () -> menuView.pop());
+        String ip = localIp();
+        p.footer = () -> I18n.t("net_your_ip") + (ip != null ? ip : "-") + "  " + I18n.t("net_port") + NET_PORT;
+        return p;
+    }
+
+    /** La IP de este aparato en la red (wifi), para que los demás se unan. */
+    private static String localIp() {
+        try {
+            for (java.net.NetworkInterface ni : java.util.Collections.list(java.net.NetworkInterface.getNetworkInterfaces())) {
+                if (!ni.isUp() || ni.isLoopback()) continue;
+                for (java.net.InetAddress a : java.util.Collections.list(ni.getInetAddresses())) {
+                    if (a instanceof java.net.Inet4Address && !a.isLoopbackAddress()) return a.getHostAddress();
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return null;
+    }
+
+    /** Cuadro para escribir un texto (nombre, IP). */
+    private void askText(String title, String value, int inputType, java.util.function.Consumer<String> done) {
+        android.widget.EditText edit = new android.widget.EditText(this);
+        edit.setInputType(inputType);
+        edit.setSingleLine(true);
+        edit.setText(value);
+        edit.setSelection(edit.getText().length());
+        new android.app.AlertDialog.Builder(this)
+                .setTitle(title)
+                .setView(edit)
+                .setPositiveButton(android.R.string.ok, (d, w) -> done.accept(edit.getText().toString()))
+                .setNegativeButton(android.R.string.cancel, null)
+                .setOnDismissListener(d -> hideSystemBars())
+                .show();
+        edit.requestFocus();
+    }
+
+    private void launch(File gameDir, GameData.Game game, String[] extraArgs) {
         if (launching) return;
         launching = true;
         music.stop();
@@ -496,7 +584,9 @@ public class LauncherActivity extends Activity {
                 getPreferences(MODE_PRIVATE).edit().putBoolean("jugando", true).apply();
                 Intent intent = new Intent(this, GameActivity.class);
                 intent.putExtra(GameActivity.EXTRA_DIR, gameDir.getAbsolutePath());
-                intent.putExtra(GameActivity.EXTRA_ARGS, GameData.arguments(gameDir, game, defFile));
+                List<String> args = new ArrayList<>(Arrays.asList(GameData.arguments(gameDir, game, defFile)));
+                args.addAll(Arrays.asList(extraArgs));
+                intent.putExtra(GameActivity.EXTRA_ARGS, args.toArray(new String[0]));
                 intent.putExtra(GameActivity.EXTRA_LANG, defFile != null ? "es" : "en");
                 List<GameData.Game> all = GameData.games(gameDir);
                 if (!all.isEmpty()) intent.putExtra(GameActivity.EXTRA_BASE_GRP, all.get(0).grp.getAbsolutePath());
