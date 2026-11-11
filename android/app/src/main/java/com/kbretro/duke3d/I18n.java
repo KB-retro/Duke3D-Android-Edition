@@ -96,9 +96,7 @@ final class I18n {
         put("controls_hint", "A: cambiar la acción del botón (en plena partida)", "A: change the button's action (in game)");
         put("mods", "Mods", "Mods");
         put("mods_empty", "Pon los mods (.zip, .pk3, .grp) en ", "Put mods (.zip, .pk3, .grp) in ");
-        put("mods_note", "vóxeles y mapas sí; texturas y modelos HD no", "voxels and maps work; HD textures and models do not"); usa Tailscale o ZeroTier",
-                "Internet: router doesn't allow UPnP; use Tailscale or ZeroTier"); usa Tailscale o ZeroTier",
-                "Internet: your ISP uses CG-NAT; use Tailscale or ZeroTier");
+        put("mods_note", "vóxeles y mapas sí; texturas y modelos HD no", "voxels and maps work; HD textures and models do not");
         put("achievement_unlocked", "LOGRO DESBLOQUEADO", "ACHIEVEMENT UNLOCKED");
         put("unlocked_short", "OK", "OK");
     }
