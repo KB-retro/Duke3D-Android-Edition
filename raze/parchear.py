@@ -149,3 +149,47 @@ sub("source/common/platform/posix/sdl/sdlglvideo.cpp",
     "\t\t\tbuilder.DebugLayer(vk_debug);",
     "#ifdef __ANDROID__\n\t\t\tbuilder.DebugLayer(vk_debug || getenv(\"RAZE_VKDEBUG\") != nullptr);\n#else\n"
     "\t\t\tbuilder.DebugLayer(vk_debug);\n#endif")
+
+# 17. Vulkan en Android (las capas de validación lo señalan en la Mali-G615):
+#  a) La cadena de imágenes pedía alfa OPACO y Android solo admite INHERIT: se elige uno admitido.
+sub("libraries/ZVulkan/src/vulkanswapchain.cpp",
+    "\tswapChainCreateInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;",
+    "\t{\n\t\tVkCompositeAlphaFlagsKHR supported = caps.Capabilites.supportedCompositeAlpha;\n"
+    "\t\tVkCompositeAlphaFlagBitsKHR alpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;\n"
+    "\t\tif (!(supported & alpha))\n\t\t{\n"
+    "\t\t\tif (supported & VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR) alpha = VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR;\n"
+    "\t\t\telse if (supported & VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR) alpha = VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR;\n"
+    "\t\t\telse if (supported & VK_COMPOSITE_ALPHA_POST_MULTIPLIED_BIT_KHR) alpha = VK_COMPOSITE_ALPHA_POST_MULTIPLIED_BIT_KHR;\n"
+    "\t\t}\n\t\tswapChainCreateInfo.compositeAlpha = alpha;\n\t}\n"
+    "\t//swapChainCreateInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;")
+#  b) Los búferes de luces y huesos solo se leen: «readonly» (sin él, en el sombreador de
+#     vértices hace falta vertexPipelineStoresAndAtomics, que la Mali no activa).
+sub("source/common/rendering/vulkan/shaders/vk_shader.cpp",
+    "\tlayout(set = 1, binding = 3, std430) buffer LightBufferSSO",
+    "\tlayout(set = 1, binding = 3, std430) readonly buffer LightBufferSSO")
+sub("source/common/rendering/vulkan/shaders/vk_shader.cpp",
+    "\tlayout(set = 1, binding = 4, std430) buffer BoneBufferSSO",
+    "\tlayout(set = 1, binding = 4, std430) readonly buffer BoneBufferSSO")
+#  c) Un semáforo «render terminado» por imagen de la cadena (se reutilizaba uno solo mientras
+#     la pantalla aún lo usaba).
+sub("source/common/rendering/vulkan/textures/vk_framebuffer.h",
+    "\tstd::unique_ptr<VulkanSemaphore> RenderFinishedSemaphore;",
+    "\tstd::unique_ptr<VulkanSemaphore> RenderFinishedSemaphore;\n"
+    "\tstd::vector<std::unique_ptr<VulkanSemaphore>> RenderFinishedPerImage;\n"
+    "\tVulkanSemaphore* RenderFinished();")
+sub("source/common/rendering/vulkan/textures/vk_framebuffer.h",
+    "#include <array>\n",
+    "#include <array>\n#include <vector>\n")
+sub("source/common/rendering/vulkan/textures/vk_framebuffer.cpp",
+    "void VkFramebufferManager::QueuePresent()\n{\n\tif (PresentImageIndex != -1)\n"
+    "\t\tSwapChain->QueuePresent(PresentImageIndex, RenderFinishedSemaphore.get());\n}",
+    "VulkanSemaphore* VkFramebufferManager::RenderFinished()\n{\n"
+    "\tif (PresentImageIndex < 0) return RenderFinishedSemaphore.get();\n"
+    "\twhile ((int)RenderFinishedPerImage.size() <= PresentImageIndex)\n"
+    "\t\tRenderFinishedPerImage.push_back(SemaphoreBuilder().DebugName(\"RenderFinishedSemaphore\").Create(fb->device.get()));\n"
+    "\treturn RenderFinishedPerImage[PresentImageIndex].get();\n}\n\n"
+    "void VkFramebufferManager::QueuePresent()\n{\n\tif (PresentImageIndex != -1)\n"
+    "\t\tSwapChain->QueuePresent(PresentImageIndex, RenderFinished());\n}")
+sub("source/common/rendering/vulkan/system/vk_commandbuffer.cpp",
+    "\t\tsubmit.AddSignal(fb->GetFramebufferManager()->RenderFinishedSemaphore.get());",
+    "\t\tsubmit.AddSignal(fb->GetFramebufferManager()->RenderFinished());")
