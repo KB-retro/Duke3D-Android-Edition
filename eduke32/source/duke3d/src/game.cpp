@@ -50,6 +50,10 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #include "vfs.h"
 
+#ifdef __ANDROID__
+static void G_AndroidLevelEnd(DukePlayer_t const *pPlayer);
+#endif
+
 // Uncomment to prevent anything except mirrors from drawing. It is sensible to
 // also uncomment ENGINE_CLEAR_SCREEN in build/src/engine_priv.h.
 //#define DEBUG_MIRRORS_ONLY
@@ -6355,6 +6359,9 @@ static int G_EndOfLevel(void)
 
     if (p.gm & MODE_EOL)
     {
+#ifdef __ANDROID__
+        G_AndroidLevelEnd(&p);
+#endif
         G_CloseDemoWrite();
 
         ready2send = 0;
@@ -6586,6 +6593,93 @@ extern "C" __attribute__((visibility("default"))) int duke3d_android_in_game(voi
     if (ps == nullptr)
         return 0;
     return (ps->gm & MODE_GAME) && !(ps->gm & (MODE_MENU | MODE_TYPE | MODE_DEMO | MODE_EOL));
+}
+
+// ---- Logros (Duke3D Android Edition) ----
+// Los ganchos del juego llaman a G_AndroidEvent; android_main.c lo pasa a Java, que decide
+// qué logro se desbloquea y lo guarda. Nada cuenta en demos, partidas en red ni mapas sueltos.
+extern "C" void duke3d_android_event(int type, int a, int b, int c);
+
+static int android_curVolume = -1, android_curLevel = -1, android_curSecret = 0, android_curPar = 0;
+
+static bool G_AndroidEventsAllowed(void)
+{
+    auto const ps = g_player[myconnectindex].ps;
+    return ps != nullptr && ud.recstat != 2 && !(ps->gm & MODE_DEMO) && numplayers < 2 && ud.multimode < 2;
+}
+
+void G_AndroidEvent(int type, int a, int b, int c)
+{
+    if (G_AndroidEventsAllowed())
+        duke3d_android_event(type, a, b, c);
+}
+
+// Cada tic de juego: recuerda el nivel en curso (al acabarlo, ud.level_number ya apunta al
+// siguiente) y, cada pocos tics, mira si Duke está junto a Luke, el marine o una caca.
+void G_AndroidTick(DukePlayer_t *pPlayer)
+{
+    if (!G_AndroidEventsAllowed() || !(pPlayer->gm & MODE_GAME) || (pPlayer->gm & MODE_EOL))
+        return;
+
+    android_curVolume = ud.volume_number;
+    android_curLevel  = ud.level_number;
+    android_curSecret = ud.from_bonus != 0;
+    android_curPar    = pPlayer->player_par;
+
+    if ((pPlayer->player_par & 7) != 0 || pPlayer->i < 0 || pPlayer->cursectnum < 0)
+        return;
+
+    auto const pSprite = &sprite[pPlayer->i];
+
+    for (int i = 0; i < MAXSPRITES; i++)
+    {
+        auto const s = &sprite[i];
+        if (s->statnum == MAXSTATUS || s->sectnum < 0)
+            continue;
+
+        int const pic = s->picnum;
+        int event = 0, range = 0;
+
+        if (pic == LUKE) event = ANDROID_EV_LUKE, range = 2048;
+        else if (pic == SPACEMARINE) event = ANDROID_EV_DOOMGUY, range = 2048;
+        else if (pic == 4094 /* POOP */) event = ANDROID_EV_POOP, range = 288;
+        else continue;
+
+        int64_t const dx = s->x - pPlayer->pos.x, dy = s->y - pPlayer->pos.y;
+        if (dx * dx + dy * dy > (int64_t)range * range)
+            continue;
+
+        if (event == ANDROID_EV_POOP)
+        {
+            // Pisarla: en el suelo y a la altura de los pies.
+            if (!pPlayer->on_ground || klabs(s->z - pSprite->z) > ZOFFSET5)
+                continue;
+        }
+        else if (!cansee(s->x, s->y, s->z - ZOFFSET5, s->sectnum, pPlayer->pos.x, pPlayer->pos.y, pPlayer->pos.z, pPlayer->cursectnum))
+            continue;
+
+        duke3d_android_event(event, 0, 0, 0);
+    }
+}
+
+// Fin de nivel: qué nivel era, si cayeron todos los enemigos, el tiempo y si acaba el episodio.
+static void G_AndroidLevelEnd(DukePlayer_t const *pPlayer)
+{
+    if (!G_AndroidEventsAllowed() || G_HaveUserMap() || android_curVolume < 0)
+        return;
+
+    int flags = 0;
+    if (pPlayer->max_actors_killed > 0 && pPlayer->actors_killed >= pPlayer->max_actors_killed)
+        flags |= 1;
+
+    int const next = android_curVolume * MAXLEVELS + android_curLevel + 1;
+    bool const lastLevel = android_curLevel + 1 >= MAXLEVELS || g_mapInfo[next].filename == NULL;
+    if (ud.eog || (!android_curSecret && lastLevel))
+        flags |= 2;
+
+    int const seconds = max(android_curPar, (int)pPlayer->player_par) / GAMETICSPERSEC;
+    duke3d_android_event(ANDROID_EV_LEVEL_END, android_curVolume, android_curLevel, flags | (seconds << 8));
+    android_curVolume = -1;
 }
 #endif
 

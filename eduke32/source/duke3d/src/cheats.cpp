@@ -346,6 +346,9 @@ void G_DoCheats(void)
             return;
 
         FOUNDCHEAT:;
+#ifdef __ANDROID__
+            G_AndroidEvent(ANDROID_EV_CHEAT, cheatNum, 0, 0);
+#endif
 
             if (cheatNum == CHEAT_SCOTTY)
             {

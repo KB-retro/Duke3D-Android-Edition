@@ -40,5 +40,8 @@ Duke Nukem 3D, con estos cambios para compilarlo en Android como un Linux con SD
 12. **Menú rápido solo en plena partida** (`game.cpp`): `duke3d_android_in_game()`.
 13. **Menús traducidos sin solaparse** (`Menu_Text` en `menus.cpp`): si una traducción ocupa más
     que el texto original en inglés, se encoge hasta ese ancho.
+14. **Logros** (`game.cpp`, `player.cpp`, `player.h`, `gameexec.cpp`, `sector.cpp`, `cheats.cpp`):
+    `G_AndroidEvent` avisa a Java (bajas, propinas, secretos, pisotones a enemigos encogidos,
+    trucos, Luke, el marine, la caca y el fin de nivel/episodio). Nada cuenta en demos ni en red.
 
 Licencias: GPL v2 (`gpl-2.0.txt`) y licencia del motor BUILD de Ken Silverman (`buildlic.txt`).

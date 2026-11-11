@@ -262,7 +262,31 @@ public class LauncherActivity extends Activity {
     private DukeMenuView.Page extrasPage(File gameDir) {
         DukeMenuView.Page p = new DukeMenuView.Page();
         p.add(I18n.t("music"), null, () -> menuView.push(musicPage(gameDir)));
+        p.add(I18n.t("achievements"), null, () -> menuView.push(achievementsPage()));
         p.add(I18n.t("back"), null, () -> menuView.pop());
+        return p;
+    }
+
+    /** Los 20 logros: los conseguidos en amarillo; abajo, qué hay que hacer para el elegido. */
+    private DukeMenuView.Page achievementsPage() {
+        DukeMenuView.Page p = new DukeMenuView.Page();
+        for (Achievements.Def d : Achievements.ALL) {
+            p.addValue(d.name, () -> {
+                if (Achievements.unlocked(this, d)) return I18n.t("unlocked_short");
+                if (d.online) return "-";
+                if (d.goal > 0) return Achievements.count(this, d) + "/" + d.goal;
+                return "-";
+            }, null);
+            DukeMenuView.Entry e = p.entries.get(p.entries.size() - 1);
+            e.active = () -> Achievements.unlocked(this, d);
+        }
+        p.add(I18n.t("back"), null, () -> menuView.pop());
+        p.footer = () -> {
+            String head = I18n.t("achievements") + " " + Achievements.unlockedCount(this) + "/"
+                    + Achievements.ALL.length;
+            if (p.selected < Achievements.ALL.length) return head + " - " + Achievements.ALL[p.selected].description();
+            return head;
+        };
         return p;
     }
 

@@ -3294,6 +3294,10 @@ void P_CheckSectors(int playerNum)
                 pSector->lotag = 0;
                 P_DoQuote(QUOTE_FOUND_SECRET, pPlayer);
                 pPlayer->secret_rooms++;
+#ifdef __ANDROID__
+                if (playerNum == myconnectindex)
+                    G_AndroidEvent(ANDROID_EV_SECRET, 0, 0, 0);
+#endif
                 return;
 
             case UINT16_MAX:

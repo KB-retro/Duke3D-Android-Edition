@@ -51,6 +51,10 @@ int const inv_to_icon[GET_MAX] = { ICON_STEROIDS, ICON_NONE,  ICON_SCUBA, ICON_H
 void P_AddKills(DukePlayer_t * const pPlayer, uint16_t kills)
 {
     pPlayer->actors_killed += kills;
+#ifdef __ANDROID__
+    if (pPlayer == g_player[myconnectindex].ps && kills > 0)
+        G_AndroidEvent(ANDROID_EV_KILL, kills, 0, 0);
+#endif
 }
 
 void P_UpdateScreenPal(DukePlayer_t * const pPlayer)
@@ -5027,6 +5031,11 @@ void P_ProcessInput(int playerNum)
 
     ++pPlayer->player_par;
 
+#ifdef __ANDROID__
+    if (playerNum == myconnectindex)
+        G_AndroidTick(pPlayer);
+#endif
+
     VM_OnEvent(EVENT_PROCESSINPUT, pPlayer->i, playerNum);
 
     auto &pInput = thisPlayer.input;
@@ -5961,6 +5970,10 @@ RECHECK:
                 A_DoGuts(pPlayer->actorsqu, JIBS6, 7);
                 A_Spawn(pPlayer->actorsqu, BLOODPOOL);
                 A_PlaySound(SQUISHED, pPlayer->actorsqu);
+#ifdef __ANDROID__
+                if (pPlayer == g_player[myconnectindex].ps && A_CheckEnemySprite(&sprite[pPlayer->actorsqu]))
+                    G_AndroidEvent(ANDROID_EV_SQUISH, 0, 0, 0);
+#endif
                 switch (tileGetMapping(sprite[pPlayer->actorsqu].picnum))
                 {
                     case FEM1__:

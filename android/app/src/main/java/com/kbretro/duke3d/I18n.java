@@ -60,6 +60,9 @@ final class I18n {
         put("vibration", "Vibración", "Vibration");
         put("yes", "Sí", "On");
         put("no", "No", "Off");
+        put("achievements", "Logros", "Achievements");
+        put("achievement_unlocked", "LOGRO DESBLOQUEADO", "ACHIEVEMENT UNLOCKED");
+        put("unlocked_short", "OK", "OK");
     }
 
     static void load(Context c) {

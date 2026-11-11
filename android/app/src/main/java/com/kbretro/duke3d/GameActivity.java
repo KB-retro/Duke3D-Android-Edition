@@ -65,6 +65,56 @@ public class GameActivity extends SDLActivity {
         }
     }
 
+    /** Juego lanzado ("base", "dc", "nw" o "vacation") para los logros de cada uno. */
+    private static volatile String gameId = "base";
+
+    /**
+     * Lo llama el juego (desde su hilo) cuando pasa algo que cuenta para los logros.
+     * Ver Achievements y G_AndroidEvent en game.cpp.
+     */
+    static void achievementEvent(int type, int a, int b, int c) {
+        GameActivity act = instance;
+        if (act == null) return;
+        Achievements.onEvent(act.getApplicationContext(), gameId, type, a, b, c,
+                def -> act.ui.post(() -> act.showAchievement(def)));
+    }
+
+    private android.widget.TextView banner;
+
+    /** Cartel arriba durante unos segundos: "Logro desbloqueado" y su nombre. */
+    private void showAchievement(Achievements.Def def) {
+        if (banner == null) {
+            banner = new android.widget.TextView(this);
+            banner.setTextColor(android.graphics.Color.rgb(255, 210, 60));
+            banner.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+            banner.setGravity(android.view.Gravity.CENTER);
+            banner.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 15);
+            banner.setShadowLayer(3, 1, 1, android.graphics.Color.BLACK);
+            float dp = getResources().getDisplayMetrics().density;
+            int pad = (int) (10 * dp);
+            banner.setPadding(pad * 2, pad, pad * 2, pad);
+            android.graphics.drawable.GradientDrawable bg = new android.graphics.drawable.GradientDrawable();
+            bg.setColor(android.graphics.Color.argb(215, 25, 10, 5));
+            bg.setStroke((int) (2 * dp), android.graphics.Color.rgb(200, 60, 20));
+            bg.setCornerRadius(6 * dp);
+            banner.setBackground(bg);
+            banner.setFocusable(false);
+            android.widget.FrameLayout.LayoutParams lp = new android.widget.FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
+                    android.view.Gravity.TOP | android.view.Gravity.CENTER_HORIZONTAL);
+            lp.topMargin = (int) (16 * dp);
+            addContentView(banner, lp);
+        }
+        banner.setText(I18n.t("achievement_unlocked") + "\n" + def.name);
+        banner.animate().cancel();
+        banner.setAlpha(1f);
+        banner.setVisibility(View.VISIBLE);
+        banner.bringToFront();
+        vibrate(150, 150);
+        banner.animate().alpha(0f).setStartDelay(4000).setDuration(600)
+                .withEndAction(() -> banner.setVisibility(View.GONE)).start();
+    }
+
     private android.os.Vibrator vibratorCache;
 
     /** El motor de la consola; si no tiene, el del mando conectado. */
@@ -123,6 +173,7 @@ public class GameActivity extends SDLActivity {
         super.onCreate(savedInstanceState);
         I18n.load(this);
         instance = this;
+        gameId = Achievements.gameId(gameGrp(getArguments()));
         vibrationOn = vibrationPref();
         try {
             nativeInit();
@@ -159,6 +210,12 @@ public class GameActivity extends SDLActivity {
     protected String[] getArguments() {
         String[] args = getIntent().getStringArrayExtra(EXTRA_ARGS);
         return args != null ? args : new String[0];
+    }
+
+    /** El GRP que va tras "-gamegrp" en los argumentos. */
+    private static String gameGrp(String[] args) {
+        for (int i = 0; i + 1 < args.length; i++) if ("-gamegrp".equals(args[i])) return args[i + 1];
+        return null;
     }
 
     private static void command(String cmd) {
@@ -306,6 +363,7 @@ public class GameActivity extends SDLActivity {
             p.add(I18n.t(c[0]), null, () -> {
                 command(c[1]);
                 status = I18n.t("cheat_done") + I18n.t(c[0]);
+                achievementEvent(Achievements.EV_CHEAT, 0, 0, 0);
             });
         }
         p.add(I18n.t("back"), null, () -> quickMenu.pop());

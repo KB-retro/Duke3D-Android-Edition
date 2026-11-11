@@ -3671,6 +3671,10 @@ breakfor:
             vInstruction(CON_TIP):
                 insptr++;
                 vm.pPlayer->tipincs = GAMETICSPERSEC;
+#ifdef __ANDROID__
+                if (vm.pPlayer == g_player[myconnectindex].ps)
+                    G_AndroidEvent(ANDROID_EV_TIP, 0, 0, 0);
+#endif
                 dispatch();
 
             vInstruction(CON_FALL):

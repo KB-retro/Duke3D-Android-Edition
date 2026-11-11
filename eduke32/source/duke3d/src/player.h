@@ -448,4 +448,22 @@ static inline int P_Get(int32_t spriteNum) { return P_GetP((uspriteptr_t)&sprite
 
 extern int portableBackupSave(const char *, const char *, int, int);
 
+#ifdef __ANDROID__
+// Logros de Duke3D Android Edition (ver game.cpp y GameActivity.achievementEvent).
+enum
+{
+    ANDROID_EV_KILL = 1,
+    ANDROID_EV_TIP,
+    ANDROID_EV_SECRET,
+    ANDROID_EV_SQUISH,
+    ANDROID_EV_CHEAT,
+    ANDROID_EV_POOP,
+    ANDROID_EV_LUKE,
+    ANDROID_EV_DOOMGUY,
+    ANDROID_EV_LEVEL_END,
+};
+void G_AndroidEvent(int type, int a, int b, int c);
+void G_AndroidTick(DukePlayer_t *pPlayer);
+#endif
+
 #endif

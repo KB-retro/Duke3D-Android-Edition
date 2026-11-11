@@ -142,6 +142,7 @@ JNIEXPORT void JNICALL Java_com_kbretro_duke3d_GameActivity_nativeCommand(JNIEnv
 static JavaVM *java_vm;
 static jclass game_class;
 static jmethodID vibrate_method;
+static jmethodID achievement_method;
 
 JNIEXPORT jint JNI_OnLoad(JavaVM *vm, void *reserved)
 {
@@ -155,6 +156,8 @@ JNIEXPORT void JNICALL Java_com_kbretro_duke3d_GameActivity_nativeInit(JNIEnv *e
 {
     if (!game_class) game_class = (*env)->NewGlobalRef(env, cls);
     vibrate_method = (*env)->GetStaticMethodID(env, cls, "vibrate", "(II)V");
+    achievement_method = (*env)->GetStaticMethodID(env, cls, "achievementEvent", "(IIII)V");
+    if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
 }
 
 __attribute__((visibility("default")))
@@ -168,6 +171,23 @@ void duke3d_android_rumble(int low, int high, int ms)
     }
     int strength = (low > high ? low : high) / 257; // 0..255
     (*env)->CallStaticVoidMethod(env, game_class, vibrate_method, strength, ms);
+    if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
+}
+
+// ---- Logros ----
+// El juego avisa de lo que pasa (bajas, propinas, secretos, fin de nivel...) y
+// GameActivity.achievementEvent(tipo, a, b, c) decide qué logros se desbloquean.
+
+__attribute__((visibility("default")))
+void duke3d_android_event(int type, int a, int b, int c)
+{
+    if (!java_vm || !game_class || !achievement_method) return;
+    JNIEnv *env = NULL;
+    if ((*java_vm)->GetEnv(java_vm, (void **)&env, JNI_VERSION_1_6) != JNI_OK)
+    {
+        if ((*java_vm)->AttachCurrentThread(java_vm, &env, NULL) != JNI_OK) return;
+    }
+    (*env)->CallStaticVoidMethod(env, game_class, achievement_method, type, a, b, c);
     if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
 }
 
