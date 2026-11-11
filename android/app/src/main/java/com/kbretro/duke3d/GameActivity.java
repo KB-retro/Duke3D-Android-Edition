@@ -183,6 +183,9 @@ public class GameActivity extends SDLActivity {
             Os.setenv("DUKE3D_LANG", lang != null ? lang : "en", true);
             // Renderizador: software (8 bits, con las mejoras de postfx.c) u OpenGL (Polymost).
             Os.setenv("DUKE3D_RENDERER", GraphicsSettings.opengl(this) ? "gl" : "soft", true);
+            // gl4es: agrupa los dibujos pequeños seguidos (Polymost hace muchísimos) y sin cartel.
+            Os.setenv("LIBGL_BATCH", "0-64", true);
+            Os.setenv("LIBGL_NOBANNER", "1", true);
             // Ajustes de OpenGL: se aplican al arrancar, antes de abrir el vídeo.
             if (dir != null && GraphicsSettings.opengl(this)) {
                 File cfg = new File(dir, "duke3d_android/arranque.cfg");

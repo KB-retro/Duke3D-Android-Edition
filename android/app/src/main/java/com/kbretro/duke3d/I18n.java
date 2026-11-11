@@ -94,6 +94,10 @@ final class I18n {
         put("making_log", "Guardando registro...", "Saving log...");
         put("log_saved", "Registro guardado: ", "Log saved: ");
         put("gfx_restart", "Se aplica al volver a entrar en el juego", "Applies next time you start the game");
+        put("mods", "Mods", "Mods");
+        put("mods_empty", "Pon los mods (.zip, .pk3, .grp) en ", "Put mods (.zip, .pk3, .grp) in ");
+        put("mods_note", "texturas y modelos HD solo con OpenGL", "HD textures and models need OpenGL");
+        put("gfx_gl_note", "OpenGL: activa los packs HD en Mods", "OpenGL: enable HD packs in Mods");
         put("multiplayer", "Multijugador", "Multiplayer");
         put("net_game", "Juego", "Game");
         put("net_name", "Nombre", "Name");

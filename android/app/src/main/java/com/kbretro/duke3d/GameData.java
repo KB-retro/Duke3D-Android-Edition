@@ -96,35 +96,64 @@ final class GameData {
         return games;
     }
 
+    /** Las carpetas donde se buscan mods: "mods" (y "hd", la de antes) dentro de la del juego. */
+    static List<File> modDirs(File gameDir) {
+        List<File> dirs = new ArrayList<>();
+        for (String n : new String[]{"mods", "hd"}) {
+            File d = findChild(gameDir, n);
+            if (d != null && d.isDirectory()) dirs.add(d);
+        }
+        return dirs;
+    }
+
+    /** Todos los mods (.zip, .pk3, .grp) que hay, ordenados por nombre. */
+    static List<File> mods(File gameDir) {
+        List<File> mods = new ArrayList<>();
+        for (File d : modDirs(gameDir)) {
+            File[] files = d.listFiles();
+            if (files == null) continue;
+            for (File f : files) {
+                String n = f.getName().toLowerCase(java.util.Locale.ROOT);
+                if (f.isFile() && (n.endsWith(".zip") || n.endsWith(".pk3") || n.endsWith(".grp"))) mods.add(f);
+            }
+        }
+        java.util.Collections.sort(mods, (x, y) -> x.getName().compareToIgnoreCase(y.getName()));
+        return mods;
+    }
+
+    /** Los .def de la raíz de un mod (zip/pk3), para cargarlos. */
+    static List<String> rootDefs(File mod) {
+        List<String> defs = new ArrayList<>();
+        String n = mod.getName().toLowerCase(java.util.Locale.ROOT);
+        if (!(n.endsWith(".zip") || n.endsWith(".pk3"))) return defs;
+        try (java.util.zip.ZipFile z = new java.util.zip.ZipFile(mod)) {
+            java.util.Enumeration<? extends java.util.zip.ZipEntry> e = z.entries();
+            while (e.hasMoreElements()) {
+                String name = e.nextElement().getName();
+                if (!name.contains("/") && name.toLowerCase(java.util.Locale.ROOT).endsWith(".def")) defs.add(name);
+            }
+        } catch (Exception ignored) {
+        }
+        return defs;
+    }
+
     /**
-     * Packs HD (texturas, modelos, vóxeles) de la carpeta "hd" del juego: cada .zip / .pk3 se
-     * carga con -g; si el pack no trae duke3d.def, sus .def de la raíz se cargan con -mh.
-     * Solo sirven con OpenGL (Polymost).
+     * Argumentos para los mods activados: cada uno con -g y, si trae .def en la raíz, con -mh
+     * (si trae duke3d.def, solo ese, que es el que incluye a los demás).
      */
-    static List<String> hdArguments(File gameDir) {
+    static List<String> modArguments(File gameDir, java.util.Set<String> enabled) {
         List<String> args = new ArrayList<>();
-        File hd = findChild(gameDir, "hd");
-        File[] files = hd != null ? hd.listFiles() : null;
-        if (files == null) return args;
-        java.util.Arrays.sort(files);
-        for (File f : files) {
-            String n = f.getName().toLowerCase(java.util.Locale.ROOT);
-            if (!f.isFile() || !(n.endsWith(".zip") || n.endsWith(".pk3"))) continue;
+        for (File f : mods(gameDir)) {
+            if (!enabled.contains(f.getName())) continue;
             args.add("-g");
             args.add(f.getAbsolutePath());
-            List<String> defs = new ArrayList<>();
-            boolean main = false;
-            try (java.util.zip.ZipFile z = new java.util.zip.ZipFile(f)) {
-                java.util.Enumeration<? extends java.util.zip.ZipEntry> e = z.entries();
-                while (e.hasMoreElements()) {
-                    String name = e.nextElement().getName();
-                    if (name.contains("/") || !name.toLowerCase(java.util.Locale.ROOT).endsWith(".def")) continue;
-                    if (name.equalsIgnoreCase("duke3d.def")) main = true;
-                    else defs.add(name);
-                }
-            } catch (Exception ignored) {
-            }
-            if (!main) {
+            List<String> defs = rootDefs(f);
+            String main = null;
+            for (String d : defs) if (d.equalsIgnoreCase("duke3d.def")) main = d;
+            if (main != null) {
+                args.add("-mh");
+                args.add(main);
+            } else {
                 for (String d : defs) {
                     args.add("-mh");
                     args.add(d);
@@ -132,19 +161,6 @@ final class GameData {
             }
         }
         return args;
-    }
-
-    /** Nombres de los packs HD encontrados (para enseñarlos en el lanzador). */
-    static List<String> hdPacks(File gameDir) {
-        List<String> names = new ArrayList<>();
-        File hd = findChild(gameDir, "hd");
-        File[] files = hd != null ? hd.listFiles() : null;
-        if (files == null) return names;
-        for (File f : files) {
-            String n = f.getName().toLowerCase(java.util.Locale.ROOT);
-            if (f.isFile() && (n.endsWith(".zip") || n.endsWith(".pk3"))) names.add(f.getName());
-        }
-        return names;
     }
 
     /** Argumentos de EDuke32 para lanzar un juego desde gameDir. */

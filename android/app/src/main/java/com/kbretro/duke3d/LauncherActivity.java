@@ -249,6 +249,7 @@ public class LauncherActivity extends Activity {
             else root.add(g.menuLabel(), assets.icons.get(g.title), () -> launch(gameDir, g));
         }
         root.add(I18n.t("multiplayer"), null, () -> menuView.push(netPage(gameDir)));
+        root.add(I18n.t("mods"), null, () -> menuView.push(modsPage(gameDir)));
         root.add(I18n.t("options"), null, () -> menuView.push(optionsPage(gameDir)));
         root.add(I18n.t("extras"), null, () -> menuView.push(extrasPage(gameDir)));
         root.add(I18n.t("quit"), null, this::finishAffinity);
@@ -375,10 +376,7 @@ public class LauncherActivity extends Activity {
             GraphicsSettings.addTo(this, g, null, null);
             GraphicsSettings.addPolymost(this, g, null);
             g.add(I18n.t("back"), null, () -> menuView.pop());
-            java.util.List<String> packs = GameData.hdPacks(gameDir);
-            g.footer = () -> GraphicsSettings.opengl(this)
-                    ? (packs.isEmpty() ? I18n.t("gfx_no_hd") : I18n.t("gfx_hd_found") + String.join(", ", packs))
-                    : I18n.t("gfx_soft_note");
+            g.footer = () -> GraphicsSettings.opengl(this) ? I18n.t("gfx_gl_note") : I18n.t("gfx_soft_note");
             menuView.push(g);
         });
         p.add(I18n.t("folder"), null, this::pickFolder);
@@ -517,6 +515,42 @@ public class LauncherActivity extends Activity {
         launch(gameDir, game, new String[0]);
     }
 
+    // ---- Mods ----
+
+    /** Nombres de los mods activados (se guardan en los ajustes). */
+    private java.util.Set<String> enabledMods() {
+        return new java.util.HashSet<>(getSharedPreferences("ajustes", MODE_MULTI_PROCESS)
+                .getStringSet("mods_activos", new java.util.HashSet<>()));
+    }
+
+    private void setModEnabled(String name, boolean on) {
+        java.util.Set<String> set = enabledMods();
+        if (on) set.add(name);
+        else set.remove(name);
+        getSharedPreferences("ajustes", MODE_MULTI_PROCESS).edit().putStringSet("mods_activos", set).apply();
+    }
+
+    /** Lista de los mods de la carpeta "mods" con un interruptor para cada uno. */
+    private DukeMenuView.Page modsPage(File gameDir) {
+        DukeMenuView.Page p = new DukeMenuView.Page();
+        List<File> mods = GameData.mods(gameDir);
+        for (File f : mods) {
+            String name = f.getName();
+            String label = name.replaceAll("(?i)\\.(zip|pk3|grp)$", "").replace('_', ' ');
+            p.addValue(label, () -> I18n.t(enabledMods().contains(name) ? "yes" : "no"),
+                    () -> setModEnabled(name, !enabledMods().contains(name)));
+            DukeMenuView.Entry e = p.entries.get(p.entries.size() - 1);
+            e.active = () -> enabledMods().contains(name);
+        }
+        p.add(I18n.t("back"), null, () -> menuView.pop());
+        File dir = new File(gameDir, "mods");
+        if (!dir.exists()) dir.mkdirs();
+        p.footer = () -> mods.isEmpty()
+                ? I18n.t("mods_empty") + dir.getAbsolutePath()
+                : (p.selected < mods.size() ? mods.get(p.selected).getName() + " - " : "") + I18n.t("mods_note");
+        return p;
+    }
+
     // ---- Multijugador (red local o internet, por IP; sin servidores de Steam) ----
 
     static final int NET_PORT = 23513;
@@ -626,7 +660,7 @@ public class LauncherActivity extends Activity {
                 intent.putExtra(GameActivity.EXTRA_DIR, gameDir.getAbsolutePath());
                 List<String> args = new ArrayList<>(Arrays.asList(GameData.arguments(gameDir, game, defFile)));
                 args.addAll(Arrays.asList(extraArgs));
-                if (GraphicsSettings.opengl(this)) args.addAll(GameData.hdArguments(gameDir));
+                args.addAll(GameData.modArguments(gameDir, enabledMods()));
                 intent.putExtra(GameActivity.EXTRA_ARGS, args.toArray(new String[0]));
                 intent.putExtra(GameActivity.EXTRA_LANG, defFile != null ? "es" : "en");
                 List<GameData.Game> all = GameData.games(gameDir);

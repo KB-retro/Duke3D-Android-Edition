@@ -101,6 +101,7 @@ extern "C" int android_gl4es_load(void);
 extern "C" void *android_gl4es_getproc(const char *name);
 extern "C" void android_gl4es_pre_swap(void);
 extern "C" void android_gl4es_post_swap(void);
+extern "C" void android_perf_frame(int fps);
 static void android_destroy_present(void)
 {
     android_postfx_shutdown();
@@ -2206,6 +2207,7 @@ void videoShowFrame(int32_t w)
             android_gl4es_pre_swap();
             SDL_GL_SwapWindow(sdl_window);
             android_gl4es_post_swap();
+            android_perf_frame(r_maxfps > 0 ? r_maxfps : (int)refreshfreq);
 #elif SDL_MAJOR_VERSION >= 2
             SDL_GL_SwapWindow(sdl_window);
 #else
@@ -2280,6 +2282,7 @@ void videoShowFrame(int32_t w)
     softsurface_blitBuffer((uint32_t*) sdl_surface->pixels, sdl_surface->format->BitsPerPixel);
     if (SDL_MUSTLOCK(sdl_surface)) SDL_UnlockSurface(sdl_surface);
 #if defined __ANDROID__ && SDL_MAJOR_VERSION >= 2
+    android_perf_frame(r_maxfps > 0 ? r_maxfps : (int)refreshfreq);
     if (android_postfx_active())
         android_postfx_present(sdl_surface->pixels, sdl_surface->w, sdl_surface->h, sdl_surface->pitch);
     else if (android_renderer && android_texture)

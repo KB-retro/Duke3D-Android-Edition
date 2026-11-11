@@ -612,3 +612,74 @@ void android_gl4es_post_swap(void)
     if (gl4es_post)
         gl4es_post();
 }
+
+// ---- Rendimiento: ADPF (Android Dynamic Performance Framework) ----
+// Se le dice a Android cuánto debe tardar cada fotograma y cuánto tarda de verdad; así sube
+// la frecuencia de la CPU a tiempo y no hay bajones (Android 13+, se busca en libandroid).
+
+#include <time.h>
+#include <unistd.h>
+
+typedef struct APerformanceHintManager APerformanceHintManager;
+typedef struct APerformanceHintSession APerformanceHintSession;
+
+static APerformanceHintManager *(*ph_getManager)(void);
+static APerformanceHintSession *(*ph_createSession)(APerformanceHintManager *, const int32_t *, size_t, int64_t);
+static int (*ph_report)(APerformanceHintSession *, int64_t);
+static int (*ph_updateTarget)(APerformanceHintSession *, int64_t);
+static APerformanceHintSession *ph_session;
+static int ph_tried;
+static int64_t ph_last, ph_target;
+
+static int64_t now_ns(void)
+{
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (int64_t)ts.tv_sec * 1000000000LL + ts.tv_nsec;
+}
+
+/** Una vez por fotograma, en el hilo del juego. @param fps el objetivo (0 = sin límite). */
+void android_perf_frame(int fps)
+{
+    int64_t const t = now_ns();
+    int64_t const target = 1000000000LL / (fps > 0 ? fps : 120);
+
+    if (!ph_tried)
+    {
+        ph_tried = 1;
+        void *lib = dlopen("libandroid.so", RTLD_NOW);
+        if (lib)
+        {
+            ph_getManager = (APerformanceHintManager * (*)(void)) dlsym(lib, "APerformanceHint_getManager");
+            ph_createSession = (APerformanceHintSession * (*)(APerformanceHintManager *, const int32_t *, size_t, int64_t))
+                dlsym(lib, "APerformanceHint_createSession");
+            ph_report = (int (*)(APerformanceHintSession *, int64_t))dlsym(lib, "APerformanceHint_reportActualWorkDuration");
+            ph_updateTarget = (int (*)(APerformanceHintSession *, int64_t))dlsym(lib, "APerformanceHint_updateTargetWorkDuration");
+        }
+        if (ph_getManager && ph_createSession && ph_report)
+        {
+            APerformanceHintManager *m = ph_getManager();
+            int32_t tid = gettid();
+            if (m)
+                ph_session = ph_createSession(m, &tid, 1, target);
+            ph_target = target;
+        }
+        LOGI("ADPF: %s", ph_session ? "activo" : "no disponible");
+        ph_last = t;
+        return;
+    }
+
+    if (!ph_session)
+        return;
+
+    if (target != ph_target && ph_updateTarget)
+    {
+        ph_updateTarget(ph_session, target);
+        ph_target = target;
+    }
+
+    int64_t const work = t - ph_last;
+    ph_last = t;
+    if (work > 0 && work < 1000000000LL)
+        ph_report(ph_session, work);
+}
