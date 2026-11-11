@@ -288,7 +288,7 @@ final class TouchControls extends View {
         ring.setStrokeWidth(Math.max(2f, r * 0.07f));
         ring.setColor(b.pressed ? Color.rgb(255, 230, 120) : Color.argb(220, 255, 196, 0));
         c.drawCircle(b.cx, b.cy, r, ring);
-        drawLabel(c, I18n.EN.equals(I18n.lang()) ? b.en : b.es, b.cx, b.cy, r * 1.55f, r * 0.62f);
+        drawIcon(c, b, r * 0.62f);
     }
 
     private void drawStick(Canvas c) {
@@ -338,6 +338,134 @@ final class TouchControls extends View {
             c.drawPath(trefoil, fill);
         }
         c.drawCircle(x, y, r * 0.2f, fill);
+    }
+
+    private final Paint iconFill = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint iconLine = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Path icon = new Path();
+
+    /**
+     * Iconos dibujados (no texto): amarillo brillante con contorno negro para que se vean sobre
+     * cualquier fondo; blancos mientras se pulsan.
+     */
+    private void drawIcon(Canvas c, Button b, float s) {
+        float x = b.cx, y = b.cy;
+        int color = b.pressed ? Color.WHITE : Color.rgb(255, 214, 30);
+        iconFill.setStyle(Paint.Style.FILL);
+        iconFill.setColor(color);
+        iconLine.setStyle(Paint.Style.STROKE);
+        iconLine.setStrokeJoin(Paint.Join.ROUND);
+        iconLine.setStrokeCap(Paint.Cap.ROUND);
+        icon.reset();
+        switch (b.func) {
+            case FIRE: { // mira
+                float r = s * 0.62f;
+                strokeBoth(c, () -> {
+                    c.drawCircle(x, y, r, iconLine);
+                    c.drawLine(x, y - s, x, y - r * 0.45f, iconLine);
+                    c.drawLine(x, y + r * 0.45f, x, y + s, iconLine);
+                    c.drawLine(x - s, y, x - r * 0.45f, y, iconLine);
+                    c.drawLine(x + r * 0.45f, y, x + s, y, iconLine);
+                }, s * 0.16f, color);
+                outlineFill(c, () -> c.drawCircle(x, y, s * 0.12f, iconFill), color);
+                return;
+            }
+            case JUMP:
+            case CROUCH: { // dos flechas hacia arriba / abajo
+                float d = b.func == JUMP ? -1 : 1;
+                for (int i = 0; i < 2; i++) {
+                    float oy = y + d * (i == 0 ? -s * 0.38f : s * 0.22f);
+                    icon.moveTo(x - s * 0.75f, oy - d * s * 0.32f);
+                    icon.lineTo(x, oy + d * s * 0.38f);
+                    icon.lineTo(x + s * 0.75f, oy - d * s * 0.32f);
+                }
+                strokeBoth(c, () -> c.drawPath(icon, iconLine), s * 0.26f, color);
+                return;
+            }
+            case OPEN: { // puerta con pomo
+                RectF door = new RectF(x - s * 0.55f, y - s * 0.95f, x + s * 0.55f, y + s * 0.95f);
+                strokeBoth(c, () -> c.drawRect(door, iconLine), s * 0.18f, color);
+                outlineFill(c, () -> c.drawCircle(x + s * 0.22f, y + s * 0.08f, s * 0.13f, iconFill), color);
+                return;
+            }
+            case KICK: { // bota
+                icon.moveTo(x - s * 0.55f, y - s * 0.95f);
+                icon.lineTo(x + s * 0.05f, y - s * 0.95f);
+                icon.lineTo(x + s * 0.05f, y + s * 0.05f);
+                icon.lineTo(x + s * 0.85f, y + s * 0.3f);
+                icon.quadTo(x + s * 1.0f, y + s * 0.55f, x + s * 0.85f, y + s * 0.8f);
+                icon.lineTo(x - s * 0.55f, y + s * 0.8f);
+                icon.close();
+                outlineFill(c, () -> c.drawPath(icon, iconFill), color);
+                return;
+            }
+            case NEXT_WEAPON: { // pistola
+                icon.moveTo(x - s * 0.95f, y - s * 0.5f);
+                icon.lineTo(x + s * 0.95f, y - s * 0.5f);
+                icon.lineTo(x + s * 0.95f, y - s * 0.05f);
+                icon.lineTo(x - s * 0.05f, y - s * 0.05f);
+                icon.lineTo(x - s * 0.15f, y + s * 0.85f);
+                icon.lineTo(x - s * 0.75f, y + s * 0.85f);
+                icon.lineTo(x - s * 0.55f, y - s * 0.05f);
+                icon.lineTo(x - s * 0.95f, y - s * 0.05f);
+                icon.close();
+                outlineFill(c, () -> c.drawPath(icon, iconFill), color);
+                return;
+            }
+            case INVENTORY: { // botiquín
+                RectF box = new RectF(x - s * 0.9f, y - s * 0.6f, x + s * 0.9f, y + s * 0.75f);
+                outlineFill(c, () -> c.drawRoundRect(box, s * 0.15f, s * 0.15f, iconFill), color);
+                Paint cross = new Paint(Paint.ANTI_ALIAS_FLAG);
+                cross.setColor(Color.rgb(200, 20, 20));
+                c.drawRect(x - s * 0.14f, y - s * 0.4f, x + s * 0.14f, y + s * 0.55f, cross);
+                c.drawRect(x - s * 0.48f, y - s * 0.06f, x + s * 0.48f, y + s * 0.22f, cross);
+                return;
+            }
+            case MAP: { // mapa plegado
+                icon.moveTo(x - s * 0.95f, y - s * 0.65f);
+                icon.lineTo(x - s * 0.32f, y - s * 0.85f);
+                icon.lineTo(x + s * 0.32f, y - s * 0.65f);
+                icon.lineTo(x + s * 0.95f, y - s * 0.85f);
+                icon.lineTo(x + s * 0.95f, y + s * 0.65f);
+                icon.lineTo(x + s * 0.32f, y + s * 0.85f);
+                icon.lineTo(x - s * 0.32f, y + s * 0.65f);
+                icon.lineTo(x - s * 0.95f, y + s * 0.85f);
+                icon.close();
+                icon.moveTo(x - s * 0.32f, y - s * 0.85f);
+                icon.lineTo(x - s * 0.32f, y + s * 0.65f);
+                icon.moveTo(x + s * 0.32f, y - s * 0.65f);
+                icon.lineTo(x + s * 0.32f, y + s * 0.85f);
+                strokeBoth(c, () -> c.drawPath(icon, iconLine), s * 0.15f, color);
+                return;
+            }
+            default: { // menú: tres rayas
+                strokeBoth(c, () -> {
+                    for (int i = -1; i <= 1; i++) c.drawLine(x - s * 0.75f, y + i * s * 0.5f, x + s * 0.75f, y + i * s * 0.5f, iconLine);
+                }, s * 0.22f, color);
+            }
+        }
+    }
+
+    /** Trazo grueso negro debajo y el de color encima. */
+    private void strokeBoth(Canvas c, Runnable draw, float width, int color) {
+        iconLine.setColor(Color.argb(220, 0, 0, 0));
+        iconLine.setStrokeWidth(width * 1.9f);
+        draw.run();
+        iconLine.setColor(color);
+        iconLine.setStrokeWidth(width);
+        draw.run();
+    }
+
+    /** Relleno de color con contorno negro. */
+    private void outlineFill(Canvas c, Runnable draw, int color) {
+        iconFill.setStyle(Paint.Style.STROKE);
+        iconFill.setStrokeJoin(Paint.Join.ROUND);
+        iconFill.setStrokeWidth(Math.max(3f, unit * 0.07f));
+        iconFill.setColor(Color.argb(220, 0, 0, 0));
+        draw.run();
+        iconFill.setStyle(Paint.Style.FILL);
+        iconFill.setColor(color);
+        draw.run();
     }
 
     /** Texto con las letras rojas grandes del juego (o una negrita roja si no hay gráficos). */
