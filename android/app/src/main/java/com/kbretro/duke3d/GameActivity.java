@@ -428,10 +428,24 @@ public class GameActivity extends SDLActivity {
             // Y a la superficie del juego: algunos sistemas solo hacen caso a esto.
             if (android.os.Build.VERSION.SDK_INT >= 30 && mSurface != null
                     && mSurface.getHolder().getSurface() != null && mSurface.getHolder().getSurface().isValid()) {
-                mSurface.getHolder().getSurface().setFrameRate(best.getRefreshRate(),
-                        android.view.Surface.FRAME_RATE_COMPATIBILITY_FIXED_SOURCE);
+                android.view.Surface surf = mSurface.getHolder().getSurface();
+                if (android.os.Build.VERSION.SDK_INT >= 31) {
+                    // "Siempre": aunque el cambio no sea instantáneo (algunos MediaTek lo ignoraban).
+                    surf.setFrameRate(best.getRefreshRate(), android.view.Surface.FRAME_RATE_COMPATIBILITY_FIXED_SOURCE,
+                            android.view.Surface.CHANGE_FRAME_RATE_ALWAYS);
+                } else {
+                    surf.setFrameRate(best.getRefreshRate(), android.view.Surface.FRAME_RATE_COMPATIBILITY_FIXED_SOURCE);
+                }
             }
             Log.i("Duke3D", "Pantalla a " + best.getRefreshRate() + " Hz (pedido: " + fpsLabel(fps) + ")");
+            // Lo que de verdad queda al cabo de un momento (si el sistema lo limita, se verá aquí).
+            ui.postDelayed(() -> {
+                try {
+                    Display dd = getWindowManager().getDefaultDisplay();
+                    Log.i("Duke3D", "Frecuencia real de la pantalla: " + dd.getRefreshRate() + " Hz");
+                } catch (Exception ignored) {
+                }
+            }, 2500);
         } catch (Exception e) {
             Log.w("Duke3D", "No se pudo cambiar la frecuencia de pantalla", e);
         }
