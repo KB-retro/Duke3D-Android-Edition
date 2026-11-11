@@ -118,15 +118,13 @@ final class Translator {
             }
             writeLines(new File(dir, "textos_sin_traducir_con.txt"), missing);
 
-            // Letras con tilde a partir de las del juego base.
-            DukeArt art = new DukeArt(grps.subList(0, 1));
+            // Sin tildes: las fuentes del juego no las tienen y las letras fabricadas salían raras.
             StringBuilder def = new StringBuilder();
-            def.append("// Generado por Duke3D Android Edition: castellano.\n\n");
-            writeGlyphs(art, dir, def);
+            def.append("// Generado por Duke3D Android Edition: castellano (sin tildes).\n\n");
 
             def.append("localization \"es\"\n{\n");
             for (Map.Entry<String, String> e : out.entrySet()) {
-                String k = e.getKey(), v = e.getValue();
+                String k = e.getKey(), v = plain(e.getValue());
                 // Las claves son bytes del juego: con caracteres raros no coincidirían.
                 if (!defSafe(k) || !defSafe(v) || !k.matches("[\\x20-\\x7E]*")) continue;
                 def.append("    string \"").append(escape(k)).append("\" \"").append(escape(v)).append("\"\n");
@@ -194,11 +192,17 @@ final class Translator {
     /** Si el original va en mayúsculas, la traducción también; y si acaba en "!", con ¡...! */
     private static String adaptCase(String original, String es) {
         String r = original.matches(".*[a-z].*") ? es : es.toUpperCase(ES);
-        if (original.trim().endsWith("!")) {
-            if (!r.endsWith("!")) r = r + "!";
-            if (!r.startsWith("¡")) r = "¡" + r;
-        }
+        if (original.trim().endsWith("!") && !r.endsWith("!")) r = r + "!";
         return r;
+    }
+
+    /**
+     * El texto con las letras que tiene el juego: sin tildes ni diéresis, ñ como n y sin ¿ ni ¡
+     * (las fuentes originales no los tienen).
+     */
+    static String plain(String s) {
+        String n = java.text.Normalizer.normalize(s, java.text.Normalizer.Form.NFD).replaceAll("\\p{M}", "");
+        return n.replace("¿", "").replace("¡", "").replace('º', 'o').replace('ª', 'a');
     }
 
     private static boolean defSafe(String s) {
