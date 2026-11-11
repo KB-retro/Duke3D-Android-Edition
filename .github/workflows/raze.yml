@@ -43,6 +43,7 @@ jobs:
           curl -fsSL -o sdl.tar.gz "https://github.com/libsdl-org/SDL/releases/download/release-${SDL_VERSION}/SDL2-${SDL_VERSION}.tar.gz"
           tar xzf sdl.tar.gz && mv "SDL2-${SDL_VERSION}" sdl2
           python3 raze/parchear.py raze-src
+          python3 raze/zmusic/parchear.py zmusic
 
       - uses: actions/cache@v4
         with:
