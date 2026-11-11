@@ -138,26 +138,67 @@ final class GameData {
     }
 
     /**
-     * Argumentos para los mods activados: cada uno con -g y, si trae .def en la raíz, con -mh
-     * (si trae duke3d.def, solo ese, que es el que incluye a los demás).
+     * Argumentos para los mods activados: cada uno con -g y sus .def de la raíz con -mh.
+     *
+     * Muchos packs (HRP, vóxeles...) traen su propio duke3d.def y todos se llaman igual: el
+     * juego solo vería uno y lo cargaría varias veces. Por eso el duke3d.def de cada pack se
+     * copia con su propio nombre (duke3d_android/mods/NOMBRE.def) y se carga ese; sus include
+     * siguen encontrando los archivos dentro del pack. El duke3d.def principal pasa a ser uno
+     * vacío para que no se cargue ninguno dos veces. Se llama fuera del hilo principal.
      */
     static List<String> modArguments(File gameDir, java.util.Set<String> enabled) {
         List<String> args = new ArrayList<>();
+        File outDir = new File(gameDir, "duke3d_android/mods");
+        boolean anyMainDef = false;
         for (File f : mods(gameDir)) {
             if (!enabled.contains(f.getName())) continue;
             args.add("-g");
             args.add(f.getAbsolutePath());
-            List<String> defs = rootDefs(f);
-            String main = null;
-            for (String d : defs) if (d.equalsIgnoreCase("duke3d.def")) main = d;
-            if (main != null) {
-                args.add("-mh");
-                args.add(main);
-            } else {
-                for (String d : defs) {
-                    args.add("-mh");
-                    args.add(d);
+            String n = f.getName().toLowerCase(java.util.Locale.ROOT);
+            if (!(n.endsWith(".zip") || n.endsWith(".pk3"))) continue;
+            try (java.util.zip.ZipFile z = new java.util.zip.ZipFile(f)) {
+                java.util.zip.ZipEntry main = null;
+                List<String> others = new ArrayList<>();
+                java.util.Enumeration<? extends java.util.zip.ZipEntry> e = z.entries();
+                while (e.hasMoreElements()) {
+                    java.util.zip.ZipEntry entry = e.nextElement();
+                    String name = entry.getName();
+                    if (name.contains("/") || !name.toLowerCase(java.util.Locale.ROOT).endsWith(".def")) continue;
+                    if (name.equalsIgnoreCase("duke3d.def")) main = entry;
+                    else others.add(name);
                 }
+                if (main != null) {
+                    // Su duke3d.def, copiado con el nombre del pack.
+                    outDir.mkdirs();
+                    String safe = f.getName().replaceAll("[^A-Za-z0-9._-]", "_");
+                    File copy = new File(outDir, safe + ".def");
+                    try (java.io.InputStream in = z.getInputStream(main);
+                         java.io.OutputStream out = new java.io.FileOutputStream(copy)) {
+                        byte[] buf = new byte[8192];
+                        int r;
+                        while ((r = in.read(buf)) > 0) out.write(buf, 0, r);
+                    }
+                    args.add("-mh");
+                    args.add("duke3d_android/mods/" + safe + ".def");
+                    anyMainDef = true;
+                } else {
+                    for (String d : others) {
+                        args.add("-mh");
+                        args.add(d);
+                    }
+                }
+            } catch (Exception ex) {
+                android.util.Log.w("Duke3D", "No se pudo leer el mod " + f, ex);
+            }
+        }
+        if (anyMainDef) {
+            File empty = new File(gameDir, "duke3d_android/vacio.def");
+            try {
+                empty.getParentFile().mkdirs();
+                new java.io.FileWriter(empty).close();
+                args.add("-h");
+                args.add("duke3d_android/vacio.def");
+            } catch (java.io.IOException ignored) {
             }
         }
         return args;

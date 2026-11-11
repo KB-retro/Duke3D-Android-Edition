@@ -652,6 +652,7 @@ public class LauncherActivity extends Activity {
                 }
             }
             String defFile = def;
+            List<String> modArgs = GameData.modArguments(gameDir, enabledMods());
             runOnUiThread(() -> {
                 launching = false;
                 if (isFinishing() || isDestroyed()) return;
@@ -660,7 +661,7 @@ public class LauncherActivity extends Activity {
                 intent.putExtra(GameActivity.EXTRA_DIR, gameDir.getAbsolutePath());
                 List<String> args = new ArrayList<>(Arrays.asList(GameData.arguments(gameDir, game, defFile)));
                 args.addAll(Arrays.asList(extraArgs));
-                args.addAll(GameData.modArguments(gameDir, enabledMods()));
+                args.addAll(modArgs);
                 intent.putExtra(GameActivity.EXTRA_ARGS, args.toArray(new String[0]));
                 intent.putExtra(GameActivity.EXTRA_LANG, defFile != null ? "es" : "en");
                 List<GameData.Game> all = GameData.games(gameDir);
