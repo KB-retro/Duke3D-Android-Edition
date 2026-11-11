@@ -1,0 +1,110 @@
+name: Raze
+
+# Motor Raze para Android (APK aparte). Se compila a mano: Actions → Raze → Run workflow.
+# De momento compila solo el código nativo (libmain.so y sus bibliotecas) y enseña todos los
+# errores de una vez en el resumen del run.
+on:
+  workflow_dispatch:
+
+env:
+  SDL_VERSION: "2.30.9"
+  NDK_VERSION: "27.2.12479018"
+  API: "26"
+
+jobs:
+  nativo:
+    name: Raze nativo
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Versiones
+        run: cat raze/ORIGEN.txt | grep = >> "$GITHUB_ENV"
+
+      - name: Paquetes del sistema
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q libsdl2-dev ccache
+
+      - name: NDK y CMake
+        run: |
+          SDKM=$(ls -d $ANDROID_HOME/cmdline-tools/*/bin | head -1)/sdkmanager
+          yes | $SDKM --install "ndk;${NDK_VERSION}" "cmake;3.22.1" > /dev/null
+          echo "NDK=$ANDROID_HOME/ndk/${NDK_VERSION}" >> "$GITHUB_ENV"
+
+      - name: Descargar Raze, ZMusic, OpenAL y SDL2
+        run: |
+          git init -q raze-src
+          git -C raze-src fetch -q --depth 1 https://github.com/ZDoom/Raze.git "$RAZE_COMMIT"
+          git -C raze-src checkout -q FETCH_HEAD
+          git clone -q --depth 1 --branch "$ZMUSIC_TAG" https://github.com/ZDoom/ZMusic.git zmusic
+          git clone -q --depth 1 --branch "$OPENAL_TAG" https://github.com/kcat/openal-soft.git openal
+          curl -fsSL -o sdl.tar.gz "https://github.com/libsdl-org/SDL/releases/download/release-${SDL_VERSION}/SDL2-${SDL_VERSION}.tar.gz"
+          tar xzf sdl.tar.gz && mv "SDL2-${SDL_VERSION}" sdl2
+          python3 raze/parchear.py raze-src
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ccache
+          key: raze-ccache-${{ github.run_id }}
+          restore-keys: raze-ccache-
+
+      # Herramientas que Raze ejecuta al compilar (zipdir, lemon, re2c), para este PC.
+      - name: Herramientas (PC)
+        run: |
+          cmake -S zmusic -B zm-pc -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$PWD/pc
+          ninja -C zm-pc install > /dev/null
+          cmake -S raze-src -B raze-pc -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=$PWD/pc \
+            -DHAVE_VULKAN=OFF -DNO_GTK=ON
+          ninja -C raze-pc zipdir lemon re2c
+
+      - name: Bibliotecas para Android (SDL2, OpenAL, ZMusic)
+        run: |
+          A="-G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=$NDK/build/cmake/android.toolchain.cmake
+             -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=$API -DANDROID_STL=c++_shared
+             -DCMAKE_INSTALL_PREFIX=$PWD/android -DCMAKE_FIND_ROOT_PATH=$PWD/android"
+          cmake -S sdl2 -B sdl-a $A -DSDL_SHARED=ON -DSDL_STATIC=OFF -DSDL_TEST=OFF
+          ninja -C sdl-a install > /dev/null
+          cmake -S openal -B openal-a $A -DALSOFT_UTILS=OFF -DALSOFT_EXAMPLES=OFF -DALSOFT_TESTS=OFF \
+            -DALSOFT_INSTALL_CONFIG=OFF -DALSOFT_INSTALL_HRTF_DATA=OFF -DALSOFT_INSTALL_AMBDEC_PRESETS=OFF
+          ninja -C openal-a install > /dev/null
+          cmake -S zmusic -B zm-a $A
+          ninja -C zm-a install > /dev/null
+          ls -la android/lib
+
+      - name: Raze para Android (todos los errores)
+        run: |
+          cmake -S raze-src -B raze-a -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_TOOLCHAIN_FILE=$NDK/build/cmake/android.toolchain.cmake \
+            -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=$API -DANDROID_STL=c++_shared \
+            -DCMAKE_FIND_ROOT_PATH=$PWD/android -DCMAKE_PREFIX_PATH=$PWD/android \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DIMPORT_EXECUTABLES=$PWD/raze-pc/ImportExecutables.cmake \
+            -DSDL2_INCLUDE_DIR=$PWD/android/include/SDL2 -DSDL2_LIBRARY=$PWD/android/lib/libSDL2.so \
+            -DOPENAL_INCLUDE_DIR=$PWD/android/include/AL -DOPENAL_LIBRARY=$PWD/android/lib/libopenal.so \
+            -DHAVE_VULKAN=OFF -DHAVE_GLES2=ON -DNO_GTK=ON -DNO_OPENMP=ON -DHAVE_VM_JIT=OFF 2>&1 | tee cmake.log
+          set +e
+          ninja -C raze-a -k 0 > nativo.log 2>&1
+          rc=$?
+          set -e
+          ccache -s || true
+          if [ $rc -ne 0 ]; then
+            grep -E "error:|undefined (symbol|reference)|FAILED|Error" nativo.log | sed 's|.*/raze-src/||' | sort -u | head -300 | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          ls -la raze-a
+
+      - name: Guardar resultado
+        if: always()
+        run: |
+          mkdir -p salida
+          cp -f nativo.log cmake.log salida/ 2>/dev/null || true
+          cp -f raze-a/libmain.so raze-a/raze.pk3 android/lib/*.so salida/ 2>/dev/null || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Raze-nativo-${{ github.run_number }}
+          path: salida
+          retention-days: 7
