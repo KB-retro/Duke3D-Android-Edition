@@ -84,6 +84,7 @@ jobs:
             -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DIMPORT_EXECUTABLES=$PWD/raze-pc/ImportExecutables.cmake \
             -DSDL2_INCLUDE_DIR=$PWD/android/include/SDL2 -DSDL2_LIBRARY=$PWD/android/lib/libSDL2.so \
+            -DCMAKE_C_FLAGS="-I$PWD/android/include" -DCMAKE_CXX_FLAGS="-I$PWD/android/include" \
             -DOPENAL_INCLUDE_DIR=$PWD/android/include/AL -DOPENAL_LIBRARY=$PWD/android/lib/libopenal.so \
             -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
             -DHAVE_VULKAN=OFF -DHAVE_GLES2=ON -DNO_GTK=ON -DNO_OPENMP=ON -DHAVE_VM_JIT=OFF 2>&1 | tee cmake.log
