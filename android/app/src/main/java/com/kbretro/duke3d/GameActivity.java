@@ -352,11 +352,12 @@ public class GameActivity extends SDLActivity {
             Os.setenv("DUKE3D_LANG", lang != null ? lang : "en", true);
             if (Motor.RAZE) {
                 Os.setenv("RAZE_PROGDIR", Motor.prepareRazeData(this).getAbsolutePath(), true);
-                // Driver malisx2 (opción de Extras) si el APK lo trae.
-                String libDir = getApplicationInfo().nativeLibraryDir;
-                if (Motor.maliDriver(this) && new File(libDir, Motor.MALI_DRIVER_LIB).exists()) {
-                    Os.setenv("RAZE_VK_DRIVER", Motor.MALI_DRIVER_LIB, true);
-                    Os.setenv("RAZE_LIBDIR", libDir + "/", true);
+                // Driver Vulkan propio (Opciones → Gráficos), si hay uno cargado.
+                String drv = Motor.vkDriver(this);
+                if (drv != null) {
+                    Os.setenv("RAZE_VK_DRIVER", drv, true);
+                    Os.setenv("RAZE_DRIVERDIR", Motor.driverDir(this).getAbsolutePath() + "/", true);
+                    Os.setenv("RAZE_LIBDIR", getApplicationInfo().nativeLibraryDir + "/", true);
                 }
                 // Diagnóstico de Vulkan si el APK trae las capas de validación.
                 if (new File(getApplicationInfo().nativeLibraryDir, "libVkLayer_khronos_validation.so").exists()) {

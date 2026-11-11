@@ -279,13 +279,6 @@ public class LauncherActivity extends Activity {
         DukeMenuView.Page p = new DukeMenuView.Page();
         p.add(I18n.t("music"), null, () -> menuView.push(musicPage(gameDir)));
         p.add(I18n.t("achievements"), null, () -> menuView.push(achievementsPage()));
-        if (Motor.RAZE) {
-            // Driver Vulkan alternativo para GPU Mali (malisx2), cargado con libadrenotools.
-            p.addValue(I18n.t("mali_driver"), () -> I18n.t(Motor.maliDriver(this) ? "yes" : "no"),
-                    () -> Motor.setMaliDriver(this, !Motor.maliDriver(this)));
-            int idx = p.entries.size() - 1;
-            p.footer = () -> p.selected == idx ? I18n.t("mali_driver_note") : "";
-        }
         p.add(I18n.t("back"), null, () -> menuView.pop());
         return p;
     }
@@ -384,6 +377,19 @@ public class LauncherActivity extends Activity {
         p.add(I18n.t("graphics"), null, () -> {
             DukeMenuView.Page g = new DukeMenuView.Page();
             GraphicsSettings.addTo(this, g, null, null);
+            if (Motor.RAZE) {
+                // Driver Vulkan propio (p. ej. malisx2 para GPU Mali), cargado a mano.
+                g.addValue(I18n.t("vk_driver"), () -> {
+                    String d = Motor.vkDriver(this);
+                    return d != null ? d : I18n.t("vk_driver_system");
+                }, () -> {
+                    if (Motor.vkDriver(this) != null) Motor.clearVkDriver(this);
+                    else pickVkDriver();
+                });
+                int idx = g.entries.size() - 1;
+                g.footer = () -> g.selected == idx
+                        ? (driverStatus != null ? driverStatus : I18n.t("vk_driver_note")) : "";
+            }
             g.add(I18n.t("back"), null, () -> menuView.pop());
             if (!Motor.RAZE) g.footer = () -> I18n.t("gfx_soft_note");
             menuView.push(g);
@@ -491,6 +497,19 @@ public class LauncherActivity extends Activity {
     // ---- Carpeta del juego ----
 
     private static final int REQUEST_FOLDER = 2;
+    private static final int REQUEST_VK_DRIVER = 3;
+    private String driverStatus;
+
+    private void pickVkDriver() {
+        try {
+            Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+            i.addCategory(Intent.CATEGORY_OPENABLE);
+            i.setType("*/*");
+            startActivityForResult(i, REQUEST_VK_DRIVER);
+        } catch (Exception e) {
+            driverStatus = I18n.t("vk_driver_error") + e.getMessage();
+        }
+    }
 
     /** Carpeta elegida por el usuario, o /Duke3D si no ha elegido ninguna. */
     private File baseDir() {
@@ -515,6 +534,21 @@ public class LauncherActivity extends Activity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_VK_DRIVER && resultCode == RESULT_OK && data != null && data.getData() != null) {
+            Uri uri = data.getData();
+            driverStatus = I18n.t("vk_driver_loading");
+            new Thread(() -> {
+                String r;
+                try {
+                    r = I18n.t("vk_driver_ok") + Motor.installVkDriver(this, uri);
+                } catch (Exception e) {
+                    r = I18n.t("vk_driver_error") + e.getMessage();
+                }
+                String msg = r;
+                runOnUiThread(() -> driverStatus = msg);
+            }).start();
+            return;
+        }
         if (requestCode == REQUEST_FOLDER && resultCode == RESULT_OK && data != null && data.getData() != null) {
             try {
                 setBaseDir(GameData.treeUriToFile(data.getData()));

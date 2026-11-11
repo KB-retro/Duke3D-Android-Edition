@@ -363,7 +363,7 @@ extern "C" int SDL_main(int argc, char *argv[])
     return ga.rc;
 }
 
-// ---- Driver Vulkan alternativo (malisx2) ----
+// ---- Driver Vulkan propio (p. ej. malisx2) ----
 // Con RAZE_VK_DRIVER (nombre del .so) y RAZE_LIBDIR (carpeta de bibliotecas de la app, con '/'),
 // libadrenotools abre una copia del cargador de Vulkan de Android que usa ese driver en lugar
 // del del sistema. Raze (volk) toma de ahí vkGetInstanceProcAddr, y la superficie de la ventana
@@ -387,8 +387,11 @@ extern "C" void *android_raze_vk_gipa()
     if (tried) return gipa;
     tried = true;
     if (!android_raze_custom_driver()) return nullptr;
+    // Los hooks de libadrenotools van con la app (RAZE_LIBDIR); el driver, en su carpeta privada
+    // (RAZE_DRIVERDIR), donde lo copia la app al cargarlo en Opciones → Gráficos.
     const char *drv = getenv("RAZE_VK_DRIVER"), *dir = getenv("RAZE_LIBDIR");
-    void *vk = adrenotools_open_libvulkan(RTLD_NOW, ADRENOTOOLS_DRIVER_CUSTOM, nullptr, dir, dir, drv, nullptr, nullptr);
+    const char *drvdir = getenv("RAZE_DRIVERDIR") ? getenv("RAZE_DRIVERDIR") : dir;
+    void *vk = adrenotools_open_libvulkan(RTLD_NOW, ADRENOTOOLS_DRIVER_CUSTOM, nullptr, dir, drvdir, drv, nullptr, nullptr);
     if (vk) gipa = dlsym(vk, "vkGetInstanceProcAddr");
     __android_log_print(gipa ? ANDROID_LOG_INFO : ANDROID_LOG_ERROR, "Duke3D", "Driver Vulkan %s: %s", drv,
                         gipa ? "cargado" : "no se pudo cargar (se usa el del sistema)");

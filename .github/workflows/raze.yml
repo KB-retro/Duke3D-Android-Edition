@@ -136,9 +136,6 @@ jobs:
           cp $(find raze-a -name libmain.so | head -1) $J/
           cp prefijo/lib/libSDL2.so prefijo/lib/libopenal.so prefijo/lib/libzmusic.so $J/
           cp prefijo/hooks/*.so $J/
-          # Driver Vulkan malisx2 para GPU Mali (opción de Extras), última versión publicada.
-          curl -fL -o $J/libvulkan_malisx2.so "https://github.com/bmdhacks/malisx2/releases/latest/download/libvulkan_malisx2.so"
-          ls -la $J/libvulkan_malisx2.so
           cp $NDK/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/libc++_shared.so $J/
           find raze-a -name '*.pk3' -exec cp {} $D/ \;
           mkdir -p $D/soundfonts
