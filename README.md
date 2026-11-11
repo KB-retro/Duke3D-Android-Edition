@@ -1,4 +1,4 @@
-# Duke3D Android Edition
+# Duke Nukem 3D Android Edition
 
 ![Duke Nukem 3D Megaton Edition para Android - Edición especial](docs/portada.jpg)
 
