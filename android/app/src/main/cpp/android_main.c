@@ -236,10 +236,23 @@ static void *game_thread(void *p)
 __attribute__((visibility("default")))
 int SDL_SetHint(const char *name, const char *value);
 
+/**
+ * Al salir con exit() (el juego ya ha guardado su configuración), el proceso termina en el acto.
+ * Si no, se ejecutaba la limpieza final mientras el hilo de dibujo de Android seguía activo; usaba
+ * un mutex ya destruido, abortaba y el lanzador lo tomaba por un fallo (pantalla de Game Over).
+ */
+static void quick_exit_handler(void)
+{
+    fflush(stdout);
+    fflush(stderr);
+    _exit(0);
+}
+
 int SDL_main(int argc, char *argv[])
 {
     redirect_output();
     install_crash_handler();
+    atexit(quick_exit_handler);
 
     // Siempre en horizontal (SDL dejaba girar a vertical si la consola se inclinaba).
     SDL_SetHint("SDL_IOS_ORIENTATIONS", "LandscapeLeft LandscapeRight");
