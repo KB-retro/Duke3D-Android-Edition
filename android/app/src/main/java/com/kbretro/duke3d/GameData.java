@@ -203,6 +203,12 @@ final class GameData {
             } catch (java.io.IOException ignored) {
             }
         }
+        if (!args.isEmpty()) {
+            // Las campañas grandes (Alien Armageddon, AMC...) no caben en la caché de 96 MB del
+            // motor ("CACHE SPACE ALL LOCKED UP!"): con mods se le dan 384 MB.
+            args.add("-cachesize");
+            args.add(String.valueOf(384 * 1024));
+        }
         android.util.Log.i("Duke3D", "Argumentos de mods: " + args);
         return args;
     }
