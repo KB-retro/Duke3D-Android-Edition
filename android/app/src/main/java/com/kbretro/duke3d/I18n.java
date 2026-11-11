@@ -83,7 +83,7 @@ final class I18n {
         put("gfx_color", "Color", "Color");
         put("gfx_normal", "Normal", "Normal");
         put("gfx_vivid", "Vivo", "Vivid");
-        put("gfx_soft_note", "Filtros por GPU sobre el renderizado por software", "GPU filters over the software renderer");
+        put("gfx_soft_note", "Escalado y FXAA se notan con la resolución por debajo del 100%", "Scaling and FXAA show with resolution below 100%");
         put("make_log", "Generar registro", "Save log");
         put("making_log", "Guardando registro...", "Saving log...");
         put("log_saved", "Registro guardado: ", "Log saved: ");

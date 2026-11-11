@@ -560,7 +560,7 @@ void android_postfx_present(const void *pixels, int w, int h, int pitch)
     int scaler = pfx_scaler, sharp = pfx_sharp;
     if (scaler == SCALE_FSR && sharp == 0)
         sharp = 2;  // FSR va siempre con su nitidez
-    static const float stops[4] = { 0.f, 1.0f, 0.5f, 0.2f };
+    static const float stops[4] = { 0.f, 0.8f, 0.3f, 0.0f };
     float sharpness = sharp > 0 && sharp < 4 ? exp2f(-stops[sharp]) : 0.f;
 
     GLuint in_tex = src_tex;

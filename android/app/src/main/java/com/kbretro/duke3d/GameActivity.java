@@ -427,6 +427,7 @@ public class GameActivity extends SDLActivity {
     private DukeMenuView.Page graphicsPage() {
         DukeMenuView.Page p = new DukeMenuView.Page();
         GraphicsSettings.addTo(this, p, this::applyScale, this::applyPostFx);
+        p.footer = () -> I18n.t("gfx_soft_note");
         p.addValue("FPS", () -> fpsLabel(fps()), () -> {
             int i = indexOf(FPS_VALUES, fps());
             int next = FPS_VALUES[(i + 1) % FPS_VALUES.length];
