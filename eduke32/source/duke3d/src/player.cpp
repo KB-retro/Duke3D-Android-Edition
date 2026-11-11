@@ -28,6 +28,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #ifdef EDUKE32_ANDROID_LEGACY
 #include "android.h"
+#ifdef __ANDROID__
+extern "C" void duke3d_android_touch(int32_t *dx, int32_t *dz, int32_t *yaw, float *pitch);
+#endif
 #endif
 
 hudweapon_t hudweap;
@@ -3234,6 +3237,12 @@ void P_GetInput(int const playerNum)
 
     CONTROL_GetInput(&info);
 
+#ifdef __ANDROID__
+    // Duke3D Android Edition: joystick y mirada táctiles (android_main.c).
+    float androidTouchPitch = 0.f;
+    duke3d_android_touch(&info.dx, &info.dz, &info.mousex, &androidTouchPitch);
+#endif
+
     if (ud.config.MouseBias)
     {
         if (klabs(info.mousex) > klabs(info.mousey))
@@ -3307,6 +3316,10 @@ void P_GetInput(int const playerNum)
     else
         input.fvel = -(info.mousey >> 3);
 
+#ifdef __ANDROID__
+    // Igual que el ratón (arrastrar hacia abajo = mirar abajo, salvo con ratón invertido).
+    input.q16horz = fix16_sadd(input.q16horz, fix16_from_float(androidTouchPitch));
+#endif
     if (ud.mouseflip) input.q16horz = -input.q16horz;
 
     input.q16horz = fix16_ssub(input.q16horz, fix16_from_float(scaleToInterval(info.dpitch * 16.0 / analogExtent)));

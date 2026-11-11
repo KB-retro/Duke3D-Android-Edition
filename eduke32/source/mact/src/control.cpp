@@ -673,10 +673,23 @@ void CONTROL_ProcessBinds(void)
     while (i--);
 }
 
+#ifdef __ANDROID__
+extern "C" uint64_t duke3d_android_buttons(void);
+#endif
+
 static void controlUpdateGameFunctions(void)
 {
     controlUpdateFlagsFromButtons(CONTROL_ButtonFlags);
     controlUpdateFlagsFromAxes(CONTROL_ButtonFlags);
+#ifdef __ANDROID__
+    // Duke3D Android Edition: botones táctiles y reasignados, como si fueran de un mando.
+    {
+        uint64_t const touch = duke3d_android_buttons();
+        for (int i = 0; i < CONTROL_NUM_FLAGS && i < 64; i++)
+            if ((touch >> i) & 1)
+                CONTROL_ButtonFlags[i] = 1;
+    }
+#endif
 
     CONTROL_ButtonHeldState = CONTROL_ButtonState;
     CONTROL_ButtonState = 0;

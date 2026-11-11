@@ -369,6 +369,8 @@ public class LauncherActivity extends Activity {
             SharedPreferences sp = getSharedPreferences("ajustes", MODE_MULTI_PROCESS);
             sp.edit().putBoolean("vibracion", !sp.getBoolean("vibracion", true)).apply();
         });
+        p.addValue(I18n.t("touch_controls"), () -> ControlSettings.touchModeLabel(this),
+                () -> ControlSettings.cycleTouchMode(this));
         p.add(I18n.t("graphics"), null, () -> {
             DukeMenuView.Page g = new DukeMenuView.Page();
             GraphicsSettings.addTo(this, g, null, null);

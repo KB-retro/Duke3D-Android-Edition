@@ -87,6 +87,13 @@ final class I18n {
         put("make_log", "Generar registro", "Save log");
         put("making_log", "Guardando registro...", "Saving log...");
         put("log_saved", "Registro guardado: ", "Log saved: ");
+        put("controls", "Controles", "Controls");
+        put("touch_controls", "Controles táctiles", "Touch controls");
+        put("touch_auto", "Auto", "Auto");
+        put("touch_sens", "Sensibilidad táctil", "Touch sensitivity");
+        put("controls_reset", "Restablecer botones", "Reset buttons");
+        put("controls_reset_done", "Botones como al principio", "Buttons reset");
+        put("controls_hint", "A: cambiar la acción del botón (en plena partida)", "A: change the button's action (in game)");
         put("mods", "Mods", "Mods");
         put("mods_empty", "Pon los mods (.zip, .pk3, .grp) en ", "Put mods (.zip, .pk3, .grp) in ");
         put("mods_note", "vóxeles y mapas sí; texturas y modelos HD no", "voxels and maps work; HD textures and models do not"); usa Tailscale o ZeroTier",

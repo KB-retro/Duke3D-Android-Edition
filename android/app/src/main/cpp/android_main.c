@@ -279,3 +279,81 @@ int SDL_main(int argc, char *argv[])
     __android_log_print(ANDROID_LOG_INFO, "Duke3D", "El juego ha terminado (código %d)", rc);
     return rc;
 }
+
+// ---- Controles táctiles y botones reasignados ----
+// Java manda el joystick virtual (-1..1), lo que se arrastra para mirar (píxeles) y las
+// acciones del juego pulsadas (gamefunc_*). El motor lo lee al leer los controles:
+// control.cpp (botones, como si fueran de un mando) y player.cpp (movimiento y mirada).
+
+static pthread_mutex_t touch_lock = PTHREAD_MUTEX_INITIALIZER;
+static float touch_mx, touch_my, touch_lx, touch_ly, touch_sens = 1.f;
+static uint64_t touch_buttons;
+
+JNIEXPORT void JNICALL Java_com_kbretro_duke3d_GameActivity_nativeTouchMove(JNIEnv *env, jclass cls, jfloat x, jfloat y)
+{
+    (void)env;
+    (void)cls;
+    pthread_mutex_lock(&touch_lock);
+    touch_mx = x;
+    touch_my = y;
+    pthread_mutex_unlock(&touch_lock);
+}
+
+JNIEXPORT void JNICALL Java_com_kbretro_duke3d_GameActivity_nativeTouchLook(JNIEnv *env, jclass cls, jfloat dx, jfloat dy, jfloat sens)
+{
+    (void)env;
+    (void)cls;
+    pthread_mutex_lock(&touch_lock);
+    touch_lx += dx;
+    touch_ly += dy;
+    touch_sens = sens;
+    pthread_mutex_unlock(&touch_lock);
+}
+
+JNIEXPORT void JNICALL Java_com_kbretro_duke3d_GameActivity_nativeButton(JNIEnv *env, jclass cls, jint func, jboolean down)
+{
+    (void)env;
+    (void)cls;
+    if (func < 0 || func >= 64) return;
+    pthread_mutex_lock(&touch_lock);
+    if (down) touch_buttons |= (uint64_t)1 << func;
+    else touch_buttons &= ~((uint64_t)1 << func);
+    pthread_mutex_unlock(&touch_lock);
+}
+
+/** Acciones pulsadas ahora (bit = gamefunc_*). */
+__attribute__((visibility("default")))
+uint64_t duke3d_android_buttons(void)
+{
+    pthread_mutex_lock(&touch_lock);
+    uint64_t b = touch_buttons;
+    pthread_mutex_unlock(&touch_lock);
+    return b;
+}
+
+/**
+ * Movimiento y mirada táctiles: suma al joystick (dx = lado, dz = adelante/atrás, -32767..32767)
+ * y devuelve el giro (unidades de ratón) y la inclinación (horizonte) acumulados desde la última vez.
+ */
+__attribute__((visibility("default")))
+void duke3d_android_touch(int32_t *dx, int32_t *dz, int32_t *yaw, float *pitch)
+{
+    pthread_mutex_lock(&touch_lock);
+    float mx = touch_mx, my = touch_my, lx = touch_lx, ly = touch_ly, s = touch_sens;
+    touch_lx = touch_ly = 0;
+    pthread_mutex_unlock(&touch_lock);
+
+    if (mx != 0.f || my != 0.f)
+    {
+        int32_t const ax = (int32_t)(mx * 32767.f), az = (int32_t)(my * 32767.f);
+        *dx = *dx + ax;
+        *dz = *dz + az;
+        if (*dx > 32767) *dx = 32767;
+        if (*dx < -32767) *dx = -32767;
+        if (*dz > 32767) *dz = 32767;
+        if (*dz < -32767) *dz = -32767;
+    }
+    // Arrastrar la pantalla entera (unos 1900 px) gira algo más de media vuelta.
+    *yaw += (int32_t)(lx * 18.f * s);
+    *pitch = ly * 0.22f * s;
+}

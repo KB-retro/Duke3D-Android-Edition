@@ -396,7 +396,7 @@ final class DukeMenuView extends View {
     }
 
     /** Letra grande roja del menú (BIGALPHANUM), como en G_GetStringTileLegacy. */
-    private static int bigTile(char c) {
+    static int bigTile(char c) {
         if (c >= '0' && c <= '9') return DukeArt.BIGALPHANUM - 10 + (c - '0');
         if (c >= 'A' && c <= 'Z') return DukeArt.BIGALPHANUM + (c - 'A');
         switch (c) {

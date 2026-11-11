@@ -50,5 +50,8 @@ Duke Nukem 3D, con estos cambios para compilarlo en Android como un Linux con SD
 16. **Siempre 8 bits** (`config.cpp`): en Android solo hay renderizador por software.
 17. **ADPF** (`sdlayer.cpp` → `android_perf_frame` en postfx.c): cada fotograma se informa a
     Android de cuánto tarda, para que suba la CPU a tiempo.
+18. **Controles táctiles y botones reasignados** (`control.cpp`, `player.cpp`): las acciones que
+    manda Java (`duke3d_android_buttons`) entran como botones de mando; el joystick y la
+    mirada táctiles se suman en `P_GetInput` (`duke3d_android_touch`).
 
 Licencias: GPL v2 (`gpl-2.0.txt`) y licencia del motor BUILD de Ken Silverman (`buildlic.txt`).

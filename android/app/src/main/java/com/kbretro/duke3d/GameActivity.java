@@ -10,6 +10,7 @@ import android.system.Os;
 import android.util.Log;
 import android.view.Display;
 import android.view.InputDevice;
+import android.view.InputEvent;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
@@ -183,6 +184,103 @@ public class GameActivity extends SDLActivity {
     /** Mejoras gráficas de postfx.c: escalado, FXAA, nitidez, CRT y color. */
     static native void nativePostFx(int scaler, int fxaa, int sharp, int crt, int color, int bloom);
 
+    // ---- Controles táctiles y botones reasignados (android_main.c) ----
+
+    static native void nativeTouchMove(float x, float y);
+
+    static native void nativeTouchLook(float dx, float dy, float sens);
+
+    static native void nativeButton(int gamefunc, boolean down);
+
+    private TouchControls touch;
+    /** En modo automático: se ven si no hay mando, o al tocar la pantalla; se ocultan al usar el mando. */
+    private boolean touchActive;
+
+    private void setupTouch() {
+        touchActive = !ControlSettings.hasGamepad();
+        touch = new TouchControls(this, new TouchControls.Host() {
+            @Override
+            public boolean inGame() {
+                return !menuOpen() && GameActivity.inGame();
+            }
+
+            @Override
+            public void move(float x, float y) {
+                try {
+                    nativeTouchMove(x, y);
+                } catch (UnsatisfiedLinkError ignored) {
+                }
+            }
+
+            @Override
+            public void look(float dx, float dy) {
+                try {
+                    nativeTouchLook(dx, dy, 1f);
+                } catch (UnsatisfiedLinkError ignored) {
+                }
+            }
+
+            @Override
+            public void button(int gamefunc, boolean down) {
+                pressFunc(gamefunc, down);
+            }
+
+            @Override
+            public void openMenu() {
+                if (art != null) GameActivity.this.openMenu();
+            }
+        });
+        addContentView(touch, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT));
+        updateTouch();
+    }
+
+    private void updateTouch() {
+        if (touch == null) return;
+        int mode = ControlSettings.touchMode(this);
+        touch.setControlsEnabled(mode == 1 || (mode == 0 && touchActive));
+        touch.setSensitivity(ControlSettings.sensitivity(this));
+    }
+
+    private static void pressFunc(int gamefunc, boolean down) {
+        try {
+            nativeButton(gamefunc, down);
+        } catch (UnsatisfiedLinkError ignored) {
+        }
+    }
+
+    /** Suelta todo lo que estuviera pulsado (al abrir el menú, por ejemplo). */
+    private static void releaseAllFuncs() {
+        for (int i = 0; i < 64; i++) pressFunc(i, false);
+        try {
+            nativeTouchMove(0, 0);
+        } catch (UnsatisfiedLinkError ignored) {
+        }
+    }
+
+    @Override
+    public boolean dispatchTouchEvent(MotionEvent e) {
+        // Modo automático: tocar la pantalla en plena partida enseña los controles táctiles.
+        if (e.getActionMasked() == MotionEvent.ACTION_DOWN && !touchActive && !menuOpen()
+                && ControlSettings.touchMode(this) == 0 && inGame()) {
+            touchActive = true;
+            updateTouch();
+        }
+        return super.dispatchTouchEvent(e);
+    }
+
+    /** Se ha usado el mando: en modo automático se ocultan los controles táctiles. */
+    private void gamepadUsed(InputEvent e) {
+        int s = e.getSource();
+        boolean pad = (s & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD
+                || (s & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK
+                || (s & InputDevice.SOURCE_DPAD) == InputDevice.SOURCE_DPAD;
+        if (pad && touchActive && ControlSettings.touchMode(this) == 0) {
+            touchActive = false;
+            updateTouch();
+        }
+    }
+
     private void applyPostFx() {
         try {
             nativePostFx(GraphicsSettings.scaler(this), GraphicsSettings.fxaa(this), GraphicsSettings.sharp(this),
@@ -224,6 +322,7 @@ public class GameActivity extends SDLActivity {
         }
         super.onCreate(savedInstanceState);
         startWatchdog();
+        setupTouch();
         I18n.load(this);
         instance = this;
         gameId = Achievements.gameId(gameGrp(getArguments()));
@@ -253,6 +352,9 @@ public class GameActivity extends SDLActivity {
                 try {
                     baseGrp = new GrpArchive(new File(grp));
                     art = new DukeArt(Arrays.asList(baseGrp));
+                    ui.post(() -> {
+                        if (touch != null) touch.setArt(art);
+                    });
                 } catch (Exception e) {
                     Log.w("Duke3D", "Menú rápido sin gráficos del juego", e);
                 }
@@ -401,6 +503,7 @@ public class GameActivity extends SDLActivity {
         quickMenu.setVisibility(View.VISIBLE);
         quickMenu.bringToFront();
         quickMenu.requestFocus();
+        releaseAllFuncs();
         hideSystemBars();
         command("pausegame 1");
     }
@@ -424,6 +527,7 @@ public class GameActivity extends SDLActivity {
         });
         p.add(I18n.t("cheats"), null, () -> quickMenu.push(cheatsPage()));
         p.add(I18n.t("graphics"), null, () -> quickMenu.push(graphicsPage()));
+        p.add(I18n.t("controls"), null, () -> quickMenu.push(controlsPage()));
         p.addValue(I18n.t("vibration"), () -> I18n.t(vibrationOn ? "yes" : "no"), () -> {
             vibrationOn = !vibrationOn;
             prefs().edit().putBoolean("vibracion", vibrationOn).apply();
@@ -459,6 +563,32 @@ public class GameActivity extends SDLActivity {
         return p;
     }
 
+    /** Controles: los táctiles y la reasignación de los botones del mando. */
+    private DukeMenuView.Page controlsPage() {
+        DukeMenuView.Page p = new DukeMenuView.Page();
+        p.addValue(I18n.t("touch_controls"), () -> ControlSettings.touchModeLabel(this), () -> {
+            ControlSettings.cycleTouchMode(this);
+            touchActive = !ControlSettings.hasGamepad();
+            updateTouch();
+        });
+        p.addValue(I18n.t("touch_sens"), () -> ControlSettings.sensLabel(this), () -> {
+            ControlSettings.cycleSens(this);
+            updateTouch();
+        });
+        for (int i = 0; i < ControlSettings.KEYS.length; i++) {
+            int key = ControlSettings.KEYS[i];
+            p.addValue(ControlSettings.keyName(i), () -> ControlSettings.actionName(ControlSettings.remap(this, key)),
+                    () -> ControlSettings.cycleRemap(this, key));
+        }
+        p.add(I18n.t("controls_reset"), null, () -> {
+            ControlSettings.resetRemaps(this);
+            status = I18n.t("controls_reset_done");
+        });
+        p.add(I18n.t("back"), null, () -> quickMenu.pop());
+        p.footer = () -> status != null ? status : I18n.t("controls_hint");
+        return p;
+    }
+
     private DukeMenuView.Page graphicsPage() {
         DukeMenuView.Page p = new DukeMenuView.Page();
         GraphicsSettings.addTo(this, p, this::applyScale, this::applyPostFx);
@@ -491,6 +621,7 @@ public class GameActivity extends SDLActivity {
     @Override
     public boolean dispatchKeyEvent(KeyEvent e) {
         int key = e.getKeyCode();
+        gamepadUsed(e);
         if (menuOpen()) {
             // Con el menú abierto, el mando y las teclas son para el menú, no para el juego.
             if (e.getAction() == KeyEvent.ACTION_DOWN) {
@@ -498,6 +629,19 @@ public class GameActivity extends SDLActivity {
                 else quickMenu.onKeyDown(key, e);
             }
             return true;
+        }
+        // Botones reasignados (solo en plena partida; en los menús del juego, como siempre).
+        if (key != KeyEvent.KEYCODE_BACK && inGame()) {
+            int act = ControlSettings.remap(this, key);
+            if (act != ControlSettings.DEFAULT) {
+                boolean down = e.getAction() == KeyEvent.ACTION_DOWN;
+                if (act >= 0) {
+                    if (e.getRepeatCount() == 0 || !down) pressFunc(act, down);
+                } else if (act == ControlSettings.QUICK_MENU && down && e.getRepeatCount() == 0 && art != null) {
+                    openMenu();
+                }
+                return true;
+            }
         }
         if (key == KeyEvent.KEYCODE_BACK) {
             if (e.getAction() == KeyEvent.ACTION_DOWN && e.getRepeatCount() == 0) {
@@ -514,6 +658,7 @@ public class GameActivity extends SDLActivity {
 
     @Override
     public boolean dispatchGenericMotionEvent(MotionEvent e) {
+        gamepadUsed(e);
         if (!menuOpen()) return super.dispatchGenericMotionEvent(e);
         // Crucetas que llegan como ejes (HAT) y el stick izquierdo mueven el menú.
         float y = e.getAxisValue(MotionEvent.AXIS_HAT_Y);
