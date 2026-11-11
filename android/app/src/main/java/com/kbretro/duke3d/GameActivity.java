@@ -117,6 +117,47 @@ public class GameActivity extends SDLActivity {
                 .withEndAction(() -> banner.setVisibility(View.GONE)).start();
     }
 
+    // ---- Vigilante: si el hilo principal se queda bloqueado (el "no responde" de Android),
+    // apunta en el registro qué estaba haciendo, para encontrar la causa. ----
+
+    private volatile boolean watchdogRunning;
+    private volatile long lastTick;
+
+    private void startWatchdog() {
+        watchdogRunning = true;
+        lastTick = android.os.SystemClock.uptimeMillis();
+        Thread t = new Thread(() -> {
+            long reported = 0;
+            while (watchdogRunning) {
+                ui.post(() -> lastTick = android.os.SystemClock.uptimeMillis());
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    return;
+                }
+                long blocked = android.os.SystemClock.uptimeMillis() - lastTick;
+                if (blocked > 3000 && lastTick != reported) {
+                    reported = lastTick;
+                    StringBuilder sb = new StringBuilder("Hilo principal bloqueado " + blocked + " ms en:");
+                    for (StackTraceElement e : Looper.getMainLooper().getThread().getStackTrace())
+                        sb.append("\n    ").append(e);
+                    Log.e("Duke3D", sb.toString());
+                    for (java.util.Map.Entry<Thread, StackTraceElement[]> en : Thread.getAllStackTraces().entrySet()) {
+                        Thread th = en.getKey();
+                        if (th == Thread.currentThread() || th == Looper.getMainLooper().getThread()) continue;
+                        String n = th.getName();
+                        if (!n.contains("SDL") && !n.contains("main") && !n.contains("Arte")) continue;
+                        StringBuilder o = new StringBuilder("  hilo " + n + ":");
+                        for (StackTraceElement e : en.getValue()) o.append("\n    ").append(e);
+                        Log.e("Duke3D", o.toString());
+                    }
+                }
+            }
+        }, "Vigilante");
+        t.setDaemon(true);
+        t.start();
+    }
+
     private android.os.Vibrator vibratorCache;
 
     /** El motor de la consola; si no tiene, el del mando conectado. */
@@ -184,6 +225,7 @@ public class GameActivity extends SDLActivity {
         } catch (ErrnoException ignored) {
         }
         super.onCreate(savedInstanceState);
+        startWatchdog();
         I18n.load(this);
         instance = this;
         gameId = Achievements.gameId(gameGrp(getArguments()));
@@ -458,6 +500,7 @@ public class GameActivity extends SDLActivity {
 
     @Override
     protected void onDestroy() {
+        watchdogRunning = false;
         instance = null;
         super.onDestroy();
         // EDuke32 no está pensado para arrancar dos veces en el mismo proceso.
