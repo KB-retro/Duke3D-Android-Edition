@@ -8,6 +8,12 @@ import pathlib
 import sys
 
 root = pathlib.Path(sys.argv[1])
+here = pathlib.Path(__file__).parent
+
+# El puente con la app se copia dentro del código de Raze (android/android_raze.cpp).
+import shutil
+(root / "android").mkdir(exist_ok=True)
+shutil.copy(here / "android" / "android_raze.cpp", root / "android" / "android_raze.cpp")
 
 
 def sub(path, old, new, count=1):
@@ -55,3 +61,23 @@ sub("source/common/platform/posix/sdl/sdlglvideo.cpp",
     "CUSTOM_CVAR(Bool, gl_es, false, CVAR_ARCHIVE",
     "#ifdef __ANDROID__\n#define RAZE_GLES_DEFAULT true\n#else\n#define RAZE_GLES_DEFAULT false\n#endif\n"
     "CUSTOM_CVAR(Bool, gl_es, RAZE_GLES_DEFAULT, CVAR_ARCHIVE")
+
+# 5. main() → raze_main() en Android: SDL_main lo pone raze/android/android_raze.cpp (hilo con
+#    pila grande, registro y fallos). Sin el capturador de fallos de Raze (usa el de la app).
+sub("source/common/platform/posix/sdl/i_main.cpp",
+    "int main (int argc, char **argv)\n{\n#if !defined (__APPLE__)",
+    "#ifdef __ANDROID__\n#undef main\nint raze_main (int argc, char **argv)\n#else\nint main (int argc, char **argv)\n#endif\n"
+    "{\n#if !defined (__APPLE__) && !defined (__ANDROID__)")
+
+# 6. El puente con la app (android_raze.cpp) va dentro de libmain.so.
+sub("source/CMakeLists.txt",
+    "\tadd_library( ${PROJECT_NAME} SHARED ${GAME_SOURCES} )",
+    "\tadd_library( ${PROJECT_NAME} SHARED ${GAME_SOURCES} ${CMAKE_SOURCE_DIR}/android/android_raze.cpp )")
+
+# 7. Cada tic: órdenes, botones y giro de la app; y el joystick táctil como ejes.
+sub("source/common/platform/posix/sdl/i_input.cpp",
+    "void I_StartTic ()\n{",
+    "#ifdef __ANDROID__\nvoid android_raze_tick();\n#endif\nvoid I_StartTic ()\n{\n#ifdef __ANDROID__\n\tandroid_raze_tick();\n#endif")
+sub("source/core/gameinput.cpp",
+    "\tI_GetAxes(joyAxes);",
+    "\tI_GetAxes(joyAxes);\n#ifdef __ANDROID__\n\t{ void android_raze_axes(float *); android_raze_axes(joyAxes); }\n#endif")
