@@ -48,18 +48,8 @@ Duke Nukem 3D, con estos cambios para compilarlo en Android como un Linux con SD
     y cada fotograma pasa por `android/app/src/main/cpp/postfx.c` (FXAA, FSR 1.0 EASU/RCAS,
     escalado nítido, líneas/CRT, color). Si no hay GLES, se usa SDL_Renderer como antes.
 
-16. **Polymost (OpenGL) en Android** (`sdlayer.cpp`, `config.cpp`, CMake): se compila con
-    `USE_OPENGL`; si el lanzador elige OpenGL (`DUKE3D_RENDERER=gl`, 32 bits), glad carga las
-    funciones de gl4es (`android/app/src/main/cpp/gl4es`, OpenGL → GLES 2) y cada cambio de
-    búfer pasa por `gl4es_pre_swap`/`post_swap`. Sin OpenGL elegido, `nogl = 1` y todo sigue
-    por software. El backend OpenGL de ImGui no se usa en Android.
-17. **glad en Android** (`glad/src/glad.c`): carga todas las funciones aunque la versión de GL
-    no las tenga; las que falten en gl4es apuntan a una función vacía (antes eran NULL y
-    `glIsSync` cerraba el juego al iniciar Polymost).
-18. **Niebla de Polymost en GLES** (`polymost.cpp` y el CMakeLists.txt de Android): el shader usa
-    `u_androidFog`/`u_androidFogColor` en vez de `gl_Fog` (con gl4es se desbordaba y el mundo
-    salía negro); `glFogf`/`glFogfv` guardan los valores y los pasan al shader.
-19. **Ajustes de arranque** (`game.cpp`): tras `autoexec.cfg` se ejecuta `DUKE3D_STARTCFG`
-    (los ajustes de OpenGL del lanzador), antes de abrir el vídeo.
+16. **Siempre 8 bits** (`config.cpp`): en Android solo hay renderizador por software.
+17. **ADPF** (`sdlayer.cpp` → `android_perf_frame` en postfx.c): cada fotograma se informa a
+    Android de cuánto tarda, para que suba la CPU a tiempo.
 
 Licencias: GPL v2 (`gpl-2.0.txt`) y licencia del motor BUILD de Ken Silverman (`buildlic.txt`).

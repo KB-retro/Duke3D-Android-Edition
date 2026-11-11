@@ -372,11 +372,9 @@ public class LauncherActivity extends Activity {
         });
         p.add(I18n.t("graphics"), null, () -> {
             DukeMenuView.Page g = new DukeMenuView.Page();
-            GraphicsSettings.addRenderer(this, g);
             GraphicsSettings.addTo(this, g, null, null);
-            GraphicsSettings.addPolymost(this, g, null);
             g.add(I18n.t("back"), null, () -> menuView.pop());
-            g.footer = () -> GraphicsSettings.opengl(this) ? I18n.t("gfx_gl_note") : I18n.t("gfx_soft_note");
+            g.footer = () -> I18n.t("gfx_soft_note");
             menuView.push(g);
         });
         p.add(I18n.t("folder"), null, this::pickFolder);

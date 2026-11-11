@@ -19,7 +19,7 @@ final class GraphicsSettings {
     }
 
     static int scaler(Context c) {
-        return prefs(c).getInt("escalado", 1);
+        return clamp(prefs(c).getInt("escalado", 1), SCALER_KEYS.length);
     }
 
     static int fxaa(Context c) {
@@ -27,107 +27,26 @@ final class GraphicsSettings {
     }
 
     static int sharp(Context c) {
-        return prefs(c).getInt("nitidez", 0);
+        return clamp(prefs(c).getInt("nitidez", 0), SHARP_KEYS.length);
     }
 
     static int crt(Context c) {
-        return prefs(c).getInt("crt", 0);
+        return clamp(prefs(c).getInt("crt", 0), CRT_KEYS.length);
     }
 
     static int color(Context c) {
-        return prefs(c).getInt("color", 0);
+        return clamp(prefs(c).getInt("color", 0), COLOR_KEYS.length);
     }
 
-    /** 0 software (con las mejoras de postfx.c), 1 OpenGL (Polymost). */
-    static int renderer(Context c) {
-        return prefs(c).getInt("renderizador", 0);
+    static int bloom(Context c) {
+        return clamp(prefs(c).getInt("resplandor", 0), BLOOM_KEYS.length);
     }
 
-    static boolean opengl(Context c) {
-        return renderer(c) == 1;
-    }
-
-    static int texFilter(Context c) {
-        return prefs(c).getInt("filtrado", 2);
-    }
-
-    static int anisotropy(Context c) {
-        return prefs(c).getInt("anisotropico", 8);
-    }
-
-    static boolean hdTextures(Context c) {
-        return prefs(c).getBoolean("texturas_hd", true);
-    }
-
-    static boolean models(Context c) {
-        return prefs(c).getBoolean("modelos", true);
-    }
-
-    static boolean voxels(Context c) {
-        return prefs(c).getBoolean("voxeles", true);
-    }
-
-    private static final int[] ANISO = {1, 2, 4, 8, 16};
-    private static final String[] FILTER_KEYS = {"gfx_classic", "gfx_bilinear", "gfx_trilinear"};
-
-    /** Órdenes de consola para Polymost con los ajustes guardados. */
-    static String[] polymostCommands(Context c) {
-        int f = texFilter(c);
-        java.util.List<String> cmds = new java.util.ArrayList<>();
-        if (f == 0) {
-            cmds.add("r_useindexedcolortextures 1");
-        } else {
-            cmds.add("r_useindexedcolortextures 0");
-            cmds.add("r_texfilter " + (f == 1 ? 3 : 5));
-            cmds.add("r_anisotropy " + anisotropy(c));
-        }
-        cmds.add("r_hightile " + (hdTextures(c) ? 1 : 0));
-        cmds.add("r_models " + (models(c) ? 1 : 0));
-        cmds.add("r_voxels " + (voxels(c) ? 1 : 0));
-        // Sin comprimir texturas ni guardarlas en caché: en Android la compresión DXT la emula gl4es
-        // por software y con el HRP se quedaba minutos en negro.
-        cmds.add("r_texcompr 0");
-        cmds.add("r_texcache 0");
-        cmds.add("r_vsync 0"); // sin esperar al refresco: menos bajones bruscos (Android ya sincroniza)
-        cmds.add("r_glowmapping 1");
-        cmds.add("r_detailmapping 1");
-        return cmds.toArray(new String[0]);
-    }
-
-    /** Elegir renderizador (solo en el lanzador: se aplica al empezar la partida). */
-    static void addRenderer(Context c, DukeMenuView.Page p) {
-        p.addValue(I18n.t("gfx_renderer"), () -> I18n.t(opengl(c) ? "gfx_opengl" : "gfx_software"), () ->
-                prefs(c).edit().putInt("renderizador", opengl(c) ? 0 : 1).apply());
-    }
-
-    /** Opciones de Polymost: filtrado de texturas, anisotrópico, texturas HD, modelos y vóxeles. */
-    static void addPolymost(Context c, DukeMenuView.Page p, Runnable onChange) {
-        p.addValue(I18n.t("gfx_filter"), () -> I18n.t(FILTER_KEYS[clamp(texFilter(c), 3)]), () -> {
-            prefs(c).edit().putInt("filtrado", (clamp(texFilter(c), 3) + 1) % 3).apply();
-            if (onChange != null) onChange.run();
-        });
-        p.addValue(I18n.t("gfx_aniso"), () -> anisotropy(c) + "x", () -> {
-            prefs(c).edit().putInt("anisotropico", next(ANISO, anisotropy(c))).apply();
-            if (onChange != null) onChange.run();
-        });
-        p.addValue(I18n.t("gfx_hd"), () -> I18n.t(hdTextures(c) ? "yes" : "no"), () -> {
-            prefs(c).edit().putBoolean("texturas_hd", !hdTextures(c)).apply();
-            if (onChange != null) onChange.run();
-        });
-        p.addValue(I18n.t("gfx_models"), () -> I18n.t(models(c) ? "yes" : "no"), () -> {
-            prefs(c).edit().putBoolean("modelos", !models(c)).apply();
-            if (onChange != null) onChange.run();
-        });
-        p.addValue(I18n.t("gfx_voxels"), () -> I18n.t(voxels(c) ? "yes" : "no"), () -> {
-            prefs(c).edit().putBoolean("voxeles", !voxels(c)).apply();
-            if (onChange != null) onChange.run();
-        });
-    }
-
-    private static final String[] SCALER_KEYS = {"gfx_pixel", "gfx_sharp", "gfx_smooth", "gfx_fsr"};
+    private static final String[] SCALER_KEYS = {"gfx_pixel", "gfx_sharp", "gfx_smooth", "gfx_bicubic", "gfx_fsr"};
     private static final String[] SHARP_KEYS = {"no", "gfx_low", "gfx_mid", "gfx_high"};
-    private static final String[] CRT_KEYS = {"no", "gfx_lines", "gfx_crt"};
-    private static final String[] COLOR_KEYS = {"gfx_normal", "gfx_vivid"};
+    private static final String[] CRT_KEYS = {"no", "gfx_lines", "gfx_crt", "gfx_lcd"};
+    private static final String[] COLOR_KEYS = {"gfx_normal", "gfx_vivid", "gfx_warm", "gfx_cold", "gfx_cinema"};
+    private static final String[] BLOOM_KEYS = {"no", "gfx_soft", "gfx_strong"};
 
     private static String scaleLabel(int s) {
         return s > 100 ? s + "% SSAA" : s + "%";
@@ -144,13 +63,18 @@ final class GraphicsSettings {
             prefs(c).edit().putInt("escala", next).apply();
             if (onScale != null) onScale.accept(next);
         });
-        p.addValue(I18n.t("gfx_scaler"), () -> I18n.t(SCALER_KEYS[clamp(scaler(c), 4)]),
-                () -> cycle(c, "escalado", 4, onChange));
-        p.addValue("FXAA", () -> I18n.t(fxaa(c) != 0 ? "yes" : "no"), () -> cycle(c, "fxaa", 2, onChange));
-        p.addValue(I18n.t("gfx_sharpness"), () -> I18n.t(SHARP_KEYS[clamp(sharp(c), 4)]),
-                () -> cycle(c, "nitidez", 4, onChange));
-        p.addValue(I18n.t("gfx_effect"), () -> I18n.t(CRT_KEYS[clamp(crt(c), 3)]), () -> cycle(c, "crt", 3, onChange));
-        p.addValue(I18n.t("gfx_color"), () -> I18n.t(COLOR_KEYS[clamp(color(c), 2)]), () -> cycle(c, "color", 2, onChange));
+        p.addValue(I18n.t("gfx_scaler"), () -> I18n.t(SCALER_KEYS[scaler(c)]),
+                () -> cycle(c, "escalado", scaler(c), SCALER_KEYS.length, onChange));
+        p.addValue("FXAA", () -> I18n.t(fxaa(c) != 0 ? "yes" : "no"),
+                () -> cycle(c, "fxaa", fxaa(c) != 0 ? 1 : 0, 2, onChange));
+        p.addValue(I18n.t("gfx_sharpness"), () -> I18n.t(SHARP_KEYS[sharp(c)]),
+                () -> cycle(c, "nitidez", sharp(c), SHARP_KEYS.length, onChange));
+        p.addValue(I18n.t("gfx_bloom"), () -> I18n.t(BLOOM_KEYS[bloom(c)]),
+                () -> cycle(c, "resplandor", bloom(c), BLOOM_KEYS.length, onChange));
+        p.addValue(I18n.t("gfx_color"), () -> I18n.t(COLOR_KEYS[color(c)]),
+                () -> cycle(c, "color", color(c), COLOR_KEYS.length, onChange));
+        p.addValue(I18n.t("gfx_effect"), () -> I18n.t(CRT_KEYS[crt(c)]),
+                () -> cycle(c, "crt", crt(c), CRT_KEYS.length, onChange));
     }
 
     interface IntConsumer {
@@ -161,9 +85,8 @@ final class GraphicsSettings {
         return v < 0 || v >= n ? 0 : v;
     }
 
-    private static void cycle(Context c, String key, int n, Runnable onChange) {
-        SharedPreferences p = prefs(c);
-        p.edit().putInt(key, (clamp(p.getInt(key, key.equals("escalado") ? 1 : 0), n) + 1) % n).apply();
+    private static void cycle(Context c, String key, int cur, int n, Runnable onChange) {
+        prefs(c).edit().putInt(key, (cur + 1) % n).apply();
         if (onChange != null) onChange.run();
     }
 

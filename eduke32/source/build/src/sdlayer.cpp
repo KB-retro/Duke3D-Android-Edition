@@ -96,11 +96,6 @@ extern "C" int android_postfx_init(SDL_Window *window);
 extern "C" int android_postfx_active(void);
 extern "C" void android_postfx_shutdown(void);
 extern "C" void android_postfx_present(const void *pixels, int w, int h, int pitch);
-// Modo Polymost: OpenGL a través de gl4es (postfx.c lo carga).
-extern "C" int android_gl4es_load(void);
-extern "C" void *android_gl4es_getproc(const char *name);
-extern "C" void android_gl4es_pre_swap(void);
-extern "C" void android_gl4es_post_swap(void);
 extern "C" void android_perf_frame(int fps);
 static void android_destroy_present(void)
 {
@@ -768,14 +763,6 @@ int32_t initsystem(void)
             LOG_F(ERROR, "Failed loading OpenGL driver: %s; all OpenGL modes are unavailable.", SDL_GetError());
             nogl = 1;
         }
-#ifdef __ANDROID__
-        // Duke3D Android Edition: Polymost (OpenGL) solo si se elige en el lanzador.
-        {
-            char const *r = getenv("DUKE3D_RENDERER");
-            if (!r || Bstrcmp(r, "gl"))
-                nogl = 1;
-        }
-#endif
 #endif
 
 #ifndef _WIN32
@@ -1561,7 +1548,7 @@ static void destroy_window_resources()
 #if SDL_MAJOR_VERSION >= 2
     if (g_ImGui_IO)
     {
-#if defined USE_OPENGL && !defined __ANDROID__
+#ifdef USE_OPENGL
         ImGui_ImplOpenGL3_Shutdown();
 #endif
         ImGui_ImplSDL2_Shutdown();
@@ -1587,7 +1574,7 @@ void engineBeginImGuiFrame(void)
 {
     Bassert(g_ImGuiFrameActive == false);
 #if SDL_MAJOR_VERSION >= 2
-#if defined USE_OPENGL && !defined __ANDROID__
+#ifdef USE_OPENGL
     ImGui_ImplOpenGL3_NewFrame();
 #endif
     ImGui_ImplSDL2_NewFrame();
@@ -1629,7 +1616,7 @@ void engineSetupImGui(void)
 
     //io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
 
-#if defined USE_OPENGL && !defined __ANDROID__
+#ifdef USE_OPENGL
     ImGui_ImplSDL2_InitForOpenGL(sdl_window, sdl_context);
     ImGui_ImplOpenGL3_Init();
 #endif
@@ -1903,15 +1890,7 @@ int32_t videoSetMode(int32_t x, int32_t y, int32_t c, int32_t fs)
               { SDL_GL_DEPTH_SIZE, 24 },
           };
 
-#ifdef __ANDROID__
-        // OpenGL ES 2 para gl4es, que traduce el OpenGL de Polymost.
-        (void)sdlayer_gl_attributes;
-        android_postfx_attributes();
-        SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
-        SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
-#else
         SDL_GL_ATTRIBUTES(i, sdlayer_gl_attributes);
-#endif
 
         /* HACK: changing SDL GL attribs only works before surface creation,
             so we have to create a new surface in a different format first
@@ -1930,17 +1909,12 @@ int32_t videoSetMode(int32_t x, int32_t y, int32_t c, int32_t fs)
             nogl = 1;
         }
 
-#if defined __ANDROID__
-        if (!nogl && !android_gl4es_load())
-            nogl = 1;
-        if (!nogl)
-            gladLoadGLLoader(android_gl4es_getproc);
-#elif !defined EDUKE32_GLES
+#ifndef EDUKE32_GLES
         gladLoadGLLoader(SDL_GL_GetProcAddress);
 #else
         gladLoadGLES2Loader(SDL_GL_GetProcAddress);
 #endif
-        if (!nogl && GLVersion.major < 2)
+        if (GLVersion.major < 2)
         {
             LOG_F(ERROR, "Video driver does not support OpenGL version 2 or greater; all OpenGL modes are unavailable.");
             nogl = 1;
@@ -2169,9 +2143,7 @@ void videoShowFrame(int32_t w)
         if (g_ImGuiFrameActive)
         {
             ImGui::Render();
-#ifndef __ANDROID__
             ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-#endif
             g_ImGuiFrameActive = false;
         }
 #endif
@@ -2203,12 +2175,7 @@ void videoShowFrame(int32_t w)
 
         {
             MICROPROFILE_SCOPEI("Engine", "SDL_GL_SwapWindow", MP_GREEN3);
-#if defined __ANDROID__
-            android_gl4es_pre_swap();
-            SDL_GL_SwapWindow(sdl_window);
-            android_gl4es_post_swap();
-            android_perf_frame(r_maxfps > 0 ? r_maxfps : (int)refreshfreq);
-#elif SDL_MAJOR_VERSION >= 2
+#if SDL_MAJOR_VERSION >= 2
             SDL_GL_SwapWindow(sdl_window);
 #else
             SDL_GL_SwapBuffers();

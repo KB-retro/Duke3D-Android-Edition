@@ -7043,13 +7043,6 @@ int app_main(int argc, char const* const* argv)
     CONFIG_ReadSettings();
 
     OSD_Exec("autoexec.cfg");
-#ifdef __ANDROID__
-    // Duke3D Android Edition: ajustes gráficos del lanzador, antes de abrir el vídeo (los de
-    // OpenGL reinician el vídeo si se cambian en plena partida y con gl4es eso cuelga).
-    if (char const *startCfg = getenv("DUKE3D_STARTCFG"))
-        if (*startCfg)
-            OSD_Exec(startCfg);
-#endif
 
     CONFIG_SetDefaultKeys(keydefaults, true);
 

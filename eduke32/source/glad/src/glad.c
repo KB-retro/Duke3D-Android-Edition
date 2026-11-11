@@ -1083,9 +1083,7 @@ PFNGLGETNUNIFORMUIVKHRPROC glad_glGetnUniformuivKHR = NULL;
 PFNGLFOGFUNCSGISPROC glad_glFogFuncSGIS = NULL;
 PFNGLGETFOGFUNCSGISPROC glad_glGetFogFuncSGIS = NULL;
 static void load_GL_VERSION_1_0(GLADloadproc load) {
-#ifndef __ANDROID__ /* Duke3D Android Edition: todas las funciones (stub si gl4es no la tiene) */
 	if(!GLAD_GL_VERSION_1_0) return;
-#endif
 	glad_glCullFace = (PFNGLCULLFACEPROC)load("glCullFace");
 	glad_glFrontFace = (PFNGLFRONTFACEPROC)load("glFrontFace");
 	glad_glHint = (PFNGLHINTPROC)load("glHint");
@@ -1394,9 +1392,7 @@ static void load_GL_VERSION_1_0(GLADloadproc load) {
 	glad_glTranslatef = (PFNGLTRANSLATEFPROC)load("glTranslatef");
 }
 static void load_GL_VERSION_1_1(GLADloadproc load) {
-#ifndef __ANDROID__ /* Duke3D Android Edition: todas las funciones (stub si gl4es no la tiene) */
 	if(!GLAD_GL_VERSION_1_1) return;
-#endif
 	glad_glDrawArrays = (PFNGLDRAWARRAYSPROC)load("glDrawArrays");
 	glad_glDrawElements = (PFNGLDRAWELEMENTSPROC)load("glDrawElements");
 	glad_glGetPointerv = (PFNGLGETPOINTERVPROC)load("glGetPointerv");
@@ -1429,18 +1425,14 @@ static void load_GL_VERSION_1_1(GLADloadproc load) {
 	glad_glPushClientAttrib = (PFNGLPUSHCLIENTATTRIBPROC)load("glPushClientAttrib");
 }
 static void load_GL_VERSION_1_2(GLADloadproc load) {
-#ifndef __ANDROID__ /* Duke3D Android Edition: todas las funciones (stub si gl4es no la tiene) */
 	if(!GLAD_GL_VERSION_1_2) return;
-#endif
 	glad_glDrawRangeElements = (PFNGLDRAWRANGEELEMENTSPROC)load("glDrawRangeElements");
 	glad_glTexImage3D = (PFNGLTEXIMAGE3DPROC)load("glTexImage3D");
 	glad_glTexSubImage3D = (PFNGLTEXSUBIMAGE3DPROC)load("glTexSubImage3D");
 	glad_glCopyTexSubImage3D = (PFNGLCOPYTEXSUBIMAGE3DPROC)load("glCopyTexSubImage3D");
 }
 static void load_GL_VERSION_1_3(GLADloadproc load) {
-#ifndef __ANDROID__ /* Duke3D Android Edition: todas las funciones (stub si gl4es no la tiene) */
 	if(!GLAD_GL_VERSION_1_3) return;
-#endif
 	glad_glActiveTexture = (PFNGLACTIVETEXTUREPROC)load("glActiveTexture");
 	glad_glSampleCoverage = (PFNGLSAMPLECOVERAGEPROC)load("glSampleCoverage");
 	glad_glCompressedTexImage3D = (PFNGLCOMPRESSEDTEXIMAGE3DPROC)load("glCompressedTexImage3D");
@@ -1489,9 +1481,7 @@ static void load_GL_VERSION_1_3(GLADloadproc load) {
 	glad_glMultTransposeMatrixd = (PFNGLMULTTRANSPOSEMATRIXDPROC)load("glMultTransposeMatrixd");
 }
 static void load_GL_VERSION_1_4(GLADloadproc load) {
-#ifndef __ANDROID__ /* Duke3D Android Edition: todas las funciones (stub si gl4es no la tiene) */
 	if(!GLAD_GL_VERSION_1_4) return;
-#endif
 	glad_glBlendFuncSeparate = (PFNGLBLENDFUNCSEPARATEPROC)load("glBlendFuncSeparate");
 	glad_glMultiDrawArrays = (PFNGLMULTIDRAWARRAYSPROC)load("glMultiDrawArrays");
 	glad_glMultiDrawElements = (PFNGLMULTIDRAWELEMENTSPROC)load("glMultiDrawElements");
@@ -1541,9 +1531,7 @@ static void load_GL_VERSION_1_4(GLADloadproc load) {
 	glad_glBlendEquation = (PFNGLBLENDEQUATIONPROC)load("glBlendEquation");
 }
 static void load_GL_VERSION_1_5(GLADloadproc load) {
-#ifndef __ANDROID__ /* Duke3D Android Edition: todas las funciones (stub si gl4es no la tiene) */
 	if(!GLAD_GL_VERSION_1_5) return;
-#endif
 	glad_glGenQueries = (PFNGLGENQUERIESPROC)load("glGenQueries");
 	glad_glDeleteQueries = (PFNGLDELETEQUERIESPROC)load("glDeleteQueries");
 	glad_glIsQuery = (PFNGLISQUERYPROC)load("glIsQuery");
@@ -1565,9 +1553,7 @@ static void load_GL_VERSION_1_5(GLADloadproc load) {
 	glad_glGetBufferPointerv = (PFNGLGETBUFFERPOINTERVPROC)load("glGetBufferPointerv");
 }
 static void load_GL_VERSION_2_0(GLADloadproc load) {
-#ifndef __ANDROID__ /* Duke3D Android Edition: todas las funciones (stub si gl4es no la tiene) */
 	if(!GLAD_GL_VERSION_2_0) return;
-#endif
 	glad_glBlendEquationSeparate = (PFNGLBLENDEQUATIONSEPARATEPROC)load("glBlendEquationSeparate");
 	glad_glDrawBuffers = (PFNGLDRAWBUFFERSPROC)load("glDrawBuffers");
 	glad_glStencilOpSeparate = (PFNGLSTENCILOPSEPARATEPROC)load("glStencilOpSeparate");
@@ -1663,9 +1649,7 @@ static void load_GL_VERSION_2_0(GLADloadproc load) {
 	glad_glVertexAttribPointer = (PFNGLVERTEXATTRIBPOINTERPROC)load("glVertexAttribPointer");
 }
 static void load_GL_VERSION_2_1(GLADloadproc load) {
-#ifndef __ANDROID__ /* Duke3D Android Edition: todas las funciones (stub si gl4es no la tiene) */
 	if(!GLAD_GL_VERSION_2_1) return;
-#endif
 	glad_glUniformMatrix2x3fv = (PFNGLUNIFORMMATRIX2X3FVPROC)load("glUniformMatrix2x3fv");
 	glad_glUniformMatrix3x2fv = (PFNGLUNIFORMMATRIX3X2FVPROC)load("glUniformMatrix3x2fv");
 	glad_glUniformMatrix2x4fv = (PFNGLUNIFORMMATRIX2X4FVPROC)load("glUniformMatrix2x4fv");
@@ -1674,9 +1658,7 @@ static void load_GL_VERSION_2_1(GLADloadproc load) {
 	glad_glUniformMatrix4x3fv = (PFNGLUNIFORMMATRIX4X3FVPROC)load("glUniformMatrix4x3fv");
 }
 static void load_GL_VERSION_3_0(GLADloadproc load) {
-#ifndef __ANDROID__ /* Duke3D Android Edition: todas las funciones (stub si gl4es no la tiene) */
 	if(!GLAD_GL_VERSION_3_0) return;
-#endif
 	glad_glColorMaski = (PFNGLCOLORMASKIPROC)load("glColorMaski");
 	glad_glGetBooleani_v = (PFNGLGETBOOLEANI_VPROC)load("glGetBooleani_v");
 	glad_glGetIntegeri_v = (PFNGLGETINTEGERI_VPROC)load("glGetIntegeri_v");
@@ -1763,37 +1745,27 @@ static void load_GL_VERSION_3_0(GLADloadproc load) {
 	glad_glIsVertexArray = (PFNGLISVERTEXARRAYPROC)load("glIsVertexArray");
 }
 static void load_GL_ARB_buffer_storage(GLADloadproc load) {
-#ifndef __ANDROID__ /* Duke3D Android Edition: todas las funciones (stub si gl4es no la tiene) */
 	if(!GLAD_GL_ARB_buffer_storage) return;
-#endif
 	glad_glBufferStorage = (PFNGLBUFFERSTORAGEPROC)load("glBufferStorage");
 }
 static void load_GL_ARB_clip_control(GLADloadproc load) {
-#ifndef __ANDROID__ /* Duke3D Android Edition: todas las funciones (stub si gl4es no la tiene) */
 	if(!GLAD_GL_ARB_clip_control) return;
-#endif
 	glad_glClipControl = (PFNGLCLIPCONTROLPROC)load("glClipControl");
 }
 static void load_GL_ARB_debug_output(GLADloadproc load) {
-#ifndef __ANDROID__ /* Duke3D Android Edition: todas las funciones (stub si gl4es no la tiene) */
 	if(!GLAD_GL_ARB_debug_output) return;
-#endif
 	glad_glDebugMessageControlARB = (PFNGLDEBUGMESSAGECONTROLARBPROC)load("glDebugMessageControlARB");
 	glad_glDebugMessageInsertARB = (PFNGLDEBUGMESSAGEINSERTARBPROC)load("glDebugMessageInsertARB");
 	glad_glDebugMessageCallbackARB = (PFNGLDEBUGMESSAGECALLBACKARBPROC)load("glDebugMessageCallbackARB");
 	glad_glGetDebugMessageLogARB = (PFNGLGETDEBUGMESSAGELOGARBPROC)load("glGetDebugMessageLogARB");
 }
 static void load_GL_ARB_map_buffer_range(GLADloadproc load) {
-#ifndef __ANDROID__ /* Duke3D Android Edition: todas las funciones (stub si gl4es no la tiene) */
 	if(!GLAD_GL_ARB_map_buffer_range) return;
-#endif
 	glad_glMapBufferRange = (PFNGLMAPBUFFERRANGEPROC)load("glMapBufferRange");
 	glad_glFlushMappedBufferRange = (PFNGLFLUSHMAPPEDBUFFERRANGEPROC)load("glFlushMappedBufferRange");
 }
 static void load_GL_ARB_robustness(GLADloadproc load) {
-#ifndef __ANDROID__ /* Duke3D Android Edition: todas las funciones (stub si gl4es no la tiene) */
 	if(!GLAD_GL_ARB_robustness) return;
-#endif
 	glad_glGetGraphicsResetStatusARB = (PFNGLGETGRAPHICSRESETSTATUSARBPROC)load("glGetGraphicsResetStatusARB");
 	glad_glGetnTexImageARB = (PFNGLGETNTEXIMAGEARBPROC)load("glGetnTexImageARB");
 	glad_glReadnPixelsARB = (PFNGLREADNPIXELSARBPROC)load("glReadnPixelsARB");
@@ -1816,9 +1788,7 @@ static void load_GL_ARB_robustness(GLADloadproc load) {
 	glad_glGetnMinmaxARB = (PFNGLGETNMINMAXARBPROC)load("glGetnMinmaxARB");
 }
 static void load_GL_ARB_sampler_objects(GLADloadproc load) {
-#ifndef __ANDROID__ /* Duke3D Android Edition: todas las funciones (stub si gl4es no la tiene) */
 	if(!GLAD_GL_ARB_sampler_objects) return;
-#endif
 	glad_glGenSamplers = (PFNGLGENSAMPLERSPROC)load("glGenSamplers");
 	glad_glDeleteSamplers = (PFNGLDELETESAMPLERSPROC)load("glDeleteSamplers");
 	glad_glIsSampler = (PFNGLISSAMPLERPROC)load("glIsSampler");
@@ -1835,9 +1805,7 @@ static void load_GL_ARB_sampler_objects(GLADloadproc load) {
 	glad_glGetSamplerParameterIuiv = (PFNGLGETSAMPLERPARAMETERIUIVPROC)load("glGetSamplerParameterIuiv");
 }
 static void load_GL_ARB_sync(GLADloadproc load) {
-#ifndef __ANDROID__ /* Duke3D Android Edition: todas las funciones (stub si gl4es no la tiene) */
 	if(!GLAD_GL_ARB_sync) return;
-#endif
 	glad_glFenceSync = (PFNGLFENCESYNCPROC)load("glFenceSync");
 	glad_glIsSync = (PFNGLISSYNCPROC)load("glIsSync");
 	glad_glDeleteSync = (PFNGLDELETESYNCPROC)load("glDeleteSync");
@@ -1847,26 +1815,20 @@ static void load_GL_ARB_sync(GLADloadproc load) {
 	glad_glGetSynciv = (PFNGLGETSYNCIVPROC)load("glGetSynciv");
 }
 static void load_GL_ARB_timer_query(GLADloadproc load) {
-#ifndef __ANDROID__ /* Duke3D Android Edition: todas las funciones (stub si gl4es no la tiene) */
 	if(!GLAD_GL_ARB_timer_query) return;
-#endif
 	glad_glQueryCounter = (PFNGLQUERYCOUNTERPROC)load("glQueryCounter");
 	glad_glGetQueryObjecti64v = (PFNGLGETQUERYOBJECTI64VPROC)load("glGetQueryObjecti64v");
 	glad_glGetQueryObjectui64v = (PFNGLGETQUERYOBJECTUI64VPROC)load("glGetQueryObjectui64v");
 }
 static void load_GL_ARB_vertex_array_object(GLADloadproc load) {
-#ifndef __ANDROID__ /* Duke3D Android Edition: todas las funciones (stub si gl4es no la tiene) */
 	if(!GLAD_GL_ARB_vertex_array_object) return;
-#endif
 	glad_glBindVertexArray = (PFNGLBINDVERTEXARRAYPROC)load("glBindVertexArray");
 	glad_glDeleteVertexArrays = (PFNGLDELETEVERTEXARRAYSPROC)load("glDeleteVertexArrays");
 	glad_glGenVertexArrays = (PFNGLGENVERTEXARRAYSPROC)load("glGenVertexArrays");
 	glad_glIsVertexArray = (PFNGLISVERTEXARRAYPROC)load("glIsVertexArray");
 }
 static void load_GL_EXT_fog_coord(GLADloadproc load) {
-#ifndef __ANDROID__ /* Duke3D Android Edition: todas las funciones (stub si gl4es no la tiene) */
 	if(!GLAD_GL_EXT_fog_coord) return;
-#endif
 	glad_glFogCoordfEXT = (PFNGLFOGCOORDFEXTPROC)load("glFogCoordfEXT");
 	glad_glFogCoordfvEXT = (PFNGLFOGCOORDFVEXTPROC)load("glFogCoordfvEXT");
 	glad_glFogCoorddEXT = (PFNGLFOGCOORDDEXTPROC)load("glFogCoorddEXT");
@@ -1874,9 +1836,7 @@ static void load_GL_EXT_fog_coord(GLADloadproc load) {
 	glad_glFogCoordPointerEXT = (PFNGLFOGCOORDPOINTEREXTPROC)load("glFogCoordPointerEXT");
 }
 static void load_GL_EXT_framebuffer_object(GLADloadproc load) {
-#ifndef __ANDROID__ /* Duke3D Android Edition: todas las funciones (stub si gl4es no la tiene) */
 	if(!GLAD_GL_EXT_framebuffer_object) return;
-#endif
 	glad_glIsRenderbufferEXT = (PFNGLISRENDERBUFFEREXTPROC)load("glIsRenderbufferEXT");
 	glad_glBindRenderbufferEXT = (PFNGLBINDRENDERBUFFEREXTPROC)load("glBindRenderbufferEXT");
 	glad_glDeleteRenderbuffersEXT = (PFNGLDELETERENDERBUFFERSEXTPROC)load("glDeleteRenderbuffersEXT");
@@ -1896,9 +1856,7 @@ static void load_GL_EXT_framebuffer_object(GLADloadproc load) {
 	glad_glGenerateMipmapEXT = (PFNGLGENERATEMIPMAPEXTPROC)load("glGenerateMipmapEXT");
 }
 static void load_GL_KHR_debug(GLADloadproc load) {
-#ifndef __ANDROID__ /* Duke3D Android Edition: todas las funciones (stub si gl4es no la tiene) */
 	if(!GLAD_GL_KHR_debug) return;
-#endif
 	glad_glDebugMessageControl = (PFNGLDEBUGMESSAGECONTROLPROC)load("glDebugMessageControl");
 	glad_glDebugMessageInsert = (PFNGLDEBUGMESSAGEINSERTPROC)load("glDebugMessageInsert");
 	glad_glDebugMessageCallback = (PFNGLDEBUGMESSAGECALLBACKPROC)load("glDebugMessageCallback");
@@ -1923,9 +1881,7 @@ static void load_GL_KHR_debug(GLADloadproc load) {
 	glad_glGetPointervKHR = (PFNGLGETPOINTERVKHRPROC)load("glGetPointervKHR");
 }
 static void load_GL_KHR_robustness(GLADloadproc load) {
-#ifndef __ANDROID__ /* Duke3D Android Edition: todas las funciones (stub si gl4es no la tiene) */
 	if(!GLAD_GL_KHR_robustness) return;
-#endif
 	glad_glGetGraphicsResetStatus = (PFNGLGETGRAPHICSRESETSTATUSPROC)load("glGetGraphicsResetStatus");
 	glad_glReadnPixels = (PFNGLREADNPIXELSPROC)load("glReadnPixels");
 	glad_glGetnUniformfv = (PFNGLGETNUNIFORMFVPROC)load("glGetnUniformfv");
@@ -1938,9 +1894,7 @@ static void load_GL_KHR_robustness(GLADloadproc load) {
 	glad_glGetnUniformuivKHR = (PFNGLGETNUNIFORMUIVKHRPROC)load("glGetnUniformuivKHR");
 }
 static void load_GL_SGIS_fog_function(GLADloadproc load) {
-#ifndef __ANDROID__ /* Duke3D Android Edition: todas las funciones (stub si gl4es no la tiene) */
 	if(!GLAD_GL_SGIS_fog_function) return;
-#endif
 	glad_glFogFuncSGIS = (PFNGLFOGFUNCSGISPROC)load("glFogFuncSGIS");
 	glad_glGetFogFuncSGIS = (PFNGLGETFOGFUNCSGISPROC)load("glGetFogFuncSGIS");
 }

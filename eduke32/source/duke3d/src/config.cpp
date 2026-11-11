@@ -795,11 +795,8 @@ int CONFIG_ReadSetup(void)
 
     if (ud.setup.bpp < 8) ud.setup.bpp = 32;
 #ifdef __ANDROID__
-    // Duke3D Android Edition: 32 bits = Polymost (OpenGL), 8 bits = software; lo elige el lanzador.
-    {
-        char const *r = getenv("DUKE3D_RENDERER");
-        ud.setup.bpp = (r && !Bstrcmp(r, "gl")) ? 32 : 8;
-    }
+    // Duke3D Android Edition: solo renderizador por software (8 bits).
+    ud.setup.bpp = 8;
 #endif
 
 #ifdef POLYMER

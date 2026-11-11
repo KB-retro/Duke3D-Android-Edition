@@ -3,9 +3,11 @@
 // El juego pinta con su renderizador por software (CPU) en una imagen de la resolución interna.
 // Aquí se sube esa imagen a la GPU y se pasa por unos shaders antes de enseñarla:
 //   1. FXAA (opcional), a la resolución interna.
-//   2. Escalado a la pantalla: píxel, nítido (sharp bilinear), suave (bilineal) o FSR 1.0 (EASU).
-//   3. Nitidez RCAS de FSR (opcional; con FSR siempre).
-//   4. Efectos finales: líneas de escaneo / CRT y color vivo.
+//   2. Resplandor (bloom, opcional): las zonas brillantes, reducidas y desenfocadas.
+//   3. Escalado a la pantalla: píxel, nítido (sharp bilinear), suave (bilineal), bicúbico
+//      (Catmull-Rom) o FSR 1.0 (EASU).
+//   4. Nitidez RCAS de FSR (opcional; con FSR siempre).
+//   5. Efectos finales: resplandor, color (vivo, cálido, frío, cine) y líneas / CRT / LCD.
 // Los ajustes llegan desde Java (GameActivity.nativePostFx) y se leen en cada fotograma.
 
 #include <jni.h>
@@ -21,16 +23,17 @@
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 
 // ---- Ajustes (desde Java) ----
-enum { SCALE_PIXEL = 0, SCALE_SHARP = 1, SCALE_SMOOTH = 2, SCALE_FSR = 3 };
+enum { SCALE_PIXEL = 0, SCALE_SHARP = 1, SCALE_SMOOTH = 2, SCALE_BICUBIC = 3, SCALE_FSR = 4 };
 
 static volatile int pfx_scaler = SCALE_SHARP;
 static volatile int pfx_fxaa = 0;
 static volatile int pfx_sharp = 0;   // 0 no, 1 baja, 2 media, 3 alta
-static volatile int pfx_crt = 0;     // 0 no, 1 líneas, 2 CRT
-static volatile int pfx_color = 0;   // 0 normal, 1 vivo
+static volatile int pfx_crt = 0;     // 0 no, 1 líneas, 2 CRT, 3 LCD
+static volatile int pfx_color = 0;   // 0 normal, 1 vivo, 2 cálido, 3 frío, 4 cine
+static volatile int pfx_bloom = 0;   // 0 no, 1 suave, 2 fuerte
 
 JNIEXPORT void JNICALL Java_com_kbretro_duke3d_GameActivity_nativePostFx(JNIEnv *env, jclass cls, jint scaler, jint fxaa,
-                                                                         jint sharp, jint crt, jint color)
+                                                                         jint sharp, jint crt, jint color, jint bloom)
 {
     (void)env;
     (void)cls;
@@ -39,6 +42,7 @@ JNIEXPORT void JNICALL Java_com_kbretro_duke3d_GameActivity_nativePostFx(JNIEnv 
     pfx_sharp = sharp;
     pfx_crt = crt;
     pfx_color = color;
+    pfx_bloom = bloom;
 }
 
 // ---- Shaders ----
@@ -67,13 +71,26 @@ static const char *FS_HEAD =
     "uniform float u_bgra;\n"
     "uniform float u_scan;\n"
     "uniform float u_vivid;\n"
+    "uniform sampler2D u_bloomTex;\n"
+    "uniform float u_bloomAmt;\n"
+    "uniform vec4 u_vp;\n"
     "vec3 fetch(vec2 uv) { vec4 c = texture2D(u_tex, uv); return u_bgra > 0.5 ? c.bgr : c.rgb; }\n"
     "vec3 post(vec3 c) {\n"
-    "  if (u_vivid > 0.5) {\n"
-    "    float l = dot(c, vec3(0.299, 0.587, 0.114));\n"
-    "    c = clamp((mix(vec3(l), c, 1.3) - 0.5) * 1.06 + 0.5, 0.0, 1.0);\n"
+    "  if (u_bloomAmt > 0.0) c += texture2D(u_bloomTex, (gl_FragCoord.xy - u_vp.xy) / u_vp.zw).rgb * u_bloomAmt;\n"
+    "  float l = dot(c, vec3(0.299, 0.587, 0.114));\n"
+    "  if (u_vivid > 0.5 && u_vivid < 1.5) {\n"
+    "    c = (mix(vec3(l), c, 1.3) - 0.5) * 1.06 + 0.5;\n"
+    "  } else if (u_vivid > 1.5 && u_vivid < 2.5) {\n"
+    "    c = mix(vec3(l), c, 1.1) * vec3(1.08, 1.0, 0.86);\n"
+    "  } else if (u_vivid > 2.5 && u_vivid < 3.5) {\n"
+    "    c = mix(vec3(l), c, 1.05) * vec3(0.9, 1.0, 1.12);\n"
+    "  } else if (u_vivid > 3.5) {\n"
+    "    c = clamp(c, 0.0, 1.0);\n"
+    "    c = mix(c, c * c * (3.0 - 2.0 * c), 0.6);\n"
+    "    c = mix(vec3(l), c, 1.15) * mix(vec3(0.92, 1.0, 1.06), vec3(1.08, 1.0, 0.9), l);\n"
     "  }\n"
-    "  if (u_scan > 0.5) {\n"
+    "  c = clamp(c, 0.0, 1.0);\n"
+    "  if (u_scan > 0.5 && u_scan < 2.5) {\n"
     "    float y = v_tex.y * 240.0;\n"
     "    c *= 1.0 - 0.35 * (0.5 - 0.5 * cos(6.2831853 * y));\n"
     "    if (u_scan > 1.5) {\n"
@@ -84,6 +101,11 @@ static const char *FS_HEAD =
     "      c *= 1.0 - dot(d, d) * 0.6;\n"
     "    }\n"
     "    c = min(c * (u_scan > 1.5 ? 1.35 : 1.15), 1.0);\n"
+    "  } else if (u_scan > 2.5) {\n"
+    "    vec2 g = fract(v_tex * vec2(640.0, 400.0));\n"
+    "    vec2 e = smoothstep(0.0, 0.18, g) * smoothstep(1.0, 0.82, g);\n"
+    "    c *= mix(0.72, 1.0, e.x * e.y);\n"
+    "    c = min(c * 1.12, 1.0);\n"
     "  }\n"
     "  return c;\n"
     "}\n";
@@ -91,7 +113,25 @@ static const char *FS_HEAD =
 // Escalado sencillo: 0 píxel, 1 nítido (sharp bilinear), 2 suave.
 static const char *FS_SCALE =
     "uniform float u_mode;\n"
+    "vec3 bicubic(vec2 uv) {\n"
+    "  vec2 sp = uv * u_in;\n"
+    "  vec2 t1 = floor(sp - 0.5) + 0.5;\n"
+    "  vec2 f = sp - t1;\n"
+    "  vec2 w0 = f * (-0.5 + f * (1.0 - 0.5 * f));\n"
+    "  vec2 w1 = 1.0 + f * f * (-2.5 + 1.5 * f);\n"
+    "  vec2 w2 = f * (0.5 + f * (2.0 - 1.5 * f));\n"
+    "  vec2 w3 = f * f * (-0.5 + 0.5 * f);\n"
+    "  vec2 w12 = w1 + w2;\n"
+    "  vec2 p0 = (t1 - 1.0) / u_in;\n"
+    "  vec2 p3 = (t1 + 2.0) / u_in;\n"
+    "  vec2 p12 = (t1 + w2 / w12) / u_in;\n"
+    "  vec3 r = (fetch(vec2(p0.x, p0.y)) * w0.x + fetch(vec2(p12.x, p0.y)) * w12.x + fetch(vec2(p3.x, p0.y)) * w3.x) * w0.y\n"
+    "         + (fetch(vec2(p0.x, p12.y)) * w0.x + fetch(vec2(p12.x, p12.y)) * w12.x + fetch(vec2(p3.x, p12.y)) * w3.x) * w12.y\n"
+    "         + (fetch(vec2(p0.x, p3.y)) * w0.x + fetch(vec2(p12.x, p3.y)) * w12.x + fetch(vec2(p3.x, p3.y)) * w3.x) * w3.y;\n"
+    "  return clamp(r, 0.0, 1.0);\n"
+    "}\n"
     "void main() {\n"
+    "  if (u_mode > 2.5) { gl_FragColor = vec4(post(bicubic(v_tex)), 1.0); return; }\n"
     "  vec2 uv = v_tex;\n"
     "  vec2 texel = v_tex * u_in;\n"
     "  if (u_mode < 0.5) {\n"
@@ -225,23 +265,49 @@ static const char *FS_RCAS =
     "  gl_FragColor = vec4(post(clamp(col, 0.0, 1.0)), 1.0);\n"
     "}\n";
 
+// Resplandor: zonas brillantes de la imagen (a 1/4 de la pantalla).
+static const char *FS_BRIGHT =
+    "void main() {\n"
+    "  vec2 r = 1.0 / u_in;\n"
+    "  vec3 c = 0.25 * (fetch(v_tex + vec2(-r.x, -r.y)) + fetch(v_tex + vec2(r.x, -r.y))\n"
+    "                 + fetch(v_tex + vec2(-r.x, r.y)) + fetch(v_tex + vec2(r.x, r.y)));\n"
+    "  float l = max(c.r, max(c.g, c.b));\n"
+    "  gl_FragColor = vec4(c * smoothstep(0.5, 0.95, l), 1.0);\n"
+    "}\n";
+
+// Desenfoque gaussiano en una dirección (u_dir).
+static const char *FS_BLUR =
+    "uniform vec2 u_dir;\n"
+    "void main() {\n"
+    "  vec2 o = u_dir / u_in;\n"
+    "  vec3 c = fetch(v_tex) * 0.2270;\n"
+    "  c += (fetch(v_tex + o * 1.3846) + fetch(v_tex - o * 1.3846)) * 0.3162;\n"
+    "  c += (fetch(v_tex + o * 3.2308) + fetch(v_tex - o * 3.2308)) * 0.0703;\n"
+    "  gl_FragColor = vec4(c, 1.0);\n"
+    "}\n";
+
 // ---- Estado de GL ----
 
 typedef struct
 {
     GLuint prog;
-    GLint u_tex, u_in, u_out, u_bgra, u_scan, u_vivid, u_flip, u_mode, u_sharp;
+    GLint u_tex, u_in, u_out, u_bgra, u_scan, u_vivid, u_flip, u_mode, u_sharp, u_dir, u_bloomTex, u_bloomAmt, u_vp;
 } program_t;
 
 static SDL_Window *pfx_window;
 static SDL_GLContext pfx_context;
-static program_t p_scale, p_fxaa, p_easu, p_rcas;
+static program_t p_scale, p_fxaa, p_easu, p_rcas, p_bright, p_blur;
 static GLuint vbo, src_tex;
 static int src_w, src_h;
 static GLuint fbo_a, tex_a;  // a la resolución interna (FXAA)
 static int a_w, a_h;
 static GLuint fbo_b, tex_b;  // a la resolución de salida (antes de RCAS)
 static int b_w, b_h;
+static GLuint fbo_g1, tex_g1, fbo_g2, tex_g2;  // resplandor (1/4 de la pantalla)
+static int g1_w, g1_h, g2_w, g2_h;
+static GLuint bloom_tex;     // el resplandor de este fotograma (0 = sin resplandor)
+static float bloom_amt;
+static int vp_x, vp_y, vp_w, vp_h;
 static int pfx_ok;
 
 static GLuint compile(GLenum type, const char *head, const char *body)
@@ -295,6 +361,10 @@ static int link_program(program_t *p, const char *fs)
     p->u_flip = glGetUniformLocation(p->prog, "u_flip");
     p->u_mode = glGetUniformLocation(p->prog, "u_mode");
     p->u_sharp = glGetUniformLocation(p->prog, "u_sharp");
+    p->u_dir = glGetUniformLocation(p->prog, "u_dir");
+    p->u_bloomTex = glGetUniformLocation(p->prog, "u_bloomTex");
+    p->u_bloomAmt = glGetUniformLocation(p->prog, "u_bloomAmt");
+    p->u_vp = glGetUniformLocation(p->prog, "u_vp");
     return 1;
 }
 
@@ -338,8 +408,12 @@ static void release_targets(void)
     if (fbo_b) glDeleteFramebuffers(1, &fbo_b);
     if (tex_b) glDeleteTextures(1, &tex_b);
     if (src_tex) glDeleteTextures(1, &src_tex);
-    fbo_a = tex_a = fbo_b = tex_b = src_tex = 0;
-    a_w = a_h = b_w = b_h = src_w = src_h = 0;
+    if (fbo_g1) glDeleteFramebuffers(1, &fbo_g1);
+    if (tex_g1) glDeleteTextures(1, &tex_g1);
+    if (fbo_g2) glDeleteFramebuffers(1, &fbo_g2);
+    if (tex_g2) glDeleteTextures(1, &tex_g2);
+    fbo_a = tex_a = fbo_b = tex_b = src_tex = fbo_g1 = tex_g1 = fbo_g2 = tex_g2 = 0;
+    a_w = a_h = b_w = b_h = src_w = src_h = g1_w = g1_h = g2_w = g2_h = 0;
 }
 
 /** Antes de SDL_CreateWindow: la ventana tiene que admitir OpenGL ES 2. */
@@ -372,7 +446,7 @@ int android_postfx_init(SDL_Window *window)
     SDL_GL_SetSwapInterval(0);
 
     if (!link_program(&p_scale, FS_SCALE) || !link_program(&p_fxaa, FS_FXAA) || !link_program(&p_easu, FS_EASU)
-        || !link_program(&p_rcas, FS_RCAS))
+        || !link_program(&p_rcas, FS_RCAS) || !link_program(&p_bright, FS_BRIGHT) || !link_program(&p_blur, FS_BLUR))
     {
         SDL_GL_DeleteContext(pfx_context);
         pfx_context = NULL;
@@ -408,6 +482,8 @@ void android_postfx_shutdown(void)
         if (p_fxaa.prog) glDeleteProgram(p_fxaa.prog);
         if (p_easu.prog) glDeleteProgram(p_easu.prog);
         if (p_rcas.prog) glDeleteProgram(p_rcas.prog);
+        if (p_bright.prog) glDeleteProgram(p_bright.prog);
+        if (p_blur.prog) glDeleteProgram(p_blur.prog);
         SDL_GL_DeleteContext(pfx_context);
     }
     pfx_context = NULL;
@@ -427,6 +503,17 @@ static void draw(const program_t *p, GLuint tex, int in_w, int in_h, int out_w, 
     glUniform1f(p->u_flip, raw ? 1.f : 0.f);
     glUniform1f(p->u_scan, final_pass ? (float)pfx_crt : 0.f);
     glUniform1f(p->u_vivid, final_pass ? (float)pfx_color : 0.f);
+    if (final_pass && bloom_tex)
+    {
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, bloom_tex);
+        glUniform1i(p->u_bloomTex, 1);
+        glUniform1f(p->u_bloomAmt, bloom_amt);
+        glUniform4f(p->u_vp, (float)vp_x, (float)vp_y, (float)vp_w, (float)vp_h);
+        glActiveTexture(GL_TEXTURE0);
+    }
+    else
+        glUniform1f(p->u_bloomAmt, 0.f);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, 0);
@@ -490,6 +577,36 @@ void android_postfx_present(const void *pixels, int w, int h, int pitch)
         raw = 0;
     }
 
+    // Resplandor: zonas brillantes a 1/4 de la pantalla, desenfocadas; se suma al final.
+    bloom_tex = 0;
+    vp_x = vx;
+    vp_y = vy;
+    vp_w = vw;
+    vp_h = vh;
+    if (pfx_bloom > 0)
+    {
+        int gw = vw / 4 > 1 ? vw / 4 : 1, gh = vh / 4 > 1 ? vh / 4 : 1;
+        make_target(&fbo_g1, &tex_g1, &g1_w, &g1_h, gw, gh);
+        make_target(&fbo_g2, &tex_g2, &g2_w, &g2_h, gw, gh);
+        glBindFramebuffer(GL_FRAMEBUFFER, fbo_g1);
+        glViewport(0, 0, gw, gh);
+        draw(&p_bright, in_tex, w, h, gw, gh, raw, 0);
+        int passes = pfx_bloom >= 2 ? 2 : 1;
+        for (int i = 0; i < passes; i++)
+        {
+            glBindFramebuffer(GL_FRAMEBUFFER, fbo_g2);
+            glUseProgram(p_blur.prog);
+            glUniform2f(p_blur.u_dir, 1.f + i, 0.f);
+            draw(&p_blur, tex_g1, gw, gh, gw, gh, 0, 0);
+            glBindFramebuffer(GL_FRAMEBUFFER, fbo_g1);
+            glUseProgram(p_blur.prog);
+            glUniform2f(p_blur.u_dir, 0.f, 1.f + i);
+            draw(&p_blur, tex_g2, gw, gh, gw, gh, 0, 0);
+        }
+        bloom_tex = tex_g1;
+        bloom_amt = pfx_bloom >= 2 ? 1.0f : 0.55f;
+    }
+
     // 2. Escalado (a la pantalla o, si luego va la nitidez, a una imagen intermedia).
     const program_t *sp = scaler == SCALE_FSR ? &p_easu : &p_scale;
     int to_screen = sharpness <= 0.f;
@@ -528,91 +645,8 @@ void android_postfx_present(const void *pixels, int w, int h, int pitch)
     SDL_GL_SwapWindow(pfx_window);
 }
 
-// ---- Modo Polymost (OpenGL de escritorio a través de gl4es) ----
-// libgl4es.so se carga solo en este modo, con el contexto GLES 2 de SDL ya activo.
-
 #include <dlfcn.h>
 #include <stdint.h>
-
-static void *gl4es_lib;
-static void *(*gl4es_getproc)(const char *);
-static void (*gl4es_pre)(void);
-static void (*gl4es_post)(void);
-
-static void *sdl_getproc(const char *name)
-{
-    return SDL_GL_GetProcAddress(name);
-}
-
-static void main_fb_size(int *w, int *h)
-{
-    SDL_Window *win = SDL_GL_GetCurrentWindow();
-    if (win)
-        SDL_GL_GetDrawableSize(win, w, h);
-}
-
-int android_gl4es_load(void)
-{
-    if (gl4es_getproc)
-        return 1;
-    gl4es_lib = dlopen("libgl4es.so", RTLD_NOW | RTLD_LOCAL);
-    if (!gl4es_lib)
-    {
-        LOGE("gl4es: no se pudo cargar: %s", dlerror());
-        return 0;
-    }
-    void (*set_proc)(void *(*)(const char *)) = (void (*)(void *(*)(const char *)))dlsym(gl4es_lib, "set_getprocaddress");
-    void (*set_fb)(void (*)(int *, int *)) = (void (*)(void (*)(int *, int *)))dlsym(gl4es_lib, "set_getmainfbsize");
-    void (*init)(void) = (void (*)(void))dlsym(gl4es_lib, "initialize_gl4es");
-    gl4es_getproc = (void *(*)(const char *))dlsym(gl4es_lib, "gl4es_GetProcAddress");
-    gl4es_pre = (void (*)(void))dlsym(gl4es_lib, "gl4es_pre_swap");
-    gl4es_post = (void (*)(void))dlsym(gl4es_lib, "gl4es_post_swap");
-    if (!init || !gl4es_getproc)
-    {
-        LOGE("gl4es: faltan funciones");
-        gl4es_getproc = NULL;
-        return 0;
-    }
-    if (set_proc)
-        set_proc(sdl_getproc);
-    if (set_fb)
-        set_fb(main_fb_size);
-    init();
-    LOGI("gl4es listo");
-    return 1;
-}
-
-// Las funciones que gl4es no tiene (OpenGL 3+, como glIsSync) apuntan aquí en vez de a NULL:
-// no hacen nada y devuelven 0. Polymost solo las usa si la extensión existe, salvo algún caso
-// suelto (glIsSync al iniciar) que con esto deja de cerrar el juego.
-static uintptr_t gl_missing_stub(void)
-{
-    return 0;
-}
-
-void *android_gl4es_getproc(const char *name)
-{
-    void *p = gl4es_getproc ? gl4es_getproc(name) : NULL;
-    if (!p)
-    {
-        LOGI("gl4es: sin %s (se ignora)", name);
-        p = (void *)gl_missing_stub;
-    }
-    return p;
-}
-
-void android_gl4es_pre_swap(void)
-{
-    if (gl4es_pre)
-        gl4es_pre();
-}
-
-void android_gl4es_post_swap(void)
-{
-    if (gl4es_post)
-        gl4es_post();
-}
-
 // ---- Rendimiento: ADPF (Android Dynamic Performance Framework) ----
 // Se le dice a Android cuánto debe tardar cada fotograma y cuánto tarda de verdad; así sube
 // la frecuencia de la CPU a tiempo y no hay bajones (Android 13+, se busca en libandroid).

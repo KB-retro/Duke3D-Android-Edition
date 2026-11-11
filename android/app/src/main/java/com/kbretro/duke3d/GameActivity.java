@@ -142,12 +142,12 @@ public class GameActivity extends SDLActivity {
     }
 
     /** Mejoras gráficas de postfx.c: escalado, FXAA, nitidez, CRT y color. */
-    static native void nativePostFx(int scaler, int fxaa, int sharp, int crt, int color);
+    static native void nativePostFx(int scaler, int fxaa, int sharp, int crt, int color, int bloom);
 
     private void applyPostFx() {
         try {
             nativePostFx(GraphicsSettings.scaler(this), GraphicsSettings.fxaa(this), GraphicsSettings.sharp(this),
-                    GraphicsSettings.crt(this), GraphicsSettings.color(this));
+                    GraphicsSettings.crt(this), GraphicsSettings.color(this), GraphicsSettings.bloom(this));
         } catch (UnsatisfiedLinkError e) {
             Log.w("Duke3D", "Sin mejoras gráficas", e);
         }
@@ -181,23 +181,6 @@ public class GameActivity extends SDLActivity {
             // Idioma del juego (el motor lo aplica tras cargar las traducciones).
             String lang = getIntent().getStringExtra(EXTRA_LANG);
             Os.setenv("DUKE3D_LANG", lang != null ? lang : "en", true);
-            // Renderizador: software (8 bits, con las mejoras de postfx.c) u OpenGL (Polymost).
-            Os.setenv("DUKE3D_RENDERER", GraphicsSettings.opengl(this) ? "gl" : "soft", true);
-            // gl4es sin cartel. (LIBGL_BATCH, agrupar dibujos, cerraba el juego en el Adreno.)
-            Os.setenv("LIBGL_NOBANNER", "1", true);
-            // Ajustes de OpenGL: se aplican al arrancar, antes de abrir el vídeo.
-            if (dir != null && GraphicsSettings.opengl(this)) {
-                File cfg = new File(dir, "duke3d_android/arranque.cfg");
-                cfg.getParentFile().mkdirs();
-                try (java.io.FileWriter w = new java.io.FileWriter(cfg)) {
-                    for (String c : GraphicsSettings.polymostCommands(this)) w.write(c + "\n");
-                } catch (java.io.IOException e) {
-                    Log.w("Duke3D", "No se pudo escribir arranque.cfg", e);
-                }
-                Os.setenv("DUKE3D_STARTCFG", "duke3d_android/arranque.cfg", true);
-            } else {
-                Os.setenv("DUKE3D_STARTCFG", "", true);
-            }
         } catch (ErrnoException ignored) {
         }
         super.onCreate(savedInstanceState);
@@ -221,7 +204,7 @@ public class GameActivity extends SDLActivity {
         ui.postDelayed(() -> {
             applyRefreshRate(fps()); // otra vez, ya con la superficie del juego creada
             command("r_maxfps " + fps());
-            if (!GraphicsSettings.opengl(this) && scale() != 100) applyScale(scale());
+            if (scale() != 100) applyScale(scale());
         }, 4000);
 
         // Gráficos del juego para el menú rápido (letras, átomo...), en segundo plano.
@@ -319,7 +302,7 @@ public class GameActivity extends SDLActivity {
         int w = v.getWidth(), h = v.getHeight();
         if (w == 0 || h == 0) return;
         int sw = (w * percent / 100) & ~1, sh = (h * percent / 100) & ~1;
-        command("vidmode " + sw + " " + sh + (GraphicsSettings.opengl(this) ? " 32 1" : " 8 1"));
+        command("vidmode " + sw + " " + sh + " 8 1");
     }
 
     // ---- Menú rápido ----
@@ -407,13 +390,7 @@ public class GameActivity extends SDLActivity {
 
     private DukeMenuView.Page graphicsPage() {
         DukeMenuView.Page p = new DukeMenuView.Page();
-        if (GraphicsSettings.opengl(this)) {
-            // En OpenGL estos ajustes reinician el vídeo: se guardan y valen al volver a jugar.
-            GraphicsSettings.addPolymost(this, p, () -> status = I18n.t("gfx_restart"));
-            p.footer = () -> status != null ? status : "";
-        } else {
-            GraphicsSettings.addTo(this, p, this::applyScale, this::applyPostFx);
-        }
+        GraphicsSettings.addTo(this, p, this::applyScale, this::applyPostFx);
         p.addValue("FPS", () -> fpsLabel(fps()), () -> {
             int i = indexOf(FPS_VALUES, fps());
             int next = FPS_VALUES[(i + 1) % FPS_VALUES.length];
