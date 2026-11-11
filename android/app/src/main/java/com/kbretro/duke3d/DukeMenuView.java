@@ -201,14 +201,6 @@ final class DukeMenuView extends View {
         sx = aw / 320f;
         sy = ah / 200f;
 
-        // Logo: solo en el menú rápido (en el lanzador ya está en el fondo y las cajas).
-        if (!overlay) {
-            // nada
-        } else if (art.has(DukeArt.INGAMEDUKETHREEDEE)) {
-            drawTile(c, DukeArt.INGAMEDUKETHREEDEE, 160, 30, 1f, null);
-        } else if (art.has(DukeArt.DUKENUKEM)) {
-            drawTile(c, DukeArt.DUKENUKEM, 160, 28, 0.6f, null);
-        }
 
         Page p = page();
         int n = p.entries.size();
@@ -234,17 +226,22 @@ final class DukeMenuView extends View {
         int first = 0;
         if (n > MAX_VISIBLE) first = Math.max(0, Math.min(p.selected - MAX_VISIBLE / 2, n - MAX_VISIBLE));
         // En el lanzador la lista va centrada en vertical; en el menú rápido, bajo el logo.
-        float top, bottom;
-        if (overlay) {
-            top = 60;
-            bottom = 182;
-        } else {
-            float block = Math.min(19f, 156f / Math.max(1, visible)) * visible;
-            top = 100 - block / 2f;
-            bottom = top + block;
-        }
+        // Lista centrada en vertical (en el lanzador y en el menú rápido, que ya no lleva logo).
+        float block = Math.min(19f, 156f / Math.max(1, visible)) * visible;
+        float top = 100 - block / 2f;
+        float bottom = top + block;
         float step = Math.min(19f, (bottom - top) / Math.max(1, visible));
         float textScale = step >= 17 ? 1f : step / 17f;
+        // Todas las opciones de la página con el mismo tamaño de letra: el que necesita la más
+        // ancha para caber (antes cada una se encogía por su cuenta y las de valor iban más pequeñas).
+        float widest = 0;
+        for (Entry e : p.entries) {
+            String t = e.value != null ? e.label + ": " + e.value.get() : e.label;
+            float tw = bigWidth(t) * textScale;
+            if (e.icon != null) tw += 14 * textScale * 1.6f + 5;
+            widest = Math.max(widest, tw);
+        }
+        if (widest > maxW) textScale *= maxW / widest;
         long now = SystemClock.uptimeMillis();
         int frame = (int) ((now / 66) % 7);
 
@@ -262,7 +259,7 @@ final class DukeMenuView extends View {
             float cy = top + step * (i - first) + step / 2f;
             String text = e.value != null ? e.label + ": " + e.value.get() : e.label;
 
-            float scale = textScale * (e.value != null ? 0.8f : 1f);
+            float scale = textScale;
             float textW = bigWidth(text) * scale;
             float iconW = 0, iconH = 0, gap = 0;
             if (e.icon != null) {
