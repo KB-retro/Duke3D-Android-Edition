@@ -137,14 +137,18 @@ final class GameData {
         return defs;
     }
 
+    private static final java.util.Set<String> BASE_CONS = new java.util.HashSet<>(java.util.Arrays.asList(
+            "game.con", "user.con", "defs.con", "duke3d.con"));
+
     /**
-     * Argumentos para los mods activados: cada uno con -g y sus .def de la raíz con -mh.
-     *
-     * Muchos packs (HRP, vóxeles...) traen su propio duke3d.def y todos se llaman igual: el
-     * juego solo vería uno y lo cargaría varias veces. Por eso el duke3d.def de cada pack se
-     * copia con su propio nombre (duke3d_android/mods/NOMBRE.def) y se carga ese; sus include
-     * siguen encontrando los archivos dentro del pack. El duke3d.def principal pasa a ser uno
-     * vacío para que no se cargue ninguno dos veces. Se llama fuera del hilo principal.
+     * Argumentos para los mods activados. Cada .zip/.pk3 se carga con -g y además:
+     * - su duke3d.def se copia con su propio nombre (duke3d_android/mods/NOMBRE.def) y se carga
+     *   ese (varios packs traen uno y el juego solo vería uno); los demás .def de la raíz, con -mh;
+     * - los .con propios de la raíz (no GAME/USER/DEFS.CON, que ya sustituyen a los del juego),
+     *   como módulos con -mx;
+     * - si todo va dentro de una sola carpeta del zip, esa carpeta se extrae una vez a
+     *   duke3d_android/mods/NOMBRE/ y se carga como carpeta (-j).
+     * El contenido de cada mod se apunta en el registro. Se llama fuera del hilo principal.
      */
     static List<String> modArguments(File gameDir, java.util.Set<String> enabled) {
         List<String> args = new ArrayList<>();
@@ -152,43 +156,102 @@ final class GameData {
         boolean anyMainDef = false;
         for (File f : mods(gameDir)) {
             if (!enabled.contains(f.getName())) continue;
-            args.add("-g");
-            args.add(f.getAbsolutePath());
             String n = f.getName().toLowerCase(java.util.Locale.ROOT);
-            if (!(n.endsWith(".zip") || n.endsWith(".pk3"))) continue;
+            String safe = f.getName().replaceAll("[^A-Za-z0-9._-]", "_");
+            if (!(n.endsWith(".zip") || n.endsWith(".pk3"))) {
+                args.add("-g");
+                args.add(f.getAbsolutePath());
+                continue;
+            }
             try (java.util.zip.ZipFile z = new java.util.zip.ZipFile(f)) {
-                java.util.zip.ZipEntry main = null;
-                List<String> others = new ArrayList<>();
+                List<String> rootFiles = new ArrayList<>();
+                java.util.Set<String> topDirs = new java.util.TreeSet<>();
+                java.util.Map<String, Integer> exts = new java.util.TreeMap<>();
                 java.util.Enumeration<? extends java.util.zip.ZipEntry> e = z.entries();
                 while (e.hasMoreElements()) {
                     java.util.zip.ZipEntry entry = e.nextElement();
                     String name = entry.getName();
-                    if (name.contains("/") || !name.toLowerCase(java.util.Locale.ROOT).endsWith(".def")) continue;
-                    if (name.equalsIgnoreCase("duke3d.def")) main = entry;
-                    else others.add(name);
+                    int slash = name.indexOf('/');
+                    if (slash >= 0) topDirs.add(name.substring(0, slash));
+                    if (entry.isDirectory()) continue;
+                    if (slash < 0) rootFiles.add(name);
+                    int dot = name.lastIndexOf('.');
+                    String ext = dot >= 0 ? name.substring(dot + 1).toLowerCase(java.util.Locale.ROOT) : "-";
+                    exts.merge(ext, 1, Integer::sum);
                 }
-                if (main != null) {
+                android.util.Log.i("Duke3D", "Mod " + f.getName() + ": raiz=" + rootFiles.subList(0, Math.min(25, rootFiles.size()))
+                        + " carpetas=" + topDirs + " tipos=" + exts);
+
+                // Todo dentro de una carpeta: se extrae y se usa como carpeta.
+                File base = null;
+                if (rootFiles.isEmpty() && topDirs.size() == 1) {
+                    String dir = topDirs.iterator().next();
+                    File dest = new File(outDir, safe);
+                    File stamp = new File(dest, ".extraido");
+                    String id = f.length() + ":" + f.lastModified();
+                    if (!stamp.exists() || !id.equals(readText(stamp))) {
+                        deleteTree(dest);
+                        java.util.Enumeration<? extends java.util.zip.ZipEntry> e2 = z.entries();
+                        while (e2.hasMoreElements()) {
+                            java.util.zip.ZipEntry entry = e2.nextElement();
+                            String name = entry.getName();
+                            if (entry.isDirectory() || !name.startsWith(dir + "/") || name.contains("..")) continue;
+                            File out = new File(dest, name.substring(dir.length() + 1));
+                            out.getParentFile().mkdirs();
+                            try (java.io.InputStream in = z.getInputStream(entry);
+                                 java.io.OutputStream o = new java.io.FileOutputStream(out)) {
+                                copy(in, o);
+                            }
+                        }
+                        writeText(stamp, id);
+                    }
+                    base = dest;
+                    args.add("-j");
+                    args.add(dest.getAbsolutePath());
+                    rootFiles.clear();
+                    File[] inner = dest.listFiles();
+                    if (inner != null) for (File x : inner) if (x.isFile() && !x.getName().startsWith(".")) rootFiles.add(x.getName());
+                } else {
+                    args.add("-g");
+                    args.add(f.getAbsolutePath());
+                }
+
+                String mainDef = null;
+                for (String r : rootFiles) {
+                    String low = r.toLowerCase(java.util.Locale.ROOT);
+                    if (low.equals("duke3d.def")) {
+                        mainDef = r;
+                    } else if (low.endsWith(".def")) {
+                        args.add("-mh");
+                        args.add(r);
+                    } else if (low.endsWith(".con") && !BASE_CONS.contains(low)) {
+                        args.add("-mx");
+                        args.add(r);
+                    }
+                }
+                if (mainDef != null) {
                     // Su duke3d.def, copiado con el nombre del pack.
                     outDir.mkdirs();
-                    String safe = f.getName().replaceAll("[^A-Za-z0-9._-]", "_");
-                    File copy = new File(outDir, safe + ".def");
-                    try (java.io.InputStream in = z.getInputStream(main);
-                         java.io.OutputStream out = new java.io.FileOutputStream(copy)) {
-                        byte[] buf = new byte[8192];
-                        int r;
-                        while ((r = in.read(buf)) > 0) out.write(buf, 0, r);
+                    File copyTo = new File(outDir, safe + ".def");
+                    if (base != null) {
+                        try (java.io.InputStream in = new java.io.FileInputStream(new File(base, mainDef));
+                             java.io.OutputStream o = new java.io.FileOutputStream(copyTo)) {
+                            copy(in, o);
+                        }
+                    } else {
+                        try (java.io.InputStream in = z.getInputStream(z.getEntry(mainDef));
+                             java.io.OutputStream o = new java.io.FileOutputStream(copyTo)) {
+                            copy(in, o);
+                        }
                     }
                     args.add("-mh");
                     args.add("duke3d_android/mods/" + safe + ".def");
                     anyMainDef = true;
-                } else {
-                    for (String d : others) {
-                        args.add("-mh");
-                        args.add(d);
-                    }
                 }
             } catch (Exception ex) {
                 android.util.Log.w("Duke3D", "No se pudo leer el mod " + f, ex);
+                args.add("-g");
+                args.add(f.getAbsolutePath());
             }
         }
         if (anyMainDef) {
@@ -202,6 +265,34 @@ final class GameData {
             }
         }
         return args;
+    }
+
+    private static void copy(java.io.InputStream in, java.io.OutputStream out) throws java.io.IOException {
+        byte[] buf = new byte[65536];
+        int r;
+        while ((r = in.read(buf)) > 0) out.write(buf, 0, r);
+    }
+
+    private static String readText(File f) {
+        try (java.io.BufferedReader r = new java.io.BufferedReader(new java.io.FileReader(f))) {
+            String l = r.readLine();
+            return l != null ? l : "";
+        } catch (java.io.IOException e) {
+            return "";
+        }
+    }
+
+    private static void writeText(File f, String s) {
+        try (java.io.FileWriter w = new java.io.FileWriter(f)) {
+            w.write(s);
+        } catch (java.io.IOException ignored) {
+        }
+    }
+
+    private static void deleteTree(File f) {
+        File[] kids = f.listFiles();
+        if (kids != null) for (File k : kids) deleteTree(k);
+        f.delete();
     }
 
     /** Argumentos de EDuke32 para lanzar un juego desde gameDir. */
