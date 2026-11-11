@@ -66,17 +66,18 @@ final class TouchControls extends View {
     private static final int FIRE = 5, OPEN = 6, JUMP = 9, CROUCH = 10, INVENTORY = 29, MAP = 38,
             KICK = 49, NEXT_WEAPON = 50;
 
-    // Posiciones en unidades (alto de pantalla / 9.5). Lo de abajo empieza por encima de la
-    // barra de vida y munición del juego (~22 % inferior) para no taparla.
+    // Posiciones en unidades (alto de pantalla / 9.5), en rejilla: abajo a la derecha
+    // PATADA · AGACHA · FUEGO y encima USAR · SALTO; arriba a la derecha ARMA · OBJETO · MAPA.
+    // La fila de abajo queda justo por encima de la vida y la munición del juego.
     private final Button[] buttons = {
-            new Button("FUEGO", "FIRE", FIRE, 1.5f, 3.3f, 0.8f, true, false),
-            new Button("SALTO", "JUMP", JUMP, 1.55f, 4.85f, 0.48f, true, false),
-            new Button("USAR", "USE", OPEN, 2.5f, 4.49f, 0.48f, true, false),
-            new Button("PATADA", "KICK", KICK, 3.02f, 3.62f, 0.48f, true, false),
-            new Button("AGACHA", "CROUCH", CROUCH, 2.89f, 2.62f, 0.48f, true, false),
-            new Button("ARMA", "WEAPON", NEXT_WEAPON, 0.7f, 2.0f, 0.4f, true, true),
-            new Button("OBJETO", "ITEM", INVENTORY, 0.7f, 3.0f, 0.4f, true, true),
-            new Button("MAPA", "MAP", MAP, 0.7f, 4.0f, 0.4f, true, true),
+            new Button("FUEGO", "FIRE", FIRE, 1.9f, 1.85f, 0.8f, true, false),
+            new Button("SALTO", "JUMP", JUMP, 1.9f, 3.35f, 0.5f, true, false),
+            new Button("USAR", "USE", OPEN, 3.35f, 3.35f, 0.5f, true, false),
+            new Button("AGACHA", "CROUCH", CROUCH, 3.35f, 1.85f, 0.5f, true, false),
+            new Button("PATADA", "KICK", KICK, 4.8f, 1.85f, 0.5f, true, false),
+            new Button("ARMA", "WEAPON", NEXT_WEAPON, 0.7f, 0.7f, 0.4f, true, true),
+            new Button("OBJETO", "ITEM", INVENTORY, 1.75f, 0.7f, 0.4f, true, true),
+            new Button("MAPA", "MAP", MAP, 2.8f, 0.7f, 0.4f, true, true),
             new Button("MENU", "MENU", MENU, 0.7f, 0.7f, 0.4f, false, true),
     };
 
@@ -142,7 +143,7 @@ final class TouchControls extends View {
         }
         stickR = 1.1f * unit;
         stickHomeX = 2.2f * unit;
-        stickHomeY = h - 3.4f * unit;
+        stickHomeY = h - 2.6f * unit;
         if (stickPointer < 0) {
             stickBaseX = stickX = stickHomeX;
             stickBaseY = stickY = stickHomeY;
