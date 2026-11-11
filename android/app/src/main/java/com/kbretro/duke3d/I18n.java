@@ -98,6 +98,16 @@ final class I18n {
         put("gamepad_config", "Configurar mando", "Gamepad setup");
         put("mods", "Mods", "Mods");
         put("mods_empty", "Pon los mods (.zip, .pk3, .grp o carpetas) en ", "Put mods (.zip, .pk3, .grp or folders) in ");
+        put("gfx_filter", "Filtrado de texturas", "Texture filtering");
+        put("gfx_pixel_smooth", "Píxel suave", "Smooth pixels");
+        put("gfx_bilinear", "Bilineal", "Bilinear");
+        put("gfx_trilinear", "Trilineal", "Trilinear");
+        put("gfx_aniso", "Anisotrópico", "Anisotropic");
+        put("gfx_palette", "Paleta 8 bits", "8-bit palette");
+        put("gfx_ssao", "Oclusión ambiental", "Ambient occlusion");
+        put("gfx_hq", "Texturas suavizadas", "Smoothed textures");
+        put("gfx_lens", "Destellos de luz", "Lens flares");
+        put("game_menu", "Menú del juego", "Game menu");
         put("mods_campaigns", "Campañas", "Campaigns");
         put("mods_gfx", "Gráficos y sonido", "Graphics & sound");
         put("mods_one_campaign", "solo una campaña activada a la vez", "only one campaign active at a time");

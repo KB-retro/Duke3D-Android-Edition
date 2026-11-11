@@ -599,6 +599,11 @@ public class GameActivity extends SDLActivity {
             closeMenu();
             command("quickload");
         });
+        p.add(I18n.t("game_menu"), null, () -> {
+            // El menú del propio juego (el de Escape).
+            closeMenu();
+            ui.postDelayed(() -> sendKey(KeyEvent.KEYCODE_ESCAPE), 150);
+        });
         p.add(I18n.t("cheats"), null, () -> quickMenu.push(cheatsPage()));
         p.add(I18n.t("graphics"), null, () -> quickMenu.push(graphicsPage()));
         p.add(I18n.t("controls"), null, () -> quickMenu.push(controlsPage()));
@@ -679,8 +684,8 @@ public class GameActivity extends SDLActivity {
 
     private DukeMenuView.Page graphicsPage() {
         DukeMenuView.Page p = new DukeMenuView.Page();
-        GraphicsSettings.addTo(this, p, this::applyScale, this::applyPostFx);
-        p.footer = () -> I18n.t("gfx_soft_note");
+        GraphicsSettings.addTo(this, p, this::applyScale, Motor.RAZE ? this::applyRazeGraphics : this::applyPostFx);
+        if (!Motor.RAZE) p.footer = () -> I18n.t("gfx_soft_note");
         p.addValue("FPS", () -> fpsLabel(fps()), () -> {
             int i = indexOf(FPS_VALUES, fps());
             int next = FPS_VALUES[(i + 1) % FPS_VALUES.length];
@@ -690,6 +695,11 @@ public class GameActivity extends SDLActivity {
         });
         p.add(I18n.t("back"), null, () -> quickMenu.pop());
         return p;
+    }
+
+    /** Raze: aplica al momento las opciones gráficas guardadas. */
+    private void applyRazeGraphics() {
+        for (String cmd : GraphicsSettings.razeCommands(this)) command(cmd);
     }
 
     private static int indexOf(int[] a, int v) {

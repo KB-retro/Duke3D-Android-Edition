@@ -64,7 +64,17 @@ final class GraphicsSettings {
             prefs(c).edit().putInt("escala", next).apply();
             if (onScale != null) onScale.accept(next);
         });
-        if (Motor.RAZE) return; // Raze dibuja con Vulkan: los filtros de EDuke32 no se usan
+        if (Motor.RAZE) {
+            // Raze dibuja con Vulkan: en vez de los filtros de EDuke32, sus propias opciones.
+            for (RazeOpt o : RAZE_OPTS) {
+                p.addValue(I18n.t(o.label), () -> I18n.t(o.labels[razeIndex(c, o)]), () -> {
+                    int next = (razeIndex(c, o) + 1) % o.labels.length;
+                    prefs(c).edit().putInt(o.pref, next).apply();
+                    if (onChange != null) onChange.run();
+                });
+            }
+            return;
+        }
         p.addValue(I18n.t("gfx_scaler"), () -> I18n.t(SCALER_KEYS[scaler(c)]),
                 () -> cycle(c, "escalado", scaler(c), SCALER_KEYS.length, onChange));
         p.addValue("FXAA", () -> I18n.t(fxaa(c) != 0 ? "yes" : "no"),
@@ -77,6 +87,66 @@ final class GraphicsSettings {
                 () -> cycle(c, "color", color(c), COLOR_KEYS.length, onChange));
         p.addValue(I18n.t("gfx_effect"), () -> I18n.t(CRT_KEYS[crt(c)]),
                 () -> cycle(c, "crt", crt(c), CRT_KEYS.length, onChange));
+    }
+
+    // ---- Raze (Vulkan) ----
+
+    private static final class RazeOpt {
+        final String label, pref;
+        final String[] labels, commands; // orden(es) de consola de cada valor (varias con ';')
+        final int def;
+
+        RazeOpt(String label, String pref, int def, String[] labels, String[] commands) {
+            this.label = label;
+            this.pref = pref;
+            this.def = def;
+            this.labels = labels;
+            this.commands = commands;
+        }
+    }
+
+    private static final RazeOpt[] RAZE_OPTS = {
+            new RazeOpt("gfx_filter", "raze_filtro", 0,
+                    new String[]{"gfx_pixel", "gfx_pixel_smooth", "gfx_bilinear", "gfx_trilinear"},
+                    new String[]{"gl_texture_filter 0", "gl_texture_filter 5", "gl_texture_filter 3", "gl_texture_filter 4"}),
+            new RazeOpt("gfx_aniso", "raze_aniso", 2,
+                    new String[]{"no", "4x", "8x", "16x"},
+                    new String[]{"gl_texture_filter_anisotropic 1", "gl_texture_filter_anisotropic 4",
+                            "gl_texture_filter_anisotropic 8", "gl_texture_filter_anisotropic 16"}),
+            new RazeOpt("FXAA", "raze_fxaa", 0,
+                    new String[]{"no", "gfx_low", "gfx_mid", "gfx_high"},
+                    new String[]{"gl_fxaa 0", "gl_fxaa 1", "gl_fxaa 2", "gl_fxaa 3"}),
+            new RazeOpt("gfx_bloom", "raze_bloom", 0,
+                    new String[]{"no", "yes"},
+                    new String[]{"gl_bloom 0", "gl_bloom 1"}),
+            new RazeOpt("gfx_color", "raze_color", 0,
+                    new String[]{"gfx_normal", "gfx_cinema", "gfx_vivid", "gfx_palette"},
+                    new String[]{"gl_tonemap 0", "gl_tonemap 1", "gl_tonemap 2", "gl_tonemap 5"}),
+            new RazeOpt("gfx_ssao", "raze_ssao", 0,
+                    new String[]{"no", "gfx_low", "gfx_mid", "gfx_high"},
+                    new String[]{"gl_ssao 0", "gl_ssao 1", "gl_ssao 2", "gl_ssao 3"}),
+            new RazeOpt("gfx_hq", "raze_hq", 0,
+                    new String[]{"no", "xBRZ 2x", "xBRZ 3x"},
+                    new String[]{"gl_texture_hqresizemode 0",
+                            "gl_texture_hqresizemult 2;gl_texture_hqresizemode 4",
+                            "gl_texture_hqresizemult 3;gl_texture_hqresizemode 4"}),
+            new RazeOpt("gfx_lens", "raze_lens", 0,
+                    new String[]{"no", "yes"},
+                    new String[]{"gl_lens 0", "gl_lens 1"}),
+    };
+
+    private static int razeIndex(Context c, RazeOpt o) {
+        int i = prefs(c).getInt(o.pref, o.def);
+        return i >= 0 && i < o.labels.length ? i : o.def;
+    }
+
+    /** Las órdenes de consola de Raze para los ajustes guardados. */
+    static java.util.List<String> razeCommands(Context c) {
+        java.util.List<String> out = new java.util.ArrayList<>();
+        for (RazeOpt o : RAZE_OPTS) {
+            for (String cmd : o.commands[razeIndex(c, o)].split(";")) out.add(cmd.trim());
+        }
+        return out;
     }
 
     interface IntConsumer {

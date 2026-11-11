@@ -378,7 +378,7 @@ public class LauncherActivity extends Activity {
             DukeMenuView.Page g = new DukeMenuView.Page();
             GraphicsSettings.addTo(this, g, null, null);
             g.add(I18n.t("back"), null, () -> menuView.pop());
-            g.footer = () -> I18n.t("gfx_soft_note");
+            if (!Motor.RAZE) g.footer = () -> I18n.t("gfx_soft_note");
             menuView.push(g);
         });
         p.add(I18n.t("folder"), null, this::pickFolder);
@@ -680,7 +680,7 @@ public class LauncherActivity extends Activity {
                 getPreferences(MODE_PRIVATE).edit().putBoolean("jugando", true).apply();
                 Intent intent = new Intent(this, GameActivity.class);
                 intent.putExtra(GameActivity.EXTRA_DIR, gameDir.getAbsolutePath());
-                List<String> args = new ArrayList<>(Arrays.asList(GameData.arguments(gameDir, game, defFile)));
+                List<String> args = new ArrayList<>(Arrays.asList(GameData.arguments(this, gameDir, game, defFile)));
                 args.addAll(Arrays.asList(extraArgs));
                 args.addAll(modArgs);
                 intent.putExtra(GameActivity.EXTRA_ARGS, args.toArray(new String[0]));

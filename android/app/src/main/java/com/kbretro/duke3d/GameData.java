@@ -609,12 +609,12 @@ final class GameData {
     }
 
     /** Argumentos de EDuke32 para lanzar un juego desde gameDir. */
-    static String[] arguments(File gameDir, Game game) {
-        return arguments(gameDir, game, null);
+    static String[] arguments(android.content.Context ctx, File gameDir, Game game) {
+        return arguments(ctx, gameDir, game, null);
     }
 
     /** @param def módulo .def extra (la traducción), relativo a la carpeta del juego, o null. */
-    static String[] arguments(File gameDir, Game game, String def) {
+    static String[] arguments(android.content.Context ctx, File gameDir, Game game, String def) {
         List<String> args = new ArrayList<>();
         if (!Motor.RAZE) args.add("-usecwd"); // configuración y partidas guardadas en la carpeta del juego
         for (File d : addonDirs(gameDir)) {
@@ -629,8 +629,14 @@ final class GameData {
         args.add(game.grpName);
         if (Motor.RAZE) {
             args.add("-nosetup"); // sin la ventana de elegir juego de Raze
-            args.add("+vid_vsync"); // sincronía vertical (menos calor; la guardada era sin ella)
-            args.add("1");
+            // Sin sincronía vertical: el límite de FPS del lanzador (60/120...) manda.
+            args.add("+vid_vsync");
+            args.add("0");
+            for (String cmd : GraphicsSettings.razeCommands(ctx)) {
+                int sp = cmd.indexOf(' ');
+                args.add("+" + cmd.substring(0, sp));
+                args.add(cmd.substring(sp + 1));
+            }
             if (I18n.ES.equals(I18n.lang())) {
                 args.add("+language"); // Raze trae su propia traducción
                 args.add("es");
