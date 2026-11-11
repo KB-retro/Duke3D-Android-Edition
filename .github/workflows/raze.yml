@@ -63,7 +63,8 @@ jobs:
         run: |
           A="-G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=$NDK/build/cmake/android.toolchain.cmake
              -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=$API -DANDROID_STL=c++_shared
-             -DCMAKE_INSTALL_PREFIX=$PWD/android -DCMAKE_FIND_ROOT_PATH=$PWD/android"
+             -DCMAKE_INSTALL_PREFIX=$PWD/android -DCMAKE_FIND_ROOT_PATH=$PWD/android
+             -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON -DCMAKE_POLICY_VERSION_MINIMUM=3.5"
           cmake -S sdl2 -B sdl-a $A -DSDL_SHARED=ON -DSDL_STATIC=OFF -DSDL_TEST=OFF
           ninja -C sdl-a install > /dev/null
           cmake -S openal -B openal-a $A -DALSOFT_UTILS=OFF -DALSOFT_EXAMPLES=OFF -DALSOFT_TESTS=OFF \
@@ -83,6 +84,7 @@ jobs:
             -DIMPORT_EXECUTABLES=$PWD/raze-pc/ImportExecutables.cmake \
             -DSDL2_INCLUDE_DIR=$PWD/android/include/SDL2 -DSDL2_LIBRARY=$PWD/android/lib/libSDL2.so \
             -DOPENAL_INCLUDE_DIR=$PWD/android/include/AL -DOPENAL_LIBRARY=$PWD/android/lib/libopenal.so \
+            -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
             -DHAVE_VULKAN=OFF -DHAVE_GLES2=ON -DNO_GTK=ON -DNO_OPENMP=ON -DHAVE_VM_JIT=OFF 2>&1 | tee cmake.log
           set +e
           ninja -C raze-a -k 0 > nativo.log 2>&1
