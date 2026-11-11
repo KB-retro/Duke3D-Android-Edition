@@ -394,14 +394,8 @@ public class GameActivity extends SDLActivity {
             prefs().edit().putBoolean("vibracion", vibrationOn).apply();
             if (vibrationOn) vibrate(200, 120); // para notar que está activa
         });
-        p.add(I18n.t("to_launcher"), null, this::finish);
-        p.add(I18n.t("quit_game"), null, () -> {
-            Intent i = new Intent(this, LauncherActivity.class);
-            i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-            i.putExtra(LauncherActivity.EXTRA_QUIT, true);
-            startActivity(i);
-            finish();
-        });
+        p.add(I18n.t("to_launcher"), null, () -> quitGame(false));
+        p.add(I18n.t("quit_game"), null, () -> quitGame(true));
         return p;
     }
 
@@ -502,8 +496,29 @@ public class GameActivity extends SDLActivity {
     protected void onDestroy() {
         watchdogRunning = false;
         instance = null;
-        super.onDestroy();
-        // EDuke32 no está pensado para arrancar dos veces en el mismo proceso.
+        // Se cierra el proceso ANTES de super.onDestroy(): SDL esperaría a que el juego termine
+        // y EDuke32 no termina con el aviso de SDL (pide confirmación). Esa espera bloqueaba la
+        // app y salía el aviso de "no responde". Además EDuke32 no puede arrancar dos veces en
+        // el mismo proceso.
         android.os.Process.killProcess(android.os.Process.myPid());
+        super.onDestroy();
+    }
+
+    /**
+     * Sale del juego: con "quit" EDuke32 guarda su configuración y termina el proceso; el
+     * lanzador (que va en otro proceso) queda a la vista. Si no termina en 2 s, se cierra igual.
+     * @param all también cierra el lanzador
+     */
+    private void quitGame(boolean all) {
+        if (all) {
+            Intent i = new Intent(this, LauncherActivity.class);
+            i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+            i.putExtra(LauncherActivity.EXTRA_QUIT, true);
+            startActivity(i);
+        }
+        if (quickMenu != null) quickMenu.setVisibility(View.GONE);
+        command("pausegame 0");
+        command("quit");
+        ui.postDelayed(() -> android.os.Process.killProcess(android.os.Process.myPid()), 2000);
     }
 }

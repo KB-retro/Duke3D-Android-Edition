@@ -234,10 +234,15 @@ static void *game_thread(void *p)
 }
 
 __attribute__((visibility("default")))
+int SDL_SetHint(const char *name, const char *value);
+
 int SDL_main(int argc, char *argv[])
 {
     redirect_output();
     install_crash_handler();
+
+    // Siempre en horizontal (SDL dejaba girar a vertical si la consola se inclinaba).
+    SDL_SetHint("SDL_IOS_ORIENTATIONS", "LandscapeLeft LandscapeRight");
 
     const char *dir = getenv("DUKE3D_DIR");
     __android_log_print(ANDROID_LOG_INFO, "Duke3D", "Carpeta del juego: %s", dir ? dir : "(ninguna)");
