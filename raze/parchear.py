@@ -37,7 +37,7 @@ sub("source/CMakeLists.txt",
 sub("source/CMakeLists.txt",
     "add_executable( ${PROJECT_NAME} WIN32 MACOSX_BUNDLE ${GAME_SOURCES} )",
     "if( ANDROID )\n"
-    "\tadd_library( ${PROJECT_NAME} SHARED ${GAME_SOURCES} )\n"
+    "\tadd_library( ${PROJECT_NAME} SHARED ${GAME_SOURCES} ${CMAKE_SOURCE_DIR}/android/android_raze.cpp )\n"
     "\tset_target_properties( ${PROJECT_NAME} PROPERTIES OUTPUT_NAME main )\n"
     "\ttarget_link_libraries( ${PROJECT_NAME} log android EGL GLESv2 )\n"
     "else()\n"
@@ -69,10 +69,7 @@ sub("source/common/platform/posix/sdl/i_main.cpp",
     "#ifdef __ANDROID__\n#undef main\nint raze_main (int argc, char **argv)\n#else\nint main (int argc, char **argv)\n#endif\n"
     "{\n#if !defined (__APPLE__) && !defined (__ANDROID__)")
 
-# 6. El puente con la app (android_raze.cpp) va dentro de libmain.so.
-sub("source/CMakeLists.txt",
-    "\tadd_library( ${PROJECT_NAME} SHARED ${GAME_SOURCES} )",
-    "\tadd_library( ${PROJECT_NAME} SHARED ${GAME_SOURCES} ${CMAKE_SOURCE_DIR}/android/android_raze.cpp )")
+# 6. (El puente android_raze.cpp va en la biblioteca del cambio 2.)
 
 # 7. Cada tic: órdenes, botones y giro de la app; y el joystick táctil como ejes.
 sub("source/common/platform/posix/sdl/i_input.cpp",
