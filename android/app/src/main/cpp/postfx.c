@@ -532,6 +532,7 @@ void android_postfx_present(const void *pixels, int w, int h, int pitch)
 // libgl4es.so se carga solo en este modo, con el contexto GLES 2 de SDL ya activo.
 
 #include <dlfcn.h>
+#include <stdint.h>
 
 static void *gl4es_lib;
 static void *(*gl4es_getproc)(const char *);
@@ -581,9 +582,23 @@ int android_gl4es_load(void)
     return 1;
 }
 
+// Las funciones que gl4es no tiene (OpenGL 3+, como glIsSync) apuntan aquí en vez de a NULL:
+// no hacen nada y devuelven 0. Polymost solo las usa si la extensión existe, salvo algún caso
+// suelto (glIsSync al iniciar) que con esto deja de cerrar el juego.
+static uintptr_t gl_missing_stub(void)
+{
+    return 0;
+}
+
 void *android_gl4es_getproc(const char *name)
 {
-    return gl4es_getproc ? gl4es_getproc(name) : NULL;
+    void *p = gl4es_getproc ? gl4es_getproc(name) : NULL;
+    if (!p)
+    {
+        LOGI("gl4es: sin %s (se ignora)", name);
+        p = (void *)gl_missing_stub;
+    }
+    return p;
 }
 
 void android_gl4es_pre_swap(void)

@@ -53,5 +53,8 @@ Duke Nukem 3D, con estos cambios para compilarlo en Android como un Linux con SD
     funciones de gl4es (`android/app/src/main/cpp/gl4es`, OpenGL → GLES 2) y cada cambio de
     búfer pasa por `gl4es_pre_swap`/`post_swap`. Sin OpenGL elegido, `nogl = 1` y todo sigue
     por software. El backend OpenGL de ImGui no se usa en Android.
+17. **glad en Android** (`glad/src/glad.c`): carga todas las funciones aunque la versión de GL
+    no las tenga; las que falten en gl4es apuntan a una función vacía (antes eran NULL y
+    `glIsSync` cerraba el juego al iniciar Polymost).
 
 Licencias: GPL v2 (`gpl-2.0.txt`) y licencia del motor BUILD de Ken Silverman (`buildlic.txt`).
