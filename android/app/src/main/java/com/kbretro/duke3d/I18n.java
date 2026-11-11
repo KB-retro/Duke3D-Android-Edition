@@ -93,6 +93,7 @@ final class I18n {
         put("make_log", "Generar registro", "Save log");
         put("making_log", "Guardando registro...", "Saving log...");
         put("log_saved", "Registro guardado: ", "Log saved: ");
+        put("gfx_restart", "Se aplica al volver a entrar en el juego", "Applies next time you start the game");
         put("multiplayer", "Multijugador", "Multiplayer");
         put("net_game", "Juego", "Game");
         put("net_name", "Nombre", "Name");

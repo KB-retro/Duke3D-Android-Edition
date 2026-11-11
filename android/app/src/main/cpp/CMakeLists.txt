@@ -24,6 +24,13 @@ list(FILTER ENGINE_SRC EXCLUDE REGEX "/(sdlayer12|sdlkeytrans|startgtk\\.editor|
 list(APPEND ENGINE_SRC ${E}/glad/src/glad.c)
 file(READ ${E}/build/src/polymost1Frag.glsl POLYMOST1_FRAG)
 file(READ ${E}/build/src/polymost1Vert.glsl POLYMOST1_VERT)
+# En GLES la niebla incorporada (gl_Fog) se desborda y deja el mundo en negro: se usa una
+# niebla propia (u_androidFog = fin y escala, u_androidFogColor) que pone polymost.cpp.
+string(REPLACE "varying float v_distance;" "varying float v_distance;\nvarying float v_androidFogCoord;\nuniform vec2 u_androidFog;\nuniform vec4 u_androidFogColor;" POLYMOST1_FRAG "${POLYMOST1_FRAG}")
+string(REPLACE "gl_Fog.end-gl_FogFragCoord)*gl_Fog.scale" "u_androidFog.x-v_androidFogCoord)*u_androidFog.y" POLYMOST1_FRAG "${POLYMOST1_FRAG}")
+string(REPLACE "gl_Fog.color.rgb" "u_androidFogColor.rgb" POLYMOST1_FRAG "${POLYMOST1_FRAG}")
+string(REPLACE "varying float v_distance;" "varying float v_distance;\nvarying float v_androidFogCoord;" POLYMOST1_VERT "${POLYMOST1_VERT}")
+string(REPLACE "gl_FogFragCoord = abs(eyeCoordPosition.z);" "v_androidFogCoord = abs(eyeCoordPosition.z);" POLYMOST1_VERT "${POLYMOST1_VERT}")
 file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/polymost_shaders.cpp
     "char const *polymost1Frag = R\"GLSL(${POLYMOST1_FRAG})GLSL\";\nchar const *polymost1Vert = R\"GLSL(${POLYMOST1_VERT})GLSL\";\n")
 list(APPEND ENGINE_SRC ${CMAKE_CURRENT_BINARY_DIR}/polymost_shaders.cpp)

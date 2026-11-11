@@ -203,6 +203,36 @@ static GLint polymost1VisFactorLoc = -1;
 static float polymost1VisFactor = 128.f;
 static GLint polymost1FogEnabledLoc = -1;
 static float polymost1FogEnabled = 1.f;
+#ifdef __ANDROID__
+// Duke3D Android Edition: niebla propia en el shader (gl_Fog de gl4es/GLES se desborda con los
+// valores enormes de Polymost y deja el mundo en negro). Se guardan los valores de glFog* y se
+// pasan como uniformes; ver el CMakeLists.txt de Android, que cambia el shader.
+static GLint polymost1AndroidFogLoc = -1;
+static GLint polymost1AndroidFogColorLoc = -1;
+static float android_fogStart = 0.f, android_fogEnd = 1.f;
+static float android_fogColor[4] = { 0.f, 0.f, 0.f, 1.f };
+static void android_uploadFog(void);
+static void android_glFogf(GLenum pname, GLfloat param)
+{
+    if (pname == GL_FOG_START)
+        android_fogStart = param;
+    else if (pname == GL_FOG_END)
+        android_fogEnd = param;
+    glad_glFogf(pname, param);
+    android_uploadFog();
+}
+static void android_glFogfv(GLenum pname, const GLfloat *params)
+{
+    if (pname == GL_FOG_COLOR)
+        Bmemcpy(android_fogColor, params, sizeof(android_fogColor));
+    glad_glFogfv(pname, params);
+    android_uploadFog();
+}
+#undef glFogf
+#undef glFogfv
+#define glFogf android_glFogf
+#define glFogfv android_glFogfv
+#endif
 static GLint polymost1UseColorOnlyLoc = -1;
 static float polymost1UseColorOnly = 0.f;
 static GLint polymost1UsePaletteLoc = -1;
@@ -643,6 +673,10 @@ static void polymost_setCurrentShaderProgram(uint32_t programID)
     polymost1NumShadesLoc = glGetUniformLocation(polymost1CurrentShaderProgramID, "u_numShades");
     polymost1VisFactorLoc = glGetUniformLocation(polymost1CurrentShaderProgramID, "u_visFactor");
     polymost1FogEnabledLoc = glGetUniformLocation(polymost1CurrentShaderProgramID, "u_fogEnabled");
+#ifdef __ANDROID__
+    polymost1AndroidFogLoc = glGetUniformLocation(polymost1CurrentShaderProgramID, "u_androidFog");
+    polymost1AndroidFogColorLoc = glGetUniformLocation(polymost1CurrentShaderProgramID, "u_androidFogColor");
+#endif
     polymost1UsePaletteLoc = glGetUniformLocation(polymost1CurrentShaderProgramID, "u_usePalette");
     polymost1UseColorOnlyLoc = glGetUniformLocation(polymost1CurrentShaderProgramID, "u_useColorOnly");
     polymost1UseDetailMappingLoc = glGetUniformLocation(polymost1CurrentShaderProgramID, "u_useDetailMapping");
@@ -662,6 +696,9 @@ static void polymost_setCurrentShaderProgram(uint32_t programID)
     glUniform2f(polymost1NumShadesLoc, polymost1NumShades.x, polymost1NumShades.y);
     glUniform1f(polymost1VisFactorLoc, polymost1VisFactor);
     glUniform1f(polymost1FogEnabledLoc, polymost1FogEnabled);
+#ifdef __ANDROID__
+    android_uploadFog();
+#endif
     glUniform1f(polymost1UseColorOnlyLoc, polymost1UseColorOnly);
     glUniform1f(polymost1UsePaletteLoc, polymost1UsePalette);
     glUniform1f(polymost1UseDetailMappingLoc, polymost1UseDetailMapping);
@@ -784,6 +821,19 @@ void polymost_setVisibility(float visibility)
     polymost1VisFactor = visFactor;
     glUniform1f(polymost1VisFactorLoc, polymost1VisFactor);
 }
+
+#ifdef __ANDROID__
+static void android_uploadFog(void)
+{
+    if (gl.currentShaderProgramID != polymost1CurrentShaderProgramID)
+        return;
+    float const range = android_fogEnd - android_fogStart;
+    if (polymost1AndroidFogLoc >= 0)
+        glUniform2f(polymost1AndroidFogLoc, android_fogEnd, range != 0.f ? 1.f / range : 0.f);
+    if (polymost1AndroidFogColorLoc >= 0)
+        glUniform4f(polymost1AndroidFogColorLoc, android_fogColor[0], android_fogColor[1], android_fogColor[2], android_fogColor[3]);
+}
+#endif
 
 void polymost_setFogEnabled(char fogEnabled)
 {

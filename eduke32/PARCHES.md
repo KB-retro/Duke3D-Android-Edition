@@ -56,5 +56,10 @@ Duke Nukem 3D, con estos cambios para compilarlo en Android como un Linux con SD
 17. **glad en Android** (`glad/src/glad.c`): carga todas las funciones aunque la versión de GL
     no las tenga; las que falten en gl4es apuntan a una función vacía (antes eran NULL y
     `glIsSync` cerraba el juego al iniciar Polymost).
+18. **Niebla de Polymost en GLES** (`polymost.cpp` y el CMakeLists.txt de Android): el shader usa
+    `u_androidFog`/`u_androidFogColor` en vez de `gl_Fog` (con gl4es se desbordaba y el mundo
+    salía negro); `glFogf`/`glFogfv` guardan los valores y los pasan al shader.
+19. **Ajustes de arranque** (`game.cpp`): tras `autoexec.cfg` se ejecuta `DUKE3D_STARTCFG`
+    (los ajustes de OpenGL del lanzador), antes de abrir el vídeo.
 
 Licencias: GPL v2 (`gpl-2.0.txt`) y licencia del motor BUILD de Ken Silverman (`buildlic.txt`).
