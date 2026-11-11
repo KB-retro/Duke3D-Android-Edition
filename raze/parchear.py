@@ -142,3 +142,10 @@ sub("source/common/platform/posix/sdl/i_system.cpp",
 sub("source/common/rendering/vulkan/system/vk_renderdevice.cpp",
     "\tmaxuniformblock = device->PhysicalDevice.Properties.Properties.limits.maxUniformBufferRange;",
     "\tmaxuniformblock = std::min<uint32_t>(device->PhysicalDevice.Properties.Properties.limits.maxUniformBufferRange, 65536);")
+
+# 16. Diagnóstico: con RAZE_VKDEBUG se activan las capas de validación de Vulkan (van en el
+#     APK de diagnóstico) aunque la configuración guardada diga lo contrario.
+sub("source/common/platform/posix/sdl/sdlglvideo.cpp",
+    "\t\t\tbuilder.DebugLayer(vk_debug);",
+    "#ifdef __ANDROID__\n\t\t\tbuilder.DebugLayer(vk_debug || getenv(\"RAZE_VKDEBUG\") != nullptr);\n#else\n"
+    "\t\t\tbuilder.DebugLayer(vk_debug);\n#endif")

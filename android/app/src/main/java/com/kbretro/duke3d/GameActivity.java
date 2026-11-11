@@ -352,6 +352,10 @@ public class GameActivity extends SDLActivity {
             Os.setenv("DUKE3D_LANG", lang != null ? lang : "en", true);
             if (Motor.RAZE) {
                 Os.setenv("RAZE_PROGDIR", Motor.prepareRazeData(this).getAbsolutePath(), true);
+                // Diagnóstico de Vulkan si el APK trae las capas de validación.
+                if (new File(getApplicationInfo().nativeLibraryDir, "libVkLayer_khronos_validation.so").exists()) {
+                    Os.setenv("RAZE_VKDEBUG", "1", true);
+                }
             }
         } catch (ErrnoException ignored) {
         }
