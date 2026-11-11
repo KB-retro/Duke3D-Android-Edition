@@ -527,3 +527,73 @@ void android_postfx_present(const void *pixels, int w, int h, int pitch)
 
     SDL_GL_SwapWindow(pfx_window);
 }
+
+// ---- Modo Polymost (OpenGL de escritorio a través de gl4es) ----
+// libgl4es.so se carga solo en este modo, con el contexto GLES 2 de SDL ya activo.
+
+#include <dlfcn.h>
+
+static void *gl4es_lib;
+static void *(*gl4es_getproc)(const char *);
+static void (*gl4es_pre)(void);
+static void (*gl4es_post)(void);
+
+static void *sdl_getproc(const char *name)
+{
+    return SDL_GL_GetProcAddress(name);
+}
+
+static void main_fb_size(int *w, int *h)
+{
+    SDL_Window *win = SDL_GL_GetCurrentWindow();
+    if (win)
+        SDL_GL_GetDrawableSize(win, w, h);
+}
+
+int android_gl4es_load(void)
+{
+    if (gl4es_getproc)
+        return 1;
+    gl4es_lib = dlopen("libgl4es.so", RTLD_NOW | RTLD_LOCAL);
+    if (!gl4es_lib)
+    {
+        LOGE("gl4es: no se pudo cargar: %s", dlerror());
+        return 0;
+    }
+    void (*set_proc)(void *(*)(const char *)) = (void (*)(void *(*)(const char *)))dlsym(gl4es_lib, "set_getprocaddress");
+    void (*set_fb)(void (*)(int *, int *)) = (void (*)(void (*)(int *, int *)))dlsym(gl4es_lib, "set_getmainfbsize");
+    void (*init)(void) = (void (*)(void))dlsym(gl4es_lib, "initialize_gl4es");
+    gl4es_getproc = (void *(*)(const char *))dlsym(gl4es_lib, "gl4es_GetProcAddress");
+    gl4es_pre = (void (*)(void))dlsym(gl4es_lib, "gl4es_pre_swap");
+    gl4es_post = (void (*)(void))dlsym(gl4es_lib, "gl4es_post_swap");
+    if (!init || !gl4es_getproc)
+    {
+        LOGE("gl4es: faltan funciones");
+        gl4es_getproc = NULL;
+        return 0;
+    }
+    if (set_proc)
+        set_proc(sdl_getproc);
+    if (set_fb)
+        set_fb(main_fb_size);
+    init();
+    LOGI("gl4es listo");
+    return 1;
+}
+
+void *android_gl4es_getproc(const char *name)
+{
+    return gl4es_getproc ? gl4es_getproc(name) : NULL;
+}
+
+void android_gl4es_pre_swap(void)
+{
+    if (gl4es_pre)
+        gl4es_pre();
+}
+
+void android_gl4es_post_swap(void)
+{
+    if (gl4es_post)
+        gl4es_post();
+}

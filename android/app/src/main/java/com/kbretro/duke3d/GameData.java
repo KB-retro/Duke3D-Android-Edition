@@ -96,6 +96,57 @@ final class GameData {
         return games;
     }
 
+    /**
+     * Packs HD (texturas, modelos, vóxeles) de la carpeta "hd" del juego: cada .zip / .pk3 se
+     * carga con -g; si el pack no trae duke3d.def, sus .def de la raíz se cargan con -mh.
+     * Solo sirven con OpenGL (Polymost).
+     */
+    static List<String> hdArguments(File gameDir) {
+        List<String> args = new ArrayList<>();
+        File hd = findChild(gameDir, "hd");
+        File[] files = hd != null ? hd.listFiles() : null;
+        if (files == null) return args;
+        java.util.Arrays.sort(files);
+        for (File f : files) {
+            String n = f.getName().toLowerCase(java.util.Locale.ROOT);
+            if (!f.isFile() || !(n.endsWith(".zip") || n.endsWith(".pk3"))) continue;
+            args.add("-g");
+            args.add(f.getAbsolutePath());
+            List<String> defs = new ArrayList<>();
+            boolean main = false;
+            try (java.util.zip.ZipFile z = new java.util.zip.ZipFile(f)) {
+                java.util.Enumeration<? extends java.util.zip.ZipEntry> e = z.entries();
+                while (e.hasMoreElements()) {
+                    String name = e.nextElement().getName();
+                    if (name.contains("/") || !name.toLowerCase(java.util.Locale.ROOT).endsWith(".def")) continue;
+                    if (name.equalsIgnoreCase("duke3d.def")) main = true;
+                    else defs.add(name);
+                }
+            } catch (Exception ignored) {
+            }
+            if (!main) {
+                for (String d : defs) {
+                    args.add("-mh");
+                    args.add(d);
+                }
+            }
+        }
+        return args;
+    }
+
+    /** Nombres de los packs HD encontrados (para enseñarlos en el lanzador). */
+    static List<String> hdPacks(File gameDir) {
+        List<String> names = new ArrayList<>();
+        File hd = findChild(gameDir, "hd");
+        File[] files = hd != null ? hd.listFiles() : null;
+        if (files == null) return names;
+        for (File f : files) {
+            String n = f.getName().toLowerCase(java.util.Locale.ROOT);
+            if (f.isFile() && (n.endsWith(".zip") || n.endsWith(".pk3"))) names.add(f.getName());
+        }
+        return names;
+    }
+
     /** Argumentos de EDuke32 para lanzar un juego desde gameDir. */
     static String[] arguments(File gameDir, Game game) {
         return arguments(gameDir, game, null);

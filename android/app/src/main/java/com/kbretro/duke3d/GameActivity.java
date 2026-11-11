@@ -144,6 +144,10 @@ public class GameActivity extends SDLActivity {
     /** Mejoras gráficas de postfx.c: escalado, FXAA, nitidez, CRT y color. */
     static native void nativePostFx(int scaler, int fxaa, int sharp, int crt, int color);
 
+    private void applyPolymost() {
+        for (String c : GraphicsSettings.polymostCommands(this)) command(c);
+    }
+
     private void applyPostFx() {
         try {
             nativePostFx(GraphicsSettings.scaler(this), GraphicsSettings.fxaa(this), GraphicsSettings.sharp(this),
@@ -181,6 +185,8 @@ public class GameActivity extends SDLActivity {
             // Idioma del juego (el motor lo aplica tras cargar las traducciones).
             String lang = getIntent().getStringExtra(EXTRA_LANG);
             Os.setenv("DUKE3D_LANG", lang != null ? lang : "en", true);
+            // Renderizador: software (8 bits, con las mejoras de postfx.c) u OpenGL (Polymost).
+            Os.setenv("DUKE3D_RENDERER", GraphicsSettings.opengl(this) ? "gl" : "soft", true);
         } catch (ErrnoException ignored) {
         }
         super.onCreate(savedInstanceState);
@@ -204,6 +210,7 @@ public class GameActivity extends SDLActivity {
         ui.postDelayed(() -> {
             applyRefreshRate(fps()); // otra vez, ya con la superficie del juego creada
             command("r_maxfps " + fps());
+            if (GraphicsSettings.opengl(this)) applyPolymost();
             if (scale() != 100) applyScale(scale());
         }, 4000);
 
@@ -302,7 +309,7 @@ public class GameActivity extends SDLActivity {
         int w = v.getWidth(), h = v.getHeight();
         if (w == 0 || h == 0) return;
         int sw = (w * percent / 100) & ~1, sh = (h * percent / 100) & ~1;
-        command("vidmode " + sw + " " + sh + " 8 1");
+        command("vidmode " + sw + " " + sh + (GraphicsSettings.opengl(this) ? " 32 1" : " 8 1"));
     }
 
     // ---- Menú rápido ----
@@ -390,7 +397,16 @@ public class GameActivity extends SDLActivity {
 
     private DukeMenuView.Page graphicsPage() {
         DukeMenuView.Page p = new DukeMenuView.Page();
-        GraphicsSettings.addTo(this, p, this::applyScale, this::applyPostFx);
+        if (GraphicsSettings.opengl(this)) {
+            p.addValue(I18n.t("resolution"), () -> scale() + "%", () -> {
+                int next = scale() == 100 ? 75 : scale() == 75 ? 50 : 100;
+                prefs().edit().putInt("escala", next).apply();
+                applyScale(next);
+            });
+            GraphicsSettings.addPolymost(this, p, this::applyPolymost);
+        } else {
+            GraphicsSettings.addTo(this, p, this::applyScale, this::applyPostFx);
+        }
         p.addValue("FPS", () -> fpsLabel(fps()), () -> {
             int i = indexOf(FPS_VALUES, fps());
             int next = FPS_VALUES[(i + 1) % FPS_VALUES.length];

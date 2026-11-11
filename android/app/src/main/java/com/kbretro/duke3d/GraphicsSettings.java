@@ -38,6 +38,87 @@ final class GraphicsSettings {
         return prefs(c).getInt("color", 0);
     }
 
+    /** 0 software (con las mejoras de postfx.c), 1 OpenGL (Polymost). */
+    static int renderer(Context c) {
+        return prefs(c).getInt("renderizador", 0);
+    }
+
+    static boolean opengl(Context c) {
+        return renderer(c) == 1;
+    }
+
+    static int texFilter(Context c) {
+        return prefs(c).getInt("filtrado", 2);
+    }
+
+    static int anisotropy(Context c) {
+        return prefs(c).getInt("anisotropico", 8);
+    }
+
+    static boolean hdTextures(Context c) {
+        return prefs(c).getBoolean("texturas_hd", true);
+    }
+
+    static boolean models(Context c) {
+        return prefs(c).getBoolean("modelos", true);
+    }
+
+    static boolean voxels(Context c) {
+        return prefs(c).getBoolean("voxeles", true);
+    }
+
+    private static final int[] ANISO = {1, 2, 4, 8, 16};
+    private static final String[] FILTER_KEYS = {"gfx_classic", "gfx_bilinear", "gfx_trilinear"};
+
+    /** Órdenes de consola para Polymost con los ajustes guardados. */
+    static String[] polymostCommands(Context c) {
+        int f = texFilter(c);
+        java.util.List<String> cmds = new java.util.ArrayList<>();
+        if (f == 0) {
+            cmds.add("r_useindexedcolortextures 1");
+        } else {
+            cmds.add("r_useindexedcolortextures 0");
+            cmds.add("r_texfilter " + (f == 1 ? 3 : 5));
+            cmds.add("r_anisotropy " + anisotropy(c));
+        }
+        cmds.add("r_hightile " + (hdTextures(c) ? 1 : 0));
+        cmds.add("r_models " + (models(c) ? 1 : 0));
+        cmds.add("r_voxels " + (voxels(c) ? 1 : 0));
+        cmds.add("r_glowmapping 1");
+        cmds.add("r_detailmapping 1");
+        return cmds.toArray(new String[0]);
+    }
+
+    /** Elegir renderizador (solo en el lanzador: se aplica al empezar la partida). */
+    static void addRenderer(Context c, DukeMenuView.Page p) {
+        p.addValue(I18n.t("gfx_renderer"), () -> I18n.t(opengl(c) ? "gfx_opengl" : "gfx_software"), () ->
+                prefs(c).edit().putInt("renderizador", opengl(c) ? 0 : 1).apply());
+    }
+
+    /** Opciones de Polymost: filtrado de texturas, anisotrópico, texturas HD, modelos y vóxeles. */
+    static void addPolymost(Context c, DukeMenuView.Page p, Runnable onChange) {
+        p.addValue(I18n.t("gfx_filter"), () -> I18n.t(FILTER_KEYS[clamp(texFilter(c), 3)]), () -> {
+            prefs(c).edit().putInt("filtrado", (clamp(texFilter(c), 3) + 1) % 3).apply();
+            if (onChange != null) onChange.run();
+        });
+        p.addValue(I18n.t("gfx_aniso"), () -> anisotropy(c) + "x", () -> {
+            prefs(c).edit().putInt("anisotropico", next(ANISO, anisotropy(c))).apply();
+            if (onChange != null) onChange.run();
+        });
+        p.addValue(I18n.t("gfx_hd"), () -> I18n.t(hdTextures(c) ? "yes" : "no"), () -> {
+            prefs(c).edit().putBoolean("texturas_hd", !hdTextures(c)).apply();
+            if (onChange != null) onChange.run();
+        });
+        p.addValue(I18n.t("gfx_models"), () -> I18n.t(models(c) ? "yes" : "no"), () -> {
+            prefs(c).edit().putBoolean("modelos", !models(c)).apply();
+            if (onChange != null) onChange.run();
+        });
+        p.addValue(I18n.t("gfx_voxels"), () -> I18n.t(voxels(c) ? "yes" : "no"), () -> {
+            prefs(c).edit().putBoolean("voxeles", !voxels(c)).apply();
+            if (onChange != null) onChange.run();
+        });
+    }
+
     private static final String[] SCALER_KEYS = {"gfx_pixel", "gfx_sharp", "gfx_smooth", "gfx_fsr"};
     private static final String[] SHARP_KEYS = {"no", "gfx_low", "gfx_mid", "gfx_high"};
     private static final String[] CRT_KEYS = {"no", "gfx_lines", "gfx_crt"};

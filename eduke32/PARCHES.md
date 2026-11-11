@@ -48,4 +48,10 @@ Duke Nukem 3D, con estos cambios para compilarlo en Android como un Linux con SD
     y cada fotograma pasa por `android/app/src/main/cpp/postfx.c` (FXAA, FSR 1.0 EASU/RCAS,
     escalado nítido, líneas/CRT, color). Si no hay GLES, se usa SDL_Renderer como antes.
 
+16. **Polymost (OpenGL) en Android** (`sdlayer.cpp`, `config.cpp`, CMake): se compila con
+    `USE_OPENGL`; si el lanzador elige OpenGL (`DUKE3D_RENDERER=gl`, 32 bits), glad carga las
+    funciones de gl4es (`android/app/src/main/cpp/gl4es`, OpenGL → GLES 2) y cada cambio de
+    búfer pasa por `gl4es_pre_swap`/`post_swap`. Sin OpenGL elegido, `nogl = 1` y todo sigue
+    por software. El backend OpenGL de ImGui no se usa en Android.
+
 Licencias: GPL v2 (`gpl-2.0.txt`) y licencia del motor BUILD de Ken Silverman (`buildlic.txt`).

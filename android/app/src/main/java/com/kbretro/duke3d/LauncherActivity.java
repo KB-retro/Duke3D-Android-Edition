@@ -359,8 +359,14 @@ public class LauncherActivity extends Activity {
         });
         p.add(I18n.t("graphics"), null, () -> {
             DukeMenuView.Page g = new DukeMenuView.Page();
+            GraphicsSettings.addRenderer(this, g);
             GraphicsSettings.addTo(this, g, null, null);
+            GraphicsSettings.addPolymost(this, g, null);
             g.add(I18n.t("back"), null, () -> menuView.pop());
+            java.util.List<String> packs = GameData.hdPacks(gameDir);
+            g.footer = () -> GraphicsSettings.opengl(this)
+                    ? (packs.isEmpty() ? I18n.t("gfx_no_hd") : I18n.t("gfx_hd_found") + String.join(", ", packs))
+                    : I18n.t("gfx_soft_note");
             menuView.push(g);
         });
         p.add(I18n.t("folder"), null, this::pickFolder);
@@ -592,6 +598,7 @@ public class LauncherActivity extends Activity {
                 intent.putExtra(GameActivity.EXTRA_DIR, gameDir.getAbsolutePath());
                 List<String> args = new ArrayList<>(Arrays.asList(GameData.arguments(gameDir, game, defFile)));
                 args.addAll(Arrays.asList(extraArgs));
+                if (GraphicsSettings.opengl(this)) args.addAll(GameData.hdArguments(gameDir));
                 intent.putExtra(GameActivity.EXTRA_ARGS, args.toArray(new String[0]));
                 intent.putExtra(GameActivity.EXTRA_LANG, defFile != null ? "es" : "en");
                 List<GameData.Game> all = GameData.games(gameDir);
