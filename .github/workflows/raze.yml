@@ -139,7 +139,7 @@ jobs:
           if [ -n "$url" ]; then
             curl -fsSL -o capas.zip "$url"
             unzip -o -q capas.zip -d capas
-            find capas -path '*arm64-v8a*' -name 'libVkLayer_khronos_validation.so' -exec cp {} $J/ \;
+            find capas -name 'libVkLayer_khronos_validation.so' -exec cp {} $J/ \;
           fi
           ls -laR $J $D
           $NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-readelf -d $J/libmain.so | grep NEEDED
