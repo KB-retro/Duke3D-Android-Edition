@@ -57,12 +57,19 @@ public class GameActivity extends SDLActivity {
         lastVibration = now;
         ms = Math.max(20, Math.min(ms, 500));
         int amp = Math.max(40, Math.min(255, strength));
-        try {
-            android.os.Vibrator v = a.vibrator();
-            if (v == null) return;
-            if (v.hasAmplitudeControl()) v.vibrate(android.os.VibrationEffect.createOneShot(ms, amp));
-            else v.vibrate(android.os.VibrationEffect.createOneShot(ms, android.os.VibrationEffect.DEFAULT_AMPLITUDE));
-        } catch (Exception ignored) {
+        for (android.os.Vibrator v : a.vibrators()) {
+            try {
+                android.os.VibrationEffect fx = android.os.VibrationEffect.createOneShot(ms,
+                        v.hasAmplitudeControl() ? amp : android.os.VibrationEffect.DEFAULT_AMPLITUDE);
+                if (android.os.Build.VERSION.SDK_INT >= 33) {
+                    // Como vibración de juego/multimedia: el ajuste de "respuesta táctil" no la anula.
+                    v.vibrate(fx, android.os.VibrationAttributes.createForUsage(android.os.VibrationAttributes.USAGE_MEDIA));
+                } else {
+                    v.vibrate(fx, new android.media.AudioAttributes.Builder()
+                            .setUsage(android.media.AudioAttributes.USAGE_GAME).build());
+                }
+            } catch (Exception ignored) {
+            }
         }
     }
 
@@ -157,24 +164,46 @@ public class GameActivity extends SDLActivity {
         t.start();
     }
 
-    private android.os.Vibrator vibratorCache;
 
     /** El motor de la consola; si no tiene, el del mando conectado. */
-    private android.os.Vibrator vibrator() {
-        if (vibratorCache != null) return vibratorCache;
-        android.os.Vibrator v = (android.os.Vibrator) getSystemService(VIBRATOR_SERVICE);
-        if (v == null || !v.hasVibrator()) {
-            v = null;
-            for (int id : InputDevice.getDeviceIds()) {
-                InputDevice d = InputDevice.getDevice(id);
-                if (d != null && d.getVibrator() != null && d.getVibrator().hasVibrator()) {
-                    v = d.getVibrator();
-                    break;
-                }
+    private java.util.List<android.os.Vibrator> vibratorList;
+
+    /**
+     * Todos los motores de vibración: el de la consola (o móvil) y los de cada mando. Algunas
+     * consolas (RG477M) lo tienen en el mando integrado y no como vibrador del sistema; vibran
+     * todos a la vez. Se apuntan en el registro.
+     */
+    private java.util.List<android.os.Vibrator> vibrators() {
+        if (vibratorList != null) return vibratorList;
+        java.util.List<android.os.Vibrator> list = new java.util.ArrayList<>();
+        StringBuilder names = new StringBuilder();
+        android.os.Vibrator sys = null;
+        if (android.os.Build.VERSION.SDK_INT >= 31) {
+            android.os.VibratorManager vm = (android.os.VibratorManager) getSystemService(VIBRATOR_MANAGER_SERVICE);
+            if (vm != null) sys = vm.getDefaultVibrator();
+        }
+        if (sys == null) sys = (android.os.Vibrator) getSystemService(VIBRATOR_SERVICE);
+        if (sys != null && sys.hasVibrator()) {
+            list.add(sys);
+            names.append(" sistema");
+        }
+        for (int id : InputDevice.getDeviceIds()) {
+            InputDevice d = InputDevice.getDevice(id);
+            if (d == null) continue;
+            android.os.Vibrator v = null;
+            if (android.os.Build.VERSION.SDK_INT >= 31) {
+                android.os.VibratorManager vm = d.getVibratorManager();
+                if (vm != null && vm.getVibratorIds().length > 0) v = vm.getDefaultVibrator();
+            }
+            if (v == null || !v.hasVibrator()) v = d.getVibrator();
+            if (v != null && v.hasVibrator()) {
+                list.add(v);
+                names.append(" mando:").append(d.getName());
             }
         }
-        vibratorCache = v;
-        return v;
+        Log.i("Duke3D", "Vibración:" + (names.length() > 0 ? names : " ninguna"));
+        vibratorList = list;
+        return list;
     }
 
     private boolean vibrationPref() {
