@@ -97,6 +97,16 @@ final class I18n {
         put("net_join", "Unirse a partida", "Join game");
         put("net_join_ip", "IP del anfitrión", "Host IP address");
         put("net_your_ip", "Tu IP: ", "Your IP: ");
+        put("net_lan", "Wifi: ", "LAN: ");
+        put("net_internet", "Comprobar internet", "Check internet");
+        put("net_checking", "Internet: comprobando...", "Internet: checking...");
+        put("net_public", "Internet: ", "Internet: ");
+        put("net_closed", "(puerto cerrado: ábrelo en el router)", "(port closed: open it on the router)");
+        put("net_no_upnp", "Internet: el router no deja abrir el puerto (UPnP); usa Tailscale o ZeroTier",
+                "Internet: router doesn't allow UPnP; use Tailscale or ZeroTier");
+        put("net_cgnat", "Internet: tu operador usa CG-NAT; usa Tailscale o ZeroTier",
+                "Internet: your ISP uses CG-NAT; use Tailscale or ZeroTier");
+        put("net_no_wifi", "Sin wifi", "No network");
         put("net_port", "Puerto ", "Port ");
         put("achievement_unlocked", "LOGRO DESBLOQUEADO", "ACHIEVEMENT UNLOCKED");
         put("unlocked_short", "OK", "OK");

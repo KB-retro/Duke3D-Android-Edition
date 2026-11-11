@@ -598,17 +598,59 @@ public class LauncherActivity extends Activity {
                             GameData.Game g = netGame();
                             if (g != null) launch(gameDir, g, new String[]{"-connect", ip, "-name", playerName()});
                         }));
+        p.add(I18n.t("net_internet"), null, () -> checkInternet(true));
         p.add(I18n.t("back"), null, () -> menuView.pop());
-        String ip = localIp();
-        p.footer = () -> I18n.t("net_your_ip") + (ip != null ? ip : "-") + "  " + I18n.t("net_port") + NET_PORT;
+        p.footer = () -> {
+            String lan = localIp(false), vpn = localIp(true);
+            StringBuilder sb = new StringBuilder(I18n.t("net_lan")).append(lan != null ? lan : "-");
+            if (vpn != null) sb.append("  VPN: ").append(vpn);
+            String inet = internetStatus;
+            if (inet != null) sb.append("  ").append(inet);
+            return sb.toString();
+        };
+        checkInternet(false);
         return p;
     }
 
+    /** Lo que dice la comprobación de internet (UPnP) para el pie de Multijugador. */
+    private volatile String internetStatus;
+    private volatile boolean checkingInternet;
+
+    /** Abre el puerto en el router (UPnP) y averigua la IP pública, en segundo plano. */
+    private void checkInternet(boolean again) {
+        if (checkingInternet || (!again && internetStatus != null)) return;
+        String lan = localIp(false);
+        if (lan == null) {
+            internetStatus = I18n.t("net_no_wifi");
+            return;
+        }
+        checkingInternet = true;
+        internetStatus = I18n.t("net_checking");
+        new Thread(() -> {
+            Upnp.Result r = Upnp.openPort(lan, NET_PORT);
+            String s;
+            if (r.publicIp == null) s = I18n.t("net_no_upnp");
+            else if (r.cgnat) s = I18n.t("net_cgnat");
+            else if (r.opened) s = I18n.t("net_public") + r.publicIp;
+            else s = I18n.t("net_public") + r.publicIp + " " + I18n.t("net_closed");
+            internetStatus = s;
+            checkingInternet = false;
+        }, "UPnP").start();
+    }
+
     /** La IP de este aparato en la red (wifi), para que los demás se unan. */
-    private static String localIp() {
+    /**
+     * La IP de este aparato: la de la red local (wifi/ethernet) o, con vpn = true, la de una red
+     * privada virtual (Tailscale, ZeroTier...), que sirve para jugar por internet sin abrir puertos.
+     */
+    private static String localIp(boolean vpn) {
         try {
             for (java.net.NetworkInterface ni : java.util.Collections.list(java.net.NetworkInterface.getNetworkInterfaces())) {
                 if (!ni.isUp() || ni.isLoopback()) continue;
+                String n = ni.getName().toLowerCase(java.util.Locale.ROOT);
+                boolean isVpn = n.startsWith("tun") || n.startsWith("zt") || n.startsWith("tailscale") || n.startsWith("ppp");
+                if (isVpn != vpn) continue;
+                if (!vpn && n.startsWith("rmnet")) continue; // datos móviles: no sirven para alojar
                 for (java.net.InetAddress a : java.util.Collections.list(ni.getInetAddresses())) {
                     if (a instanceof java.net.Inet4Address && !a.isLoopbackAddress()) return a.getHostAddress();
                 }
