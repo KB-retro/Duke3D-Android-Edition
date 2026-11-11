@@ -19,6 +19,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Antes de descargar nada: setup-gradle revisa todos los gradle-wrapper.jar de la carpeta.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
       - name: Versiones
         run: cat raze/ORIGEN.txt | grep = >> "$GITHUB_ENV"
 
@@ -106,13 +114,6 @@ jobs:
           cp -f nativo.log cmake.log salida/ 2>/dev/null || true
 
       # ---- APK (el mismo lanzador que el de EDuke32, con Raze dentro) ----
-
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 17
-
-      - uses: gradle/actions/setup-gradle@v4
 
       - name: Bibliotecas y datos en el proyecto
         run: |
