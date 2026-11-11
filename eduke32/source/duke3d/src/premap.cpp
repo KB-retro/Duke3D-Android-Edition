@@ -529,7 +529,12 @@ void G_CacheMapData(void)
             int const percentComplete = min(100, tabledivide32(100 * cntDisplayed, g_precacheCount));
             cntDisplayed = logapproach(cntDisplayed, cnt);
             pctDisplayed = logapproach(pctDisplayed, percentComplete);
+#ifdef __ANDROID__
+            // Duke3D Android Edition: el texto de carga, traducible (la traducción usa el mismo formato).
+            Bsprintf(tempbuf, localeLookup("Loaded %d%% (%d/%d textures)\n"), pctDisplayed, cntDisplayed, g_precacheCount);
+#else
             Bsprintf(tempbuf, "Loaded %d%% (%d/%d textures)\n", pctDisplayed, cntDisplayed, g_precacheCount);
+#endif
             G_DoLoadScreen(tempbuf, pctDisplayed);
         }
     }
