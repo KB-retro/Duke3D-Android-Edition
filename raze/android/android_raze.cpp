@@ -42,6 +42,7 @@ namespace
 std::mutex queueLock;
 std::vector<std::string> pending;
 std::atomic<float> moveX{0}, moveY{0};
+std::atomic<float> stickX{0}, stickY{0}; // stick derecho del mando (giro continuo)
 std::mutex lookLock;
 float lookX = 0, lookY = 0;
 
@@ -126,8 +127,8 @@ void android_raze_tick()
     float dx, dy;
     {
         std::lock_guard<std::mutex> g(lookLock);
-        dx = lookX;
-        dy = lookY;
+        dx = lookX + stickX.load() * 22.f;
+        dy = lookY + stickY.load() * 14.f;
         lookX = lookY = 0;
     }
     if (dx != 0 || dy != 0)
@@ -185,6 +186,12 @@ JNIEXPORT void JNICALL Java_com_kbretro_duke3d_GameActivity_nativeTouchLook(JNIE
     std::lock_guard<std::mutex> g(lookLock);
     lookX += dx * sens * 4.f;
     lookY += dy * sens * 4.f;
+}
+
+JNIEXPORT void JNICALL Java_com_kbretro_duke3d_GameActivity_nativeStickLook(JNIEnv *, jclass, jfloat x, jfloat y)
+{
+    stickX.store(x);
+    stickY.store(y);
 }
 
 JNIEXPORT void JNICALL Java_com_kbretro_duke3d_GameActivity_nativeButton(JNIEnv *, jclass, jint func, jboolean down)

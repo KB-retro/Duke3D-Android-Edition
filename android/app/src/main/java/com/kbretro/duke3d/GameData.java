@@ -629,6 +629,8 @@ final class GameData {
         args.add(game.grpName);
         if (Motor.RAZE) {
             args.add("-nosetup"); // sin la ventana de elegir juego de Raze
+            args.add("+vid_vsync"); // sincronía vertical (menos calor; la guardada era sin ella)
+            args.add("1");
             if (I18n.ES.equals(I18n.lang())) {
                 args.add("+language"); // Raze trae su propia traducción
                 args.add("es");

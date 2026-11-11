@@ -221,6 +221,9 @@ public class GameActivity extends SDLActivity {
 
     static native void nativeButton(int gamefunc, boolean down);
 
+    /** Solo en Raze: stick derecho del mando (-1..1), giro continuo. */
+    static native void nativeStickLook(float x, float y);
+
     private TouchControls touch;
     /** En modo automático: se ven si no hay mando, o al tocar la pantalla; se ocultan al usar el mando. */
     private boolean touchActive;
@@ -726,6 +729,7 @@ public class GameActivity extends SDLActivity {
                 return true;
             }
         }
+        if (Motor.RAZE && isPadKey(e) && razePadKey(e)) return true;
         if (key == KeyEvent.KEYCODE_BACK) {
             if (e.getAction() == KeyEvent.ACTION_DOWN && e.getRepeatCount() == 0) {
                 // En plena partida, el menú rápido; en los menús del juego, el título, etc., Escape.
@@ -742,6 +746,10 @@ public class GameActivity extends SDLActivity {
     @Override
     public boolean dispatchGenericMotionEvent(MotionEvent e) {
         gamepadUsed(e);
+        if (Motor.RAZE && !menuOpen() && (e.getSource() & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK) {
+            razePadMotion(e);
+            return true;
+        }
         if (!menuOpen()) return super.dispatchGenericMotionEvent(e);
         // Crucetas que llegan como ejes (HAT) y el stick izquierdo mueven el menú.
         float y = e.getAxisValue(MotionEvent.AXIS_HAT_Y);
@@ -754,6 +762,157 @@ public class GameActivity extends SDLActivity {
             lastAxisMove = 0;
         }
         return true;
+    }
+
+    // ---- Mando en Raze ----
+    // Raze no trae botones asignados al mando por SDL en Android: aquí el mando pasa por la app
+    // como los táctiles (y respeta "Configurar mando"). En los menús de Raze, el mando hace de
+    // teclado: cruceta/stick = flechas, A = Intro, B = Escape.
+
+    private static boolean isPadKey(KeyEvent e) {
+        int src = e.getSource();
+        return (src & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD
+                || (src & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK
+                || (src & InputDevice.SOURCE_DPAD) == InputDevice.SOURCE_DPAD
+                || KeyEvent.isGamepadButton(e.getKeyCode());
+    }
+
+    /** Lo que hace cada botón en plena partida si no se ha cambiado (gamefunc_* de EDuke32). */
+    private static int razeDefault(int key) {
+        switch (key) {
+            case KeyEvent.KEYCODE_BUTTON_A: return 9;      // saltar
+            case KeyEvent.KEYCODE_BUTTON_B: return 10;     // agacharse
+            case KeyEvent.KEYCODE_BUTTON_X: return 6;      // usar / abrir
+            case KeyEvent.KEYCODE_BUTTON_Y: return 29;     // usar objeto
+            case KeyEvent.KEYCODE_BUTTON_L1: return 51;    // arma anterior
+            case KeyEvent.KEYCODE_BUTTON_R1: return 50;    // arma siguiente
+            case KeyEvent.KEYCODE_BUTTON_L2: return 49;    // patada
+            case KeyEvent.KEYCODE_BUTTON_R2: return 5;     // disparar
+            case KeyEvent.KEYCODE_BUTTON_THUMBL: return 7; // correr
+            case KeyEvent.KEYCODE_BUTTON_THUMBR: return 41; // centrar vista
+            case KeyEvent.KEYCODE_BUTTON_SELECT: return 38; // mapa
+            case KeyEvent.KEYCODE_DPAD_UP: return 35;      // botiquín
+            case KeyEvent.KEYCODE_DPAD_DOWN: return 33;    // jetpack
+            case KeyEvent.KEYCODE_DPAD_LEFT: return 30;    // objeto anterior
+            case KeyEvent.KEYCODE_DPAD_RIGHT: return 31;   // objeto siguiente
+            default: return -1;
+        }
+    }
+
+    /** Tecla equivalente en los menús de Raze. */
+    private static int razeMenuKey(int key) {
+        switch (key) {
+            case KeyEvent.KEYCODE_DPAD_UP:
+            case KeyEvent.KEYCODE_DPAD_DOWN:
+            case KeyEvent.KEYCODE_DPAD_LEFT:
+            case KeyEvent.KEYCODE_DPAD_RIGHT:
+                return key;
+            case KeyEvent.KEYCODE_BUTTON_A:
+            case KeyEvent.KEYCODE_DPAD_CENTER:
+            case KeyEvent.KEYCODE_BUTTON_START:
+                return KeyEvent.KEYCODE_ENTER;
+            case KeyEvent.KEYCODE_BUTTON_B:
+            case KeyEvent.KEYCODE_BUTTON_SELECT:
+                return KeyEvent.KEYCODE_ESCAPE;
+            default:
+                return -1;
+        }
+    }
+
+    private boolean razePadKey(KeyEvent e) {
+        int key = e.getKeyCode();
+        boolean down = e.getAction() == KeyEvent.ACTION_DOWN;
+        if (inGame()) {
+            if (key == KeyEvent.KEYCODE_BUTTON_START) {
+                if (down && e.getRepeatCount() == 0 && art != null) openMenu();
+                return true;
+            }
+            int f = razeDefault(key);
+            if (f >= 0 && (e.getRepeatCount() == 0 || !down)) pressFunc(f, down);
+            return f >= 0;
+        }
+        int k = razeMenuKey(key);
+        if (k < 0) return false;
+        long t = e.getEventTime();
+        super.dispatchKeyEvent(new KeyEvent(e.getDownTime(), t, e.getAction(), k, e.getRepeatCount(), 0, -1, 0, 0,
+                InputDevice.SOURCE_KEYBOARD));
+        return true;
+    }
+
+    private boolean triggerL, triggerR;
+    private int stickMenuKey = -1;
+
+    private static float dead(float v) {
+        return Math.abs(v) < 0.15f ? 0f : v;
+    }
+
+    private void razePadMotion(MotionEvent e) {
+        float lx = dead(e.getAxisValue(MotionEvent.AXIS_X)), ly = dead(e.getAxisValue(MotionEvent.AXIS_Y));
+        float rx = dead(e.getAxisValue(MotionEvent.AXIS_Z)), ry = dead(e.getAxisValue(MotionEvent.AXIS_RZ));
+        float hx = e.getAxisValue(MotionEvent.AXIS_HAT_X), hy = e.getAxisValue(MotionEvent.AXIS_HAT_Y);
+        float lt = Math.max(e.getAxisValue(MotionEvent.AXIS_LTRIGGER), e.getAxisValue(MotionEvent.AXIS_BRAKE));
+        float rt = Math.max(e.getAxisValue(MotionEvent.AXIS_RTRIGGER), e.getAxisValue(MotionEvent.AXIS_GAS));
+        if (inGame()) {
+            try {
+                nativeTouchMove(lx, ly);
+                nativeStickLook(rx, ry);
+            } catch (UnsatisfiedLinkError ignored) {
+            }
+            boolean l = lt > 0.5f, r = rt > 0.5f;
+            if (l != triggerL) {
+                triggerL = l;
+                int f = remapOr(KeyEvent.KEYCODE_BUTTON_L2);
+                if (f >= 0) pressFunc(f, l);
+            }
+            if (r != triggerR) {
+                triggerR = r;
+                int f = remapOr(KeyEvent.KEYCODE_BUTTON_R2);
+                if (f >= 0) pressFunc(f, r);
+            }
+            razeHat(hx, hy, true);
+            return;
+        }
+        // Menús: stick izquierdo y cruceta (como ejes) = flechas.
+        int k = -1;
+        float x = Math.abs(hx) > 0.5f ? hx : lx, y = Math.abs(hy) > 0.5f ? hy : ly;
+        if (y < -0.5f) k = KeyEvent.KEYCODE_DPAD_UP;
+        else if (y > 0.5f) k = KeyEvent.KEYCODE_DPAD_DOWN;
+        else if (x < -0.5f) k = KeyEvent.KEYCODE_DPAD_LEFT;
+        else if (x > 0.5f) k = KeyEvent.KEYCODE_DPAD_RIGHT;
+        long now = android.os.SystemClock.uptimeMillis();
+        if (k >= 0 && (k != stickMenuKey || now - lastAxisMove > 220)) {
+            sendKey(k);
+            lastAxisMove = now;
+        }
+        stickMenuKey = k;
+    }
+
+    private int hatKey = -1;
+
+    /** Cruceta que llega como ejes (HAT) en plena partida: como sus botones. */
+    private void razeHat(float hx, float hy, boolean game) {
+        int k = -1;
+        if (hy < -0.5f) k = KeyEvent.KEYCODE_DPAD_UP;
+        else if (hy > 0.5f) k = KeyEvent.KEYCODE_DPAD_DOWN;
+        else if (hx < -0.5f) k = KeyEvent.KEYCODE_DPAD_LEFT;
+        else if (hx > 0.5f) k = KeyEvent.KEYCODE_DPAD_RIGHT;
+        if (k == hatKey) return;
+        if (hatKey >= 0) {
+            int f = remapOr(hatKey);
+            if (f >= 0) pressFunc(f, false);
+        }
+        hatKey = k;
+        if (k >= 0) {
+            int f = remapOr(k);
+            if (f >= 0) pressFunc(f, true);
+        }
+    }
+
+    /** La acción del botón: la de "Configurar mando" o la de serie. */
+    private int remapOr(int key) {
+        int a = ControlSettings.remap(this, key);
+        if (a == ControlSettings.DEFAULT) return razeDefault(key);
+        return a >= 0 ? a : -1;
     }
 
     @Override

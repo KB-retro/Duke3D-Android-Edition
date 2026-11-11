@@ -111,3 +111,15 @@ sub("source/CMakeLists.txt",
 sub("libraries/discordrpc/src/CMakeLists.txt",
     "    target_link_libraries(discord-rpc PUBLIC pthread)",
     "    if(NOT ANDROID)\n    target_link_libraries(discord-rpc PUBLIC pthread)\n    endif()")
+
+# 11. Sonido: en Android OpenAL Soft se llama libopenal.so (no libopenal.so.1).
+sub("source/common/audio/sound/oalsound.cpp",
+    "#elif defined(__OpenBSD__)\n#define OPENALLIB \"libopenal.so\"",
+    "#elif defined(__OpenBSD__) || defined(__ANDROID__)\n#define OPENALLIB \"libopenal.so\"")
+
+# 12. Sincronía vertical activada por defecto en Android: sin ella la GPU dibuja sin parar
+#     (calor y tirones).
+sub("source/common/rendering/v_video.cpp",
+    "CUSTOM_CVAR (Bool, vid_vsync, false, CVAR_ARCHIVE|CVAR_GLOBALCONFIG)",
+    "#ifdef __ANDROID__\nCUSTOM_CVAR (Bool, vid_vsync, true, CVAR_ARCHIVE|CVAR_GLOBALCONFIG)\n#else\n"
+    "CUSTOM_CVAR (Bool, vid_vsync, false, CVAR_ARCHIVE|CVAR_GLOBALCONFIG)\n#endif")
