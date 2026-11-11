@@ -96,3 +96,11 @@ android {
         jniLibs.pickFirsts += listOf("**/libc++_shared.so")
     }
 }
+
+// En el APK de Raze las bibliotecas se descomprimen en la carpeta de la app: el cargador de
+// Vulkan de Android solo encuentra ahí las capas (las de validación, para diagnosticar).
+androidComponents {
+    onVariants(selector().withFlavor("motor" to "raze")) { variant ->
+        variant.packaging.jniLibs.useLegacyPackaging.set(true)
+    }
+}
