@@ -84,6 +84,10 @@ final class GraphicsSettings {
         cmds.add("r_hightile " + (hdTextures(c) ? 1 : 0));
         cmds.add("r_models " + (models(c) ? 1 : 0));
         cmds.add("r_voxels " + (voxels(c) ? 1 : 0));
+        // Sin comprimir texturas ni guardarlas en caché: en Android la compresión DXT la emula gl4es
+        // por software y con el HRP se quedaba minutos en negro.
+        cmds.add("r_texcompr 0");
+        cmds.add("r_texcache 0");
         cmds.add("r_vsync 0"); // sin esperar al refresco: menos bajones bruscos (Android ya sincroniza)
         cmds.add("r_glowmapping 1");
         cmds.add("r_detailmapping 1");
