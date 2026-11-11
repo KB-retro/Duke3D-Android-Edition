@@ -41,8 +41,7 @@ Duke Nukem 3D, con estos cambios para compilarlo en Android como un Linux con SD
 13. *(Retirado: los textos traducidos ya no se encogen; las traducciones de los menús son cortas.)*
 14. **Logros** (`game.cpp`, `player.cpp`, `player.h`, `gameexec.cpp`, `sector.cpp`, `cheats.cpp`):
     `G_AndroidEvent` avisa a Java (bajas, propinas, secretos, pisotones a enemigos encogidos,
-    trucos, Luke, el marine, la caca y el fin de nivel/episodio). Nada cuenta en demos ni en red,
-    salvo las bajas de Dukematch (`G_AndroidFragCheck`, tras `G_DoMoveThings`).
+    trucos, Luke, el marine, la caca y el fin de nivel/episodio). Nada cuenta en demos ni en red.
 
 15. **Mejoras gráficas en la GPU** (`sdlayer.cpp`): en Android la ventana se crea con OpenGL ES 2
     y cada fotograma pasa por `android/app/src/main/cpp/postfx.c` (FXAA, FSR 1.0 EASU/RCAS,

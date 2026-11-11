@@ -67,8 +67,6 @@ public class GameActivity extends SDLActivity {
 
     /** Juego lanzado ("base", "dc", "nw" o "vacation") para los logros de cada uno. */
     private static volatile String gameId = "base";
-    /** Partida en red: el menú rápido no pausa (los demás siguen jugando) y no hay trucos. */
-    private boolean netGame;
 
     /**
      * Lo llama el juego (desde su hilo) cuando pasa algo que cuenta para los logros.
@@ -229,7 +227,6 @@ public class GameActivity extends SDLActivity {
         I18n.load(this);
         instance = this;
         gameId = Achievements.gameId(gameGrp(getArguments()));
-        netGame = Arrays.asList(getArguments()).contains("-server") || Arrays.asList(getArguments()).contains("-connect");
         vibrationOn = vibrationPref();
         applyPostFx();
         try {
@@ -405,29 +402,27 @@ public class GameActivity extends SDLActivity {
         quickMenu.bringToFront();
         quickMenu.requestFocus();
         hideSystemBars();
-        if (!netGame) command("pausegame 1");
+        command("pausegame 1");
     }
 
     private void closeMenu() {
         if (quickMenu != null) quickMenu.setVisibility(View.GONE);
         hideSystemBars();
-        if (!netGame) command("pausegame 0");
+        command("pausegame 0");
     }
 
     private DukeMenuView.Page rootPage() {
         DukeMenuView.Page p = new DukeMenuView.Page();
         p.add(I18n.t("continue"), null, this::closeMenu);
-        if (!netGame) {
-            p.add(I18n.t("quicksave"), null, () -> {
-                closeMenu();
-                command("quicksave");
-            });
-            p.add(I18n.t("quickload"), null, () -> {
-                closeMenu();
-                command("quickload");
-            });
-            p.add(I18n.t("cheats"), null, () -> quickMenu.push(cheatsPage()));
-        }
+        p.add(I18n.t("quicksave"), null, () -> {
+            closeMenu();
+            command("quicksave");
+        });
+        p.add(I18n.t("quickload"), null, () -> {
+            closeMenu();
+            command("quickload");
+        });
+        p.add(I18n.t("cheats"), null, () -> quickMenu.push(cheatsPage()));
         p.add(I18n.t("graphics"), null, () -> quickMenu.push(graphicsPage()));
         p.addValue(I18n.t("vibration"), () -> I18n.t(vibrationOn ? "yes" : "no"), () -> {
             vibrationOn = !vibrationOn;

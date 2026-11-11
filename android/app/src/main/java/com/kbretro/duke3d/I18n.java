@@ -89,25 +89,9 @@ final class I18n {
         put("log_saved", "Registro guardado: ", "Log saved: ");
         put("mods", "Mods", "Mods");
         put("mods_empty", "Pon los mods (.zip, .pk3, .grp) en ", "Put mods (.zip, .pk3, .grp) in ");
-        put("mods_note", "vóxeles y mapas sí; texturas y modelos HD no", "voxels and maps work; HD textures and models do not");
-        put("multiplayer", "Multijugador", "Multiplayer");
-        put("net_game", "Juego", "Game");
-        put("net_name", "Nombre", "Name");
-        put("net_host", "Crear partida", "Host game");
-        put("net_join", "Unirse a partida", "Join game");
-        put("net_join_ip", "IP del anfitrión", "Host IP address");
-        put("net_your_ip", "Tu IP: ", "Your IP: ");
-        put("net_lan", "Wifi: ", "LAN: ");
-        put("net_internet", "Comprobar internet", "Check internet");
-        put("net_checking", "Internet: comprobando...", "Internet: checking...");
-        put("net_public", "Internet: ", "Internet: ");
-        put("net_closed", "(puerto cerrado: ábrelo en el router)", "(port closed: open it on the router)");
-        put("net_no_upnp", "Internet: el router no deja abrir el puerto (UPnP); usa Tailscale o ZeroTier",
-                "Internet: router doesn't allow UPnP; use Tailscale or ZeroTier");
-        put("net_cgnat", "Internet: tu operador usa CG-NAT; usa Tailscale o ZeroTier",
+        put("mods_note", "vóxeles y mapas sí; texturas y modelos HD no", "voxels and maps work; HD textures and models do not"); usa Tailscale o ZeroTier",
+                "Internet: router doesn't allow UPnP; use Tailscale or ZeroTier"); usa Tailscale o ZeroTier",
                 "Internet: your ISP uses CG-NAT; use Tailscale or ZeroTier");
-        put("net_no_wifi", "Sin wifi", "No network");
-        put("net_port", "Puerto ", "Port ");
         put("achievement_unlocked", "LOGRO DESBLOQUEADO", "ACHIEVEMENT UNLOCKED");
         put("unlocked_short", "OK", "OK");
     }

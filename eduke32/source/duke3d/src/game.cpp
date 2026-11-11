@@ -6662,24 +6662,6 @@ void G_AndroidTick(DukePlayer_t *pPlayer)
     }
 }
 
-// Dukematch en red: cada baja nueva del jugador de este teléfono cuenta para los logros.
-void G_AndroidFragCheck(void)
-{
-    static int lastFrag = -1;
-    auto const ps = g_player[myconnectindex].ps;
-
-    if (ps == nullptr || ud.recstat == 2 || !(g_netServer || g_netClient || numplayers > 1) || !GTFLAGS(GAMETYPE_FRAGBAR))
-    {
-        lastFrag = -1;
-        return;
-    }
-
-    int const frag = ps->frag;
-    if (lastFrag >= 0 && frag > lastFrag)
-        duke3d_android_event(ANDROID_EV_FRAG, frag - lastFrag, 0, 0);
-    lastFrag = frag;
-}
-
 // Fin de nivel: qué nivel era, si cayeron todos los enemigos, el tiempo y si acaba el episodio.
 static void G_AndroidLevelEnd(DukePlayer_t const *pPlayer)
 {
@@ -7259,9 +7241,6 @@ MAIN_LOOP_RESTART:
                         g_frameJustDrawn = false;
                         Net_GetPackets();
                         G_DoMoveThings();
-#ifdef __ANDROID__
-                        G_AndroidFragCheck();
-#endif
                     }
 
                 }

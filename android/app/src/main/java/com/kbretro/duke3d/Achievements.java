@@ -8,12 +8,12 @@ import android.content.SharedPreferences;
  * jugando aquí y se guardan en el propio teléfono (preferencias "logros"), sin Steam.
  *
  * El motor avisa de lo que pasa (ver G_AndroidEvent en game.cpp) y aquí se decide qué logro
- * se desbloquea. Los tres de Dukematch cuentan las bajas en partidas en red (Multijugador).
+ * se desbloquea.
  */
 final class Achievements {
     // Lo que manda el motor (el mismo orden que ANDROID_EV_* en player.h).
     static final int EV_KILL = 1, EV_TIP = 2, EV_SECRET = 3, EV_SQUISH = 4, EV_CHEAT = 5,
-            EV_POOP = 6, EV_LUKE = 7, EV_DOOMGUY = 8, EV_LEVEL_END = 9, EV_FRAG = 10;
+            EV_POOP = 6, EV_LUKE = 7, EV_DOOMGUY = 8, EV_LEVEL_END = 9;
 
     static final class Def {
         final String id, name, es, en;
@@ -55,9 +55,6 @@ final class Achievements {
             new Def("luke", "Duke, Use The Force!", "Encuentra a Luke Skywalker en Lunar Reactor", "Find Luke Skywalker on Lunar Reactor", null, 0, false),
             new Def("nw", "I've Got Balls of Snow", "Completa Duke: Nuclear Winter", "Complete Duke: Nuclear Winter", null, 0, false),
             new Def("vacation", "Limbo time!", "Completa Duke Caribbean: Life's A Beach", "Complete Duke Caribbean: Life's A Beach", null, 0, false),
-            new Def("dm100", "Gonna Rip Em' a New One", "Consigue 100 bajas en Dukematch (Multijugador)", "Get 100 Dukematch kills (Multiplayer)", "c_frags", 100, true),
-            new Def("dm250", "See You in Hell", "Consigue 250 bajas en Dukematch (Multijugador)", "Get 250 Dukematch kills (Multiplayer)", "c_frags", 250, true),
-            new Def("dm500", "Hail to the King, Baby", "Consigue 500 bajas en Dukematch (Multijugador)", "Get 500 Dukematch kills (Multiplayer)", "c_frags", 500, true),
     };
 
     /** Se llama al desbloquear uno (en el hilo del juego). */
@@ -125,9 +122,6 @@ final class Achievements {
             case EV_DOOMGUY:
                 unlock(c, "doomed", l);
                 break;
-            case EV_FRAG:
-                addFrags(c, a, l);
-                break;
             case EV_LEVEL_END:
                 levelEnd(c, game, a, b, flags, l);
                 break;
@@ -146,17 +140,6 @@ final class Achievements {
             if (volume >= 0 && volume <= 3) unlock(c, "ep" + (volume + 1), l);
         } else {
             unlock(c, game, l); // dc, nw o vacation
-        }
-    }
-
-    /** Las tres de Dukematch comparten el contador de bajas en red. */
-    private static void addFrags(Context c, int n, Listener l) {
-        SharedPreferences p = prefs(c);
-        int v = p.getInt("c_frags", 0) + n;
-        p.edit().putInt("c_frags", v).apply();
-        for (String id : new String[]{"dm100", "dm250", "dm500"}) {
-            Def d = byId(id);
-            if (d != null && v >= d.goal) unlockAny(c, d, l);
         }
     }
 

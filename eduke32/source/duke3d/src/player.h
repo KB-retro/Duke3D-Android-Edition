@@ -461,10 +461,8 @@ enum
     ANDROID_EV_LUKE,
     ANDROID_EV_DOOMGUY,
     ANDROID_EV_LEVEL_END,
-    ANDROID_EV_FRAG,
 };
 void G_AndroidEvent(int type, int a, int b, int c);
-void G_AndroidFragCheck(void);
 void G_AndroidTick(DukePlayer_t *pPlayer);
 #endif
 
