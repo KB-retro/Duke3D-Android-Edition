@@ -561,6 +561,15 @@ public class LauncherActivity extends Activity {
         launching = true;
         music.stop();
         boolean spanish = I18n.ES.equals(I18n.lang());
+        // Mientras se preparan (la primera vez se descomprimen y tarda), se enseña el progreso.
+        DukeMenuView.Page wait = new DukeMenuView.Page();
+        if (!enabledMods().isEmpty()) {
+            GameData.progress = "";
+            GameData.progressValue = "";
+            wait.addValue(I18n.t("mods_preparing"), () -> GameData.progressValue, null);
+            wait.footer = () -> GameData.progress + " - " + I18n.t("mods_wait");
+            menuView.push(wait);
+        }
         // La traducción se prepara aparte (lee los .CON y hace las letras con tilde).
         new Thread(() -> {
             String def = null;
@@ -568,14 +577,26 @@ public class LauncherActivity extends Activity {
                 try {
                     List<GameData.Game> games = GameData.games(gameDir);
                     def = Translator.prepare(this, gameDir, games.get(0), game);
-                } catch (Exception e) {
+                } catch (Throwable e) {
                     android.util.Log.e("Duke3D", "No se pudo preparar la traducción", e);
                 }
             }
             String defFile = def;
-            List<String> modArgs = GameData.modArguments(gameDir, enabledMods());
+            List<String> modArgs;
+            try {
+                modArgs = GameData.modArguments(gameDir, enabledMods());
+            } catch (Throwable t) {
+                android.util.Log.e("Duke3D", "No se pudieron preparar los mods", t);
+                runOnUiThread(() -> {
+                    launching = false;
+                    if (menuView.top() == wait) menuView.pop();
+                    android.widget.Toast.makeText(this, I18n.t("mods_error") + t, android.widget.Toast.LENGTH_LONG).show();
+                });
+                return;
+            }
             runOnUiThread(() -> {
                 launching = false;
+                if (menuView.top() == wait) menuView.pop();
                 if (isFinishing() || isDestroyed()) return;
                 getPreferences(MODE_PRIVATE).edit().putBoolean("jugando", true).apply();
                 Intent intent = new Intent(this, GameActivity.class);

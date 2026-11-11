@@ -98,6 +98,9 @@ final class I18n {
         put("gamepad_config", "Configurar mando", "Gamepad setup");
         put("mods", "Mods", "Mods");
         put("mods_empty", "Pon los mods (.zip, .pk3, .grp o carpetas) en ", "Put mods (.zip, .pk3, .grp or folders) in ");
+        put("mods_preparing", "Preparando mods", "Preparing mods");
+        put("mods_wait", "la primera vez tarda (se descomprime)", "first time takes a while (unpacking)");
+        put("mods_error", "No se pudieron preparar los mods: ", "Could not prepare the mods: ");
         put("mods_note", "vóxeles y mapas sí; texturas y modelos HD no", "voxels and maps work; HD textures and models do not");
         put("achievement_unlocked", "LOGRO DESBLOQUEADO", "ACHIEVEMENT UNLOCKED");
         put("unlocked_short", "OK", "OK");

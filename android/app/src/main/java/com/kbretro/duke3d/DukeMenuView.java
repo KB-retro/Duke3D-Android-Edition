@@ -148,6 +148,11 @@ final class DukeMenuView extends View {
         invalidate();
     }
 
+    /** La página que se ve ahora. */
+    Page top() {
+        return stack.isEmpty() ? null : stack.get(stack.size() - 1);
+    }
+
     void pop() {
         if (stack.size() > 1) {
             Page left = stack.remove(stack.size() - 1);

@@ -155,6 +155,9 @@ final class GameData {
      *   .DEF principales con -mh. Así nada se carga dos veces.
      * Todo lo que decide se apunta en el registro. Se llama fuera del hilo principal.
      */
+    /** Lo que se está preparando ahora (para enseñarlo en el lanzador) y el porcentaje. */
+    static volatile String progress = "", progressValue = "";
+
     static List<String> modArguments(File gameDir, java.util.Set<String> enabled) {
         List<String> args = new ArrayList<>();
         File outDir = new File(gameDir, "duke3d_android/mods");
@@ -163,6 +166,8 @@ final class GameData {
             if (!enabled.contains(f.getName())) continue;
             String n = f.getName().toLowerCase(java.util.Locale.ROOT);
             String safe = f.getName().replaceAll("[^A-Za-z0-9._-]", "_");
+            progress = f.getName();
+            progressValue = "...";
             try {
                 File dest;
                 if (f.isDirectory()) {
@@ -175,6 +180,7 @@ final class GameData {
                     args.add(f.getAbsolutePath());
                     continue;
                 }
+                progressValue = "100%";
                 File base = modBase(dest);
                 args.add("-j");
                 args.add(base.getAbsolutePath());
@@ -207,12 +213,18 @@ final class GameData {
         String id = "v2:" + zip.length() + ":" + zip.lastModified();
         if (stamp.exists() && id.equals(readText(stamp))) return;
         android.util.Log.i("Duke3D", "Descomprimiendo el mod " + zip.getName());
+        long t0 = System.currentTimeMillis();
         deleteTree(dest);
         dest.mkdirs();
         try (java.util.zip.ZipFile z = new java.util.zip.ZipFile(zip)) {
+            long total = 0, done = 0;
+            java.util.Enumeration<? extends java.util.zip.ZipEntry> e0 = z.entries();
+            while (e0.hasMoreElements()) total += Math.max(0, e0.nextElement().getCompressedSize());
             java.util.Enumeration<? extends java.util.zip.ZipEntry> e = z.entries();
             while (e.hasMoreElements()) {
                 java.util.zip.ZipEntry entry = e.nextElement();
+                done += Math.max(0, entry.getCompressedSize());
+                if (total > 0) progressValue = (done * 100 / total) + "%";
                 String name = entry.getName().replace('\\', '/');
                 if (entry.isDirectory() || name.contains("..") || name.startsWith("__MACOSX/")) continue;
                 File out = new File(dest, name.toLowerCase(java.util.Locale.ROOT));
@@ -224,6 +236,7 @@ final class GameData {
             }
         }
         writeText(stamp, id);
+        android.util.Log.i("Duke3D", "Mod " + zip.getName() + " descomprimido en " + (System.currentTimeMillis() - t0) / 1000 + " s");
     }
 
     private static boolean isModData(String low) {
