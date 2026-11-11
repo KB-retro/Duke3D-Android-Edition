@@ -41,6 +41,9 @@ final class I18n {
         put("quickload", "Carga rápida", "Quick load");
         put("cheats", "Trucos", "Cheats");
         put("graphics", "Gráficos", "Graphics");
+        put("mali_driver", "Driver Mali (malisx2)", "Mali driver (malisx2)");
+        put("mali_driver_note", "Driver Vulkan alternativo para GPU Mali (RG477M/V). Al iniciar el juego",
+                "Alternative Vulkan driver for Mali GPUs (RG477M/V). Applies on game start");
         put("game_menu", "Menú del juego", "Game menu");
         put("to_launcher", "Volver al lanzador", "Back to launcher");
         put("quit_game", "Salir del juego", "Quit game");
@@ -107,6 +110,9 @@ final class I18n {
         put("gfx_ssao", "Oclusión ambiental", "Ambient occlusion");
         put("gfx_hq", "Texturas suavizadas", "Smoothed textures");
         put("gfx_lens", "Destellos de luz", "Lens flares");
+        put("mali_driver", "Driver Mali (malisx2)", "Mali driver (malisx2)");
+        put("mali_driver_note", "Driver Vulkan alternativo para GPU Mali (RG477M/V). Al iniciar el juego",
+                "Alternative Vulkan driver for Mali GPUs (RG477M/V). Applies on game start");
         put("game_menu", "Menú del juego", "Game menu");
         put("mods_campaigns", "Campañas", "Campaigns");
         put("mods_gfx", "Gráficos y sonido", "Graphics & sound");

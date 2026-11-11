@@ -61,6 +61,17 @@ final class Motor {
         }
     }
 
+    /** ¿Se usa el driver Vulkan malisx2 (GPU Mali) en lugar del del sistema? */
+    static boolean maliDriver(Context c) {
+        return c.getSharedPreferences("ajustes", Context.MODE_MULTI_PROCESS).getBoolean("malisx2", false);
+    }
+
+    static void setMaliDriver(Context c, boolean on) {
+        c.getSharedPreferences("ajustes", Context.MODE_MULTI_PROCESS).edit().putBoolean("malisx2", on).apply();
+    }
+
+    static final String MALI_DRIVER_LIB = "libvulkan_malisx2.so";
+
     private Motor() {
     }
 }

@@ -362,3 +362,63 @@ extern "C" int SDL_main(int argc, char *argv[])
     __android_log_print(ANDROID_LOG_INFO, "Duke3D", "El juego ha terminado (código %d)", ga.rc);
     return ga.rc;
 }
+
+// ---- Driver Vulkan alternativo (malisx2) ----
+// Con RAZE_VK_DRIVER (nombre del .so) y RAZE_LIBDIR (carpeta de bibliotecas de la app, con '/'),
+// libadrenotools abre una copia del cargador de Vulkan de Android que usa ese driver en lugar
+// del del sistema. Raze (volk) toma de ahí vkGetInstanceProcAddr, y la superficie de la ventana
+// se crea con ese mismo cargador (no con el de SDL, que usa el del sistema).
+
+#define VK_NO_PROTOTYPES
+#define VK_USE_PLATFORM_ANDROID_KHR
+#include <vulkan/vulkan.h>
+#include <SDL_syswm.h>
+#include <adrenotools/driver.h>
+
+bool android_raze_custom_driver()
+{
+    return getenv("RAZE_VK_DRIVER") && getenv("RAZE_LIBDIR");
+}
+
+extern "C" void *android_raze_vk_gipa()
+{
+    static void *gipa = nullptr;
+    static bool tried = false;
+    if (tried) return gipa;
+    tried = true;
+    if (!android_raze_custom_driver()) return nullptr;
+    const char *drv = getenv("RAZE_VK_DRIVER"), *dir = getenv("RAZE_LIBDIR");
+    void *vk = adrenotools_open_libvulkan(RTLD_NOW, ADRENOTOOLS_DRIVER_CUSTOM, nullptr, dir, dir, drv, nullptr, nullptr);
+    if (vk) gipa = dlsym(vk, "vkGetInstanceProcAddr");
+    __android_log_print(gipa ? ANDROID_LOG_INFO : ANDROID_LOG_ERROR, "Duke3D", "Driver Vulkan %s: %s", drv,
+                        gipa ? "cargado" : "no se pudo cargar (se usa el del sistema)");
+    return gipa;
+}
+
+bool android_raze_vk_extensions(unsigned int *count, const char **names)
+{
+    static const char *ext[] = {"VK_KHR_surface", "VK_KHR_android_surface"};
+    if (names)
+    {
+        unsigned int n = *count < 2 ? *count : 2;
+        for (unsigned int i = 0; i < n; i++) names[i] = ext[i];
+        *count = n;
+    }
+    else
+        *count = 2;
+    return true;
+}
+
+bool android_raze_vk_surface(SDL_Window *win, VkInstance instance, VkSurfaceKHR *surface)
+{
+    auto gipa = (PFN_vkGetInstanceProcAddr)android_raze_vk_gipa();
+    if (!gipa) return false;
+    auto create = (PFN_vkCreateAndroidSurfaceKHR)gipa(instance, "vkCreateAndroidSurfaceKHR");
+    SDL_SysWMinfo info;
+    SDL_VERSION(&info.version);
+    if (!create || !SDL_GetWindowWMInfo(win, &info)) return false;
+    VkAndroidSurfaceCreateInfoKHR ci = {};
+    ci.sType = VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR;
+    ci.window = info.info.android.window;
+    return create(instance, &ci, nullptr, surface) == VK_SUCCESS;
+}

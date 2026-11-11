@@ -279,6 +279,13 @@ public class LauncherActivity extends Activity {
         DukeMenuView.Page p = new DukeMenuView.Page();
         p.add(I18n.t("music"), null, () -> menuView.push(musicPage(gameDir)));
         p.add(I18n.t("achievements"), null, () -> menuView.push(achievementsPage()));
+        if (Motor.RAZE) {
+            // Driver Vulkan alternativo para GPU Mali (malisx2), cargado con libadrenotools.
+            p.addValue(I18n.t("mali_driver"), () -> I18n.t(Motor.maliDriver(this) ? "yes" : "no"),
+                    () -> Motor.setMaliDriver(this, !Motor.maliDriver(this)));
+            int idx = p.entries.size() - 1;
+            p.footer = () -> p.selected == idx ? I18n.t("mali_driver_note") : "";
+        }
         p.add(I18n.t("back"), null, () -> menuView.pop());
         return p;
     }

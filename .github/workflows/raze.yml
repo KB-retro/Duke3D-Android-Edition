@@ -52,6 +52,7 @@ jobs:
           tar xzf sdl.tar.gz && mv "SDL2-${SDL_VERSION}" sdl2
           python3 raze/parchear.py raze-src
           python3 raze/zmusic/parchear.py zmusic
+          git clone -q --depth 1 --recursive https://github.com/bylaws/libadrenotools.git adrenotools
 
       - uses: actions/cache@v4
         with:
@@ -81,6 +82,15 @@ jobs:
           ninja -C openal-a install > /dev/null
           cmake -S zmusic -B zm-a $A
           ninja -C zm-a install > /dev/null
+          # libadrenotools: carga drivers Vulkan propios (malisx2) sin root.
+          cmake -S adrenotools -B adreno-a $A -DCMAKE_ANDROID_ARCH_ABI=arm64-v8a
+          ninja -C adreno-a
+          cp -r adrenotools/include/adrenotools prefijo/include/
+          echo "ADRENOTOOLS_LIBS=$(find $PWD/adreno-a -name libadrenotools.a | head -1);$(find $PWD/adreno-a -name liblinkernsbypass.a | head -1)" >> "$GITHUB_ENV"
+          mkdir -p prefijo/hooks
+          find adreno-a -name '*_hook.so' -exec cp {} prefijo/hooks/ \;
+          find adreno-a -name 'libhook_impl.so' -exec cp {} prefijo/hooks/ \;
+          ls -la prefijo/hooks
           ls -la prefijo/lib
 
       - name: Raze para Android (todos los errores)
@@ -95,6 +105,7 @@ jobs:
             -DCMAKE_C_FLAGS="-I$PWD/prefijo/include" -DCMAKE_CXX_FLAGS="-I$PWD/prefijo/include" \
             -DOPENAL_INCLUDE_DIR=$PWD/prefijo/include/AL -DOPENAL_LIBRARY=$PWD/prefijo/lib/libopenal.so \
             -DZMUSIC_INCLUDE_DIR=$PWD/prefijo/include -DZMUSIC_LIBRARIES=$PWD/prefijo/lib/libzmusic.so \
+            "-DADRENOTOOLS_LIBS=$ADRENOTOOLS_LIBS" \
             -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
             -DHAVE_VULKAN=ON -DVULKAN_USE_XLIB=OFF -DVULKAN_USE_WAYLAND=OFF -DHAVE_GLES2=OFF -DNO_GTK=ON -DNO_OPENMP=ON -DHAVE_VM_JIT=OFF 2>&1 | tee cmake.log
           set +e
@@ -124,6 +135,14 @@ jobs:
           mkdir -p $J $D
           cp $(find raze-a -name libmain.so | head -1) $J/
           cp prefijo/lib/libSDL2.so prefijo/lib/libopenal.so prefijo/lib/libzmusic.so $J/
+          cp prefijo/hooks/*.so $J/
+          # Driver Vulkan malisx2 para GPU Mali (opción de Extras), última versión publicada.
+          murl=$(curl -fsSL -H "Authorization: Bearer ${{ github.token }}" "https://api.github.com/repos/bmdhacks/malisx2/releases/latest" \
+            | python3 -c "import json,sys
+          for a in json.load(sys.stdin)['assets']:
+              if a['name'] == 'libvulkan_malisx2.so': print(a['browser_download_url'])")
+          echo "malisx2: $murl"
+          if [ -n "$murl" ]; then curl -fsSL -o $J/libvulkan_malisx2.so "$murl"; fi
           cp $NDK/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/libc++_shared.so $J/
           find raze-a -name '*.pk3' -exec cp {} $D/ \;
           mkdir -p $D/soundfonts
