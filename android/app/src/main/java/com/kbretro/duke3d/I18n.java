@@ -98,6 +98,12 @@ final class I18n {
         put("gamepad_config", "Configurar mando", "Gamepad setup");
         put("mods", "Mods", "Mods");
         put("mods_empty", "Pon los mods (.zip, .pk3, .grp o carpetas) en ", "Put mods (.zip, .pk3, .grp or folders) in ");
+        put("mods_campaigns", "Campañas", "Campaigns");
+        put("mods_gfx", "Gráficos y sonido", "Graphics & sound");
+        put("mods_one_campaign", "solo una campaña activada a la vez", "only one campaign active at a time");
+        put("mods_found", "mods", "mods");
+        put("mods_active", "activados", "active");
+        put("mods_where", "Carpeta de mods: ", "Mods folder: ");
         put("mods_preparing", "Preparando mods", "Preparing mods");
         put("mods_wait", "la primera vez tarda (se descomprime)", "first time takes a while (unpacking)");
         put("mods_error", "No se pudieron preparar los mods: ", "Could not prepare the mods: ");

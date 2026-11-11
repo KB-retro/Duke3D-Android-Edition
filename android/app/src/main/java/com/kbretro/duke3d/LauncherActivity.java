@@ -535,24 +535,73 @@ public class LauncherActivity extends Activity {
         getSharedPreferences("ajustes", MODE_MULTI_PROCESS).edit().putStringSet("mods_activos", set).apply();
     }
 
-    /** Lista de los mods de la carpeta "mods" con un interruptor para cada uno. */
+    /**
+     * Mods: dos cajas, Campañas (solo una activada a la vez) y Gráficos y sonido (varios).
+     * Cada mod va en una u otra según su subcarpeta o, si no está en ninguna, según lo que trae.
+     */
     private DukeMenuView.Page modsPage(File gameDir) {
         DukeMenuView.Page p = new DukeMenuView.Page();
-        List<File> mods = GameData.mods(gameDir);
+        GameData.makeCategoryDirs(gameDir);
+        List<File> campaigns = new ArrayList<>(), others = new ArrayList<>();
+        for (File f : GameData.mods(gameDir)) (GameData.isCampaign(f) ? campaigns : others).add(f);
+        p.addGame(I18n.t("mods_campaigns"), box(R.drawable.caja_campanas),
+                () -> menuView.push(modListPage(gameDir, campaigns, true)));
+        p.addGame(I18n.t("mods_gfx"), box(R.drawable.caja_graficos),
+                () -> menuView.push(modListPage(gameDir, others, false)));
+        p.add(I18n.t("back"), null, () -> menuView.pop());
+        File dir = GameData.findChild(gameDir, "mods");
+        String path = (dir != null ? dir : new File(gameDir, "mods")).getAbsolutePath();
+        p.footer = () -> p.selected == 0 ? countLabel(campaigns) + " - " + I18n.t("mods_one_campaign")
+                : p.selected == 1 ? countLabel(others) : I18n.t("mods_where") + path;
+        return p;
+    }
+
+    private String countLabel(List<File> mods) {
+        int on = 0;
+        java.util.Set<String> enabled = enabledMods();
+        for (File f : mods) if (enabled.contains(f.getName())) on++;
+        return mods.size() + " " + I18n.t("mods_found") + ", " + on + " " + I18n.t("mods_active");
+    }
+
+    private final java.util.Map<Integer, Bitmap> boxes = new java.util.HashMap<>();
+
+    private Bitmap box(int res) {
+        Bitmap b = boxes.get(res);
+        if (b == null) {
+            try {
+                b = android.graphics.BitmapFactory.decodeResource(getResources(), res);
+                boxes.put(res, b);
+            } catch (Throwable ignored) {
+            }
+        }
+        return b;
+    }
+
+    /** La lista de una de las dos secciones, con un interruptor por mod. */
+    private DukeMenuView.Page modListPage(File gameDir, List<File> mods, boolean campaigns) {
+        DukeMenuView.Page p = new DukeMenuView.Page();
         for (File f : mods) {
             String name = f.getName();
             String label = name.replaceAll("(?i)\\.(zip|pk3|grp)$", "").replace('_', ' ');
-            p.addValue(label, () -> I18n.t(enabledMods().contains(name) ? "yes" : "no"),
-                    () -> setModEnabled(name, !enabledMods().contains(name)));
+            p.addValue(label, () -> I18n.t(enabledMods().contains(name) ? "yes" : "no"), () -> {
+                boolean on = !enabledMods().contains(name);
+                if (on && campaigns) {
+                    // Solo una campaña a la vez: se apagan las demás.
+                    for (File o : mods) if (!o.getName().equals(name)) setModEnabled(o.getName(), false);
+                }
+                setModEnabled(name, on);
+            });
             DukeMenuView.Entry e = p.entries.get(p.entries.size() - 1);
             e.active = () -> enabledMods().contains(name);
         }
         p.add(I18n.t("back"), null, () -> menuView.pop());
-        File dir = new File(gameDir, "mods");
-        if (!dir.exists()) dir.mkdirs();
+        File base = GameData.findChild(gameDir, "mods");
+        File dir = new File(base != null ? base : new File(gameDir, "mods"),
+                campaigns ? GameData.CAMPAIGN_DIR : GameData.GFX_DIR);
         p.footer = () -> mods.isEmpty()
                 ? I18n.t("mods_empty") + dir.getAbsolutePath()
-                : (p.selected < mods.size() ? mods.get(p.selected).getName() + " - " : "") + I18n.t("mods_note");
+                : (p.selected < mods.size() ? mods.get(p.selected).getName() + " - " : "")
+                + I18n.t(campaigns ? "mods_one_campaign" : "mods_note");
         return p;
     }
 

@@ -106,20 +106,110 @@ final class GameData {
         return dirs;
     }
 
-    /** Todos los mods (.zip, .pk3, .grp o carpetas) que hay, ordenados por nombre. */
-    static List<File> mods(File gameDir) {
-        List<File> mods = new ArrayList<>();
-        for (File d : modDirs(gameDir)) {
-            File[] files = d.listFiles();
-            if (files == null) continue;
-            for (File f : files) {
-                String n = f.getName().toLowerCase(java.util.Locale.ROOT);
-                if (f.isFile() && (n.endsWith(".zip") || n.endsWith(".pk3") || n.endsWith(".grp"))) mods.add(f);
-                else if (f.isDirectory() && !n.startsWith(".")) mods.add(f); // mod ya descomprimido
+    /** Subcarpetas de "mods" que agrupan: campañas y gráficos/sonido. */
+    static final String CAMPAIGN_DIR = "Campanas", GFX_DIR = "Graficos y sonido";
+
+    private static String plainName(String s) {
+        return java.text.Normalizer.normalize(s, java.text.Normalizer.Form.NFD).replaceAll("\\p{M}", "")
+                .toLowerCase(java.util.Locale.ROOT).replaceAll("[^a-z]", "");
+    }
+
+    /** 1 carpeta de campañas, 2 de gráficos y sonido, 0 otra. */
+    private static int categoryDir(File d) {
+        String n = plainName(d.getName());
+        if (n.equals("campanas") || n.equals("campaigns") || n.equals("campaign")) return 1;
+        if (n.startsWith("graficos") || n.startsWith("graphics") || n.equals("sonido") || n.equals("sound")) return 2;
+        return 0;
+    }
+
+    /** Crea las subcarpetas de campañas y de gráficos/sonido dentro de "mods". */
+    static void makeCategoryDirs(File gameDir) {
+        File mods = new File(gameDir, "mods");
+        File found = findChild(gameDir, "mods");
+        if (found != null) mods = found;
+        boolean camp = false, gfx = false;
+        File[] kids = mods.listFiles();
+        if (kids != null) for (File k : kids) {
+            if (!k.isDirectory()) continue;
+            int c = categoryDir(k);
+            camp |= c == 1;
+            gfx |= c == 2;
+        }
+        if (!camp) new File(mods, CAMPAIGN_DIR).mkdirs();
+        if (!gfx) new File(mods, GFX_DIR).mkdirs();
+    }
+
+    private static void addMods(File d, List<File> out, boolean top) {
+        File[] files = d.listFiles();
+        if (files == null) return;
+        for (File f : files) {
+            String n = f.getName().toLowerCase(java.util.Locale.ROOT);
+            if (n.startsWith(".")) continue;
+            if (f.isFile() && (n.endsWith(".zip") || n.endsWith(".pk3") || n.endsWith(".grp"))) out.add(f);
+            else if (f.isDirectory()) {
+                if (top && categoryDir(f) != 0) addMods(f, out, false); // Campañas / Gráficos y sonido
+                else out.add(f); // mod ya descomprimido
             }
         }
+    }
+
+    /** Todos los mods (.zip, .pk3, .grp o carpetas) que hay, también en las subcarpetas, por nombre. */
+    static List<File> mods(File gameDir) {
+        List<File> mods = new ArrayList<>();
+        for (File d : modDirs(gameDir)) addMods(d, mods, true);
         java.util.Collections.sort(mods, (x, y) -> x.getName().compareToIgnoreCase(y.getName()));
         return mods;
+    }
+
+    /**
+     * ¿Es una campaña completa (y no un mod de gráficos o sonido)? Lo dice la subcarpeta en la
+     * que está; si no está en ninguna, se mira si trae .grpinfo, EDUKE.CON/GAME.CON o muchos .CON.
+     */
+    static boolean isCampaign(File mod) {
+        File parent = mod.getParentFile();
+        int c = parent != null ? categoryDir(parent) : 0;
+        if (c != 0) return c == 1;
+        String n = mod.getName().toLowerCase(java.util.Locale.ROOT);
+        int cons = 0;
+        try {
+            if (mod.isDirectory()) {
+                java.util.ArrayDeque<File> stack = new java.util.ArrayDeque<>();
+                stack.push(mod);
+                int seen = 0;
+                while (!stack.isEmpty() && seen < 5000) {
+                    File[] list = stack.pop().listFiles();
+                    if (list == null) continue;
+                    for (File k : list) {
+                        seen++;
+                        if (k.isDirectory()) {
+                            stack.push(k);
+                            continue;
+                        }
+                        String low = k.getName().toLowerCase(java.util.Locale.ROOT);
+                        if (low.endsWith(".grpinfo") || low.equals("eduke.con") || low.equals("game.con")) return true;
+                        if (low.endsWith(".con") && ++cons >= 8) return true;
+                    }
+                }
+            } else if (n.endsWith(".zip") || n.endsWith(".pk3")) {
+                try (java.util.zip.ZipFile z = new java.util.zip.ZipFile(mod)) {
+                    java.util.Enumeration<? extends java.util.zip.ZipEntry> e = z.entries();
+                    while (e.hasMoreElements()) {
+                        String low = e.nextElement().getName().toLowerCase(java.util.Locale.ROOT);
+                        int slash = low.lastIndexOf('/');
+                        String base = low.substring(slash + 1);
+                        if (base.endsWith(".grpinfo") || base.equals("eduke.con") || base.equals("game.con")) return true;
+                        if (base.endsWith(".con") && ++cons >= 8) return true;
+                    }
+                }
+            } else if (n.endsWith(".grp")) {
+                for (String low : grpEntries(mod).keySet()) {
+                    if (low.endsWith(".grpinfo") || low.equals("eduke.con") || low.equals("game.con")) return true;
+                    if (low.endsWith(".con") && ++cons >= 8) return true;
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return false;
     }
 
     /** Los .def de la raíz de un mod (zip/pk3), para cargarlos. */
