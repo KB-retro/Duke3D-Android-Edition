@@ -246,7 +246,7 @@ public class GameActivity extends SDLActivity {
         ui.postDelayed(() -> {
             applyRefreshRate(fps()); // otra vez, ya con la superficie del juego creada
             command("r_maxfps " + fps());
-            if (scale() != 100) applyScale(scale());
+            if (scale() != 100) applyScaleWhenReady(scale(), 0);
         }, 4000);
 
         // Gráficos del juego para el menú rápido (letras, átomo...), en segundo plano.
@@ -294,7 +294,7 @@ public class GameActivity extends SDLActivity {
     }
 
     private int scale() {
-        return prefs().getInt("escala", 100);
+        return GraphicsSettings.scale(this);
     }
 
     private static String fpsLabel(int fps) {
@@ -336,6 +336,18 @@ public class GameActivity extends SDLActivity {
         } catch (Exception e) {
             Log.w("Duke3D", "No se pudo cambiar la frecuencia de pantalla", e);
         }
+    }
+
+    /**
+     * La resolución guardada, cuando el juego ya está en marcha (con mods tarda más en arrancar
+     * y la orden llegaba antes de que existiera la consola).
+     */
+    private void applyScaleWhenReady(int percent, int tries) {
+        if (inGame() || tries > 120) {
+            applyScale(percent);
+            return;
+        }
+        ui.postDelayed(() -> applyScaleWhenReady(percent, tries + 1), 500);
     }
 
     /** Resolución interna del juego (la GPU la escala a la pantalla). */

@@ -8,14 +8,15 @@ import android.content.SharedPreferences;
  * Se guardan en "ajustes" y el juego los aplica al momento.
  */
 final class GraphicsSettings {
-    static final int[] SCALE_VALUES = {100, 75, 50, 150, 125};
+    static final int[] SCALE_VALUES = {100, 75, 50};
 
     static SharedPreferences prefs(Context c) {
         return c.getSharedPreferences("ajustes", Context.MODE_MULTI_PROCESS);
     }
 
     static int scale(Context c) {
-        return prefs(c).getInt("escala", 100);
+        int s = prefs(c).getInt("escala", 100);
+        return s == 75 || s == 50 ? s : 100; // 125/150 % (antes) cerraban el juego
     }
 
     static int scaler(Context c) {
@@ -49,7 +50,7 @@ final class GraphicsSettings {
     private static final String[] BLOOM_KEYS = {"no", "gfx_soft", "gfx_strong"};
 
     private static String scaleLabel(int s) {
-        return s > 100 ? s + "% SSAA" : s + "%";
+        return s + "%";
     }
 
     /**

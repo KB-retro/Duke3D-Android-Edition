@@ -426,9 +426,13 @@ public class LauncherActivity extends Activity {
         // Con fallo (o sin datos) solo el fondo de Game Over, sin la carátula encima.
         boolean error = hasCrash() || (hasStoragePermission() && GameData.findGameDir(baseDir()) == null);
         setErrorBackground(error);
+        if (hasCrash()) {
+            // Pantalla del fallo: arriba solo Continuar y Salir, y debajo el fallo.
+            showCrash();
+            return;
+        }
         if (!error) addBanner();
         addSpace(12);
-        showCrash();
 
         if (!hasStoragePermission()) {
             addText("La app necesita permiso para leer los archivos del juego en la memoria.", 16, Color.WHITE);
@@ -754,16 +758,17 @@ public class LauncherActivity extends Activity {
             }
         }
         if (sb.length() == 0) return;
-        addText("El juego se ha cerrado por un fallo:", 15, 0xFFFF5040);
-        TextView t = addText(sb.toString(), 11, Color.WHITE);
-        t.setTypeface(Typeface.MONOSPACE);
-        t.setGravity(Gravity.START);
-        t.setTextIsSelectable(true);
         addButton("Continuar", v -> {
             lastLog = null;
             refresh();
         }).requestFocus();
+        addButton("Salir", v -> finishAffinity());
         addSpace(12);
+        addText("El juego se ha cerrado por un fallo (registro.txt guardado):", 15, 0xFFFF5040);
+        TextView t = addText(sb.toString(), 11, Color.WHITE);
+        t.setTypeface(Typeface.MONOSPACE);
+        t.setGravity(Gravity.START);
+        t.setTextIsSelectable(true);
     }
 
     private void showLastLog() {

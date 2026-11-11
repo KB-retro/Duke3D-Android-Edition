@@ -1444,7 +1444,7 @@ void videoGetModes(int display)
     // Duke3D Android Edition: resoluciones internas del lanzador (50%-150% de la pantalla); la
     // GPU las escala (postfx.c). Sin esto "vidmode" se quedaba siempre en la de la pantalla.
     {
-        static int const pct[] = { 50, 75, 125, 150 };
+        static int const pct[] = { 50, 75 };
         for (int const p : pct)
         {
             int const w = (maxx * p / 100) & ~1, h = (maxy * p / 100) & ~1;
@@ -1777,7 +1777,12 @@ int setvideomode_sdlcommonpost(int32_t x, int32_t y, int32_t c, int32_t fs, int3
     int const matchedResolution = (desktopmode.w == x && desktopmode.h == y);
     int const borderless = (r_borderless == 1 || (r_borderless == 2 && matchedResolution)) ? SDL_WINDOW_BORDERLESS : 0;
 
+#ifdef __ANDROID__
+    // En Android la pantalla tiene un solo modo: la resolución interna la escala la GPU.
+    if (0)
+#else
     if (fs)
+#endif
     {
         SDL_DisplayMode dispmode = { 0, x, y, maxrefreshfreq, nullptr }, newmode;
 
@@ -1806,7 +1811,9 @@ int setvideomode_sdlcommonpost(int32_t x, int32_t y, int32_t c, int32_t fs, int3
         lastrefreshfreq = refreshfreq;
     }
 
+#ifndef __ANDROID__
     SDL_SetWindowSize(sdl_window, x, y);
+#endif
 
     if (fs)
     {
