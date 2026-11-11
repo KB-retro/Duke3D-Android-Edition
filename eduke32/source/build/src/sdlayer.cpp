@@ -89,8 +89,16 @@ static SDL_Surface *sdl_surface/*=NULL*/;
 // pantalla (SDL_Renderer), manteniendo la proporción.
 static SDL_Renderer *android_renderer;
 static SDL_Texture *android_texture;
+// Mejoras gráficas en la GPU (android/app/src/main/cpp/postfx.c). Si no se puede usar
+// OpenGL ES, se presenta con SDL_Renderer como antes.
+extern "C" void android_postfx_attributes(void);
+extern "C" int android_postfx_init(SDL_Window *window);
+extern "C" int android_postfx_active(void);
+extern "C" void android_postfx_shutdown(void);
+extern "C" void android_postfx_present(const void *pixels, int w, int h, int pitch);
 static void android_destroy_present(void)
 {
+    android_postfx_shutdown();
     if (android_texture) SDL_DestroyTexture(android_texture);
     android_texture = NULL;
     if (android_renderer) SDL_DestroyRenderer(android_renderer);
@@ -1927,14 +1935,28 @@ int32_t videoSetMode(int32_t x, int32_t y, int32_t c, int32_t fs)
 #endif  // defined USE_OPENGL
     {
         // init
+#ifdef __ANDROID__
+        android_postfx_attributes();
+#endif
         sdl_window = SDL_CreateWindow("", g_windowPosValid ? g_windowPos.x : (int)SDL_WINDOWPOS_CENTERED_DISPLAY(display),
                                           g_windowPosValid ? g_windowPos.y : (int)SDL_WINDOWPOS_CENTERED_DISPLAY(display), x, y,
+#ifdef __ANDROID__
+                                      SDL_WINDOW_OPENGL |
+#endif
                                       SDL_WINDOW_RESIZABLE | borderless);
         if (!sdl_window)
             SDL2_VIDEO_ERR("SDL_CreateWindow");
 
 #ifdef __ANDROID__
         android_destroy_present();
+        if (android_postfx_init(sdl_window))
+        {
+            sdl_surface = SDL_CreateRGBSurfaceWithFormat(0, x, y, 32, SDL_PIXELFORMAT_ARGB8888);
+            if (!sdl_surface)
+                SDL2_VIDEO_ERR("SDL_CreateRGBSurfaceWithFormat");
+        }
+        else
+        {
         android_renderer = SDL_CreateRenderer(sdl_window, -1, SDL_RENDERER_ACCELERATED);
         if (!android_renderer)
             android_renderer = SDL_CreateRenderer(sdl_window, -1, 0);
@@ -1953,6 +1975,7 @@ int32_t videoSetMode(int32_t x, int32_t y, int32_t c, int32_t fs)
         sdl_surface = SDL_CreateRGBSurfaceWithFormat(0, x, y, 32, SDL_PIXELFORMAT_ARGB8888);
         if (!sdl_surface)
             SDL2_VIDEO_ERR("SDL_CreateRGBSurfaceWithFormat");
+        }
 #else
         sdl_surface = SDL_GetWindowSurface(sdl_window);
         if (!sdl_surface)
@@ -2225,7 +2248,9 @@ void videoShowFrame(int32_t w)
     softsurface_blitBuffer((uint32_t*) sdl_surface->pixels, sdl_surface->format->BitsPerPixel);
     if (SDL_MUSTLOCK(sdl_surface)) SDL_UnlockSurface(sdl_surface);
 #if defined __ANDROID__ && SDL_MAJOR_VERSION >= 2
-    if (android_renderer && android_texture)
+    if (android_postfx_active())
+        android_postfx_present(sdl_surface->pixels, sdl_surface->w, sdl_surface->h, sdl_surface->pitch);
+    else if (android_renderer && android_texture)
     {
         SDL_UpdateTexture(android_texture, NULL, sdl_surface->pixels, sdl_surface->pitch);
         SDL_SetRenderDrawColor(android_renderer, 0, 0, 0, 255);

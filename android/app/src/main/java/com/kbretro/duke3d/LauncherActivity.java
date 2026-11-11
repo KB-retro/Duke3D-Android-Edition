@@ -357,6 +357,12 @@ public class LauncherActivity extends Activity {
             SharedPreferences sp = getSharedPreferences("ajustes", MODE_MULTI_PROCESS);
             sp.edit().putBoolean("vibracion", !sp.getBoolean("vibracion", true)).apply();
         });
+        p.add(I18n.t("graphics"), null, () -> {
+            DukeMenuView.Page g = new DukeMenuView.Page();
+            GraphicsSettings.addTo(this, g, null, null);
+            g.add(I18n.t("back"), null, () -> menuView.pop());
+            menuView.push(g);
+        });
         p.add(I18n.t("folder"), null, this::pickFolder);
         p.add(I18n.t("back"), null, () -> menuView.pop());
         p.footer = () -> I18n.t("data") + gameDir.getAbsolutePath();

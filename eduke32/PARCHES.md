@@ -44,4 +44,8 @@ Duke Nukem 3D, con estos cambios para compilarlo en Android como un Linux con SD
     trucos, Luke, el marine, la caca y el fin de nivel/episodio). Nada cuenta en demos ni en red,
     salvo las bajas de Dukematch (`G_AndroidFragCheck`, tras `G_DoMoveThings`).
 
+15. **Mejoras gráficas en la GPU** (`sdlayer.cpp`): en Android la ventana se crea con OpenGL ES 2
+    y cada fotograma pasa por `android/app/src/main/cpp/postfx.c` (FXAA, FSR 1.0 EASU/RCAS,
+    escalado nítido, líneas/CRT, color). Si no hay GLES, se usa SDL_Renderer como antes.
+
 Licencias: GPL v2 (`gpl-2.0.txt`) y licencia del motor BUILD de Ken Silverman (`buildlic.txt`).

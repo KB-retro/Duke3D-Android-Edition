@@ -69,7 +69,7 @@ set_target_properties(xmplite PROPERTIES C_STANDARD 11 C_EXTENSIONS ON)
 # ---- El juego ----
 add_library(main SHARED
     ${ENGINE_SRC} ${MACT_SRC} ${AUDIOLIB_SRC} ${IMGUI_SRC} ${DUKE_SRC}
-    android_main.c)
+    android_main.c postfx.c)
 
 target_include_directories(main PRIVATE ${COMMON_INCLUDES})
 target_compile_definitions(main PRIVATE ${COMMON_DEFINES})
@@ -81,4 +81,4 @@ set_target_properties(main PROPERTIES
     C_STANDARD 11 C_EXTENSIONS ON
     CXX_STANDARD 14 CXX_EXTENSIONS ON)
 
-target_link_libraries(main PRIVATE SDL2 xmplite android log m dl)
+target_link_libraries(main PRIVATE SDL2 xmplite GLESv2 android log m dl)

@@ -141,6 +141,18 @@ public class GameActivity extends SDLActivity {
         return prefs().getBoolean("vibracion", true);
     }
 
+    /** Mejoras gráficas de postfx.c: escalado, FXAA, nitidez, CRT y color. */
+    static native void nativePostFx(int scaler, int fxaa, int sharp, int crt, int color);
+
+    private void applyPostFx() {
+        try {
+            nativePostFx(GraphicsSettings.scaler(this), GraphicsSettings.fxaa(this), GraphicsSettings.sharp(this),
+                    GraphicsSettings.crt(this), GraphicsSettings.color(this));
+        } catch (UnsatisfiedLinkError e) {
+            Log.w("Duke3D", "Sin mejoras gráficas", e);
+        }
+    }
+
     /** true en plena partida (no en los menús del juego, el título, demos o fin de nivel). */
     static native boolean nativeInGame();
 
@@ -153,7 +165,6 @@ public class GameActivity extends SDLActivity {
     }
 
     private static final int[] FPS_VALUES = {60, 120, 0};
-    private static final int[] SCALE_VALUES = {100, 75, 50};
 
     private final Handler ui = new Handler(Looper.getMainLooper());
     private DukeMenuView quickMenu;
@@ -178,6 +189,7 @@ public class GameActivity extends SDLActivity {
         gameId = Achievements.gameId(gameGrp(getArguments()));
         netGame = Arrays.asList(getArguments()).contains("-server") || Arrays.asList(getArguments()).contains("-connect");
         vibrationOn = vibrationPref();
+        applyPostFx();
         try {
             nativeInit();
         } catch (UnsatisfiedLinkError e) {
@@ -378,12 +390,7 @@ public class GameActivity extends SDLActivity {
 
     private DukeMenuView.Page graphicsPage() {
         DukeMenuView.Page p = new DukeMenuView.Page();
-        p.addValue(I18n.t("resolution"), () -> scale() + "%", () -> {
-            int i = indexOf(SCALE_VALUES, scale());
-            int next = SCALE_VALUES[(i + 1) % SCALE_VALUES.length];
-            prefs().edit().putInt("escala", next).apply();
-            applyScale(next);
-        });
+        GraphicsSettings.addTo(this, p, this::applyScale, this::applyPostFx);
         p.addValue("FPS", () -> fpsLabel(fps()), () -> {
             int i = indexOf(FPS_VALUES, fps());
             int next = FPS_VALUES[(i + 1) % FPS_VALUES.length];
@@ -391,7 +398,6 @@ public class GameActivity extends SDLActivity {
             applyRefreshRate(next);
             command("r_maxfps " + next);
         });
-        p.add(I18n.t("enhanced_soon"), null, null);
         p.add(I18n.t("back"), null, () -> quickMenu.pop());
         return p;
     }
