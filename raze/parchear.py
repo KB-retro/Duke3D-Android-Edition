@@ -128,3 +128,17 @@ sub("source/common/rendering/v_video.cpp",
 sub("source/common/rendering/v_video.cpp",
     "int V_GetBackend()\n{",
     "int V_GetBackend()\n{\n#ifdef __ANDROID__\n\treturn 1;\n#endif")
+
+# 14. Errores graves: en Android se escriben en el registro (no hay kdialog ni GTK) y se
+#     enseñan con el cuadro de SDL.
+sub("source/common/platform/posix/sdl/i_system.cpp",
+    "void I_ShowFatalError(const char *message)\n{\n#ifdef __APPLE__",
+    "void I_ShowFatalError(const char *message)\n{\n#ifdef __ANDROID__\n"
+    "\tfprintf(stderr, \"ERROR GRAVE: %s\\n\", message);\n"
+    "\tSDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, \"Raze\", message, NULL);\n\treturn;\n#endif\n#ifdef __APPLE__")
+
+# 15. Algunas GPU de móvil (Mali) dicen que admiten bloques uniformes de 4 GB (sale negativo):
+#     se limita a 64 KB como en OpenGL.
+sub("source/common/rendering/vulkan/system/vk_renderdevice.cpp",
+    "\tmaxuniformblock = device->PhysicalDevice.Properties.Properties.limits.maxUniformBufferRange;",
+    "\tmaxuniformblock = std::min<uint32_t>(device->PhysicalDevice.Properties.Properties.limits.maxUniformBufferRange, 65536);")

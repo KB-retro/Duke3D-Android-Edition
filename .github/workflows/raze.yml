@@ -94,6 +94,7 @@ jobs:
             -DSDL2_INCLUDE_DIR=$PWD/prefijo/include/SDL2 -DSDL2_LIBRARY=$PWD/prefijo/lib/libSDL2.so \
             -DCMAKE_C_FLAGS="-I$PWD/prefijo/include" -DCMAKE_CXX_FLAGS="-I$PWD/prefijo/include" \
             -DOPENAL_INCLUDE_DIR=$PWD/prefijo/include/AL -DOPENAL_LIBRARY=$PWD/prefijo/lib/libopenal.so \
+            -DZMUSIC_INCLUDE_DIR=$PWD/prefijo/include -DZMUSIC_LIBRARIES=$PWD/prefijo/lib/libzmusic.so \
             -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
             -DHAVE_VULKAN=ON -DVULKAN_USE_XLIB=OFF -DVULKAN_USE_WAYLAND=OFF -DHAVE_GLES2=OFF -DNO_GTK=ON -DNO_OPENMP=ON -DHAVE_VM_JIT=OFF 2>&1 | tee cmake.log
           set +e
@@ -122,11 +123,12 @@ jobs:
           D=android/app/src/raze/assets/raze
           mkdir -p $J $D
           cp $(find raze-a -name libmain.so | head -1) $J/
-          cp prefijo/lib/*.so $J/
+          cp prefijo/lib/libSDL2.so prefijo/lib/libopenal.so prefijo/lib/libzmusic.so $J/
           cp $NDK/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/libc++_shared.so $J/
           find raze-a -name '*.pk3' -exec cp {} $D/ \;
-          cp raze-src/soundfont/*.sf2 $D/ 2>/dev/null || true
-          ls -la $J $D
+          mkdir -p $D/soundfonts
+          cp raze-src/soundfont/*.sf2 $D/soundfonts/
+          ls -laR $J $D
           $NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-readelf -d $J/libmain.so | grep NEEDED
 
       - name: Clave de firma

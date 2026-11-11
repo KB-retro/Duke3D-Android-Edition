@@ -29,18 +29,7 @@ final class Motor {
             if (stamp.exists() && version.equals(new String(java.nio.file.Files.readAllBytes(stamp.toPath())))) {
                 return dir;
             }
-            dir.mkdirs();
-            String[] files = c.getAssets().list("raze");
-            if (files != null) {
-                for (String f : files) {
-                    try (InputStream in = c.getAssets().open("raze/" + f);
-                         OutputStream out = new FileOutputStream(new File(dir, f))) {
-                        byte[] buf = new byte[1 << 16];
-                        int n;
-                        while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
-                    }
-                }
-            }
+            copyAssets(c, "raze", dir);
             try (OutputStream out = new FileOutputStream(stamp)) {
                 out.write(version.getBytes());
             }
@@ -49,6 +38,27 @@ final class Motor {
             Log.e("Duke3D", "No se pudieron copiar los datos de Raze", e);
         }
         return dir;
+    }
+
+    /** Copia una carpeta de los assets (con sus subcarpetas, p. ej. soundfonts/). */
+    private static void copyAssets(Context c, String path, File to) throws java.io.IOException {
+        String[] files = c.getAssets().list(path);
+        if (files == null) return;
+        to.mkdirs();
+        for (String f : files) {
+            String sub = path + "/" + f;
+            String[] inner = c.getAssets().list(sub);
+            if (inner != null && inner.length > 0) {
+                copyAssets(c, sub, new File(to, f));
+                continue;
+            }
+            try (InputStream in = c.getAssets().open(sub);
+                 OutputStream out = new FileOutputStream(new File(to, f))) {
+                byte[] buf = new byte[1 << 16];
+                int n;
+                while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+            }
+        }
     }
 
     private Motor() {
