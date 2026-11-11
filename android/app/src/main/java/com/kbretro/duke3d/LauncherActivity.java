@@ -243,7 +243,10 @@ public class LauncherActivity extends Activity {
 
     private DukeMenuView.Page rootPage(File gameDir) {
         DukeMenuView.Page root = new DukeMenuView.Page();
+        // Con una campaña activada solo se puede jugar al juego base (es sobre el que corre).
+        boolean campaign = activeCampaign(gameDir) != null;
         for (GameData.Game g : assets.games) {
+            if (campaign && g != assets.games.get(0)) continue;
             Bitmap cover = cover(g);
             if (cover != null) root.addGame(g.menuLabel(), cover, () -> launch(gameDir, g));
             else root.add(g.menuLabel(), assets.icons.get(g.title), () -> launch(gameDir, g));
@@ -528,6 +531,16 @@ public class LauncherActivity extends Activity {
                 .getStringSet("mods_activos", new java.util.HashSet<>()));
     }
 
+    /** La campaña activada (o null). */
+    private File activeCampaign(File gameDir) {
+        java.util.Set<String> enabled = enabledMods();
+        if (enabled.isEmpty()) return null;
+        for (File f : GameData.mods(gameDir)) {
+            if (enabled.contains(f.getName()) && GameData.isCampaign(f)) return f;
+        }
+        return null;
+    }
+
     private void setModEnabled(String name, boolean on) {
         java.util.Set<String> set = enabledMods();
         if (on) set.add(name);
@@ -549,6 +562,12 @@ public class LauncherActivity extends Activity {
         p.addGame(I18n.t("mods_gfx"), box(R.drawable.caja_graficos),
                 () -> menuView.push(modListPage(gameDir, others, false)));
         p.add(I18n.t("back"), null, () -> menuView.pop());
+        // Al volver, el menú principal se rehace (con campaña solo se ve el juego base).
+        p.onLeave = () -> menuView.post(() -> {
+            DukeMenuView.Page root = rootPage(gameDir);
+            root.selected = Math.max(0, root.entries.size() - 4); // sigue en "Mods"
+            menuView.setRoot(root, this::finish);
+        });
         File dir = GameData.findChild(gameDir, "mods");
         String path = (dir != null ? dir : new File(gameDir, "mods")).getAbsolutePath();
         p.footer = () -> p.selected == 0 ? countLabel(campaigns) + " - " + I18n.t("mods_one_campaign")
@@ -585,11 +604,18 @@ public class LauncherActivity extends Activity {
             String label = name.replaceAll("(?i)\\.(zip|pk3|grp)$", "").replace('_', ' ');
             p.addValue(label, () -> I18n.t(enabledMods().contains(name) ? "yes" : "no"), () -> {
                 boolean on = !enabledMods().contains(name);
+                java.util.Set<String> set = enabledMods();
                 if (on && campaigns) {
-                    // Solo una campaña a la vez: se apagan las demás.
-                    for (File o : mods) if (!o.getName().equals(name)) setModEnabled(o.getName(), false);
+                    // Una campaña va sola: no es compatible con ningún otro mod.
+                    set.clear();
+                } else if (on) {
+                    // Un mod de gráficos o sonido apaga la campaña que hubiera.
+                    File camp = activeCampaign(gameDir);
+                    if (camp != null) set.remove(camp.getName());
                 }
-                setModEnabled(name, on);
+                if (on) set.add(name);
+                else set.remove(name);
+                getSharedPreferences("ajustes", MODE_MULTI_PROCESS).edit().putStringSet("mods_activos", set).apply();
             });
             DukeMenuView.Entry e = p.entries.get(p.entries.size() - 1);
             e.active = () -> enabledMods().contains(name);
@@ -601,7 +627,7 @@ public class LauncherActivity extends Activity {
         p.footer = () -> mods.isEmpty()
                 ? I18n.t("mods_empty") + dir.getAbsolutePath()
                 : (p.selected < mods.size() ? mods.get(p.selected).getName() + " - " : "")
-                + I18n.t(campaigns ? "mods_one_campaign" : "mods_note");
+                + I18n.t(campaigns ? "mods_campaign_alone" : "mods_note");
         return p;
     }
 
@@ -633,7 +659,11 @@ public class LauncherActivity extends Activity {
             String defFile = def;
             List<String> modArgs;
             try {
-                modArgs = GameData.modArguments(gameDir, enabledMods());
+                // Una campaña va sola, aunque hubiera otros mods activados de antes.
+                File camp = activeCampaign(gameDir);
+                java.util.Set<String> enabled = camp != null
+                        ? java.util.Collections.singleton(camp.getName()) : enabledMods();
+                modArgs = GameData.modArguments(gameDir, enabled);
             } catch (Throwable t) {
                 android.util.Log.e("Duke3D", "No se pudieron preparar los mods", t);
                 runOnUiThread(() -> {

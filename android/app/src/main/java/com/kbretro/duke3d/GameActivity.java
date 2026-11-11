@@ -349,7 +349,32 @@ public class GameActivity extends SDLActivity {
             Os.setenv("DUKE3D_LANG", lang != null ? lang : "en", true);
         } catch (ErrnoException ignored) {
         }
+        // Pantalla completa desde el principio (antes de que SDL cree su superficie): si la
+        // superficie nace con la barra de navegación, el juego coge esa altura y en 16:9 quedaba
+        // una franja negra abajo.
+        android.view.Window win = getWindow();
+        win.addFlags(android.view.WindowManager.LayoutParams.FLAG_FULLSCREEN
+                | android.view.WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
+                | android.view.WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS);
+        if (android.os.Build.VERSION.SDK_INT >= 28) {
+            android.view.WindowManager.LayoutParams lp = win.getAttributes();
+            lp.layoutInDisplayCutoutMode = android.os.Build.VERSION.SDK_INT >= 30
+                    ? android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+                    : android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
+            win.setAttributes(lp);
+        }
         super.onCreate(savedInstanceState);
+        hideSystemBars();
+        if (mSurface != null) {
+            mSurface.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> {
+                if (r - l != or - ol || b - t != ob - ot) {
+                    android.util.DisplayMetrics real = new android.util.DisplayMetrics();
+                    getWindowManager().getDefaultDisplay().getRealMetrics(real);
+                    Log.i("Duke3D", "Superficie del juego: " + (r - l) + "x" + (b - t) + " (pantalla "
+                            + real.widthPixels + "x" + real.heightPixels + ")");
+                }
+            });
+        }
         startWatchdog();
         setupTouch();
         I18n.load(this);

@@ -101,6 +101,8 @@ final class I18n {
         put("mods_campaigns", "Campañas", "Campaigns");
         put("mods_gfx", "Gráficos y sonido", "Graphics & sound");
         put("mods_one_campaign", "solo una campaña activada a la vez", "only one campaign active at a time");
+        put("mods_campaign_alone", "va sola: apaga los demás mods y solo se juega con el juego base",
+                "runs alone: turns off other mods, base game only");
         put("mods_found", "mods", "mods");
         put("mods_active", "activados", "active");
         put("mods_where", "Carpeta de mods: ", "Mods folder: ");
