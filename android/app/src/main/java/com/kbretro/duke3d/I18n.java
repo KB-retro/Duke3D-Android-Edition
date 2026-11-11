@@ -98,7 +98,6 @@ final class I18n {
         put("gamepad_config", "Configurar mando", "Gamepad setup");
         put("mods", "Mods", "Mods");
         put("mods_empty", "Pon los mods (.zip, .pk3, .grp o carpetas) en ", "Put mods (.zip, .pk3, .grp or folders) in ");
-        put("gfx_backend", "Motor gráfico (al reiniciar)", "Renderer (on restart)");
         put("mods_campaigns", "Campañas", "Campaigns");
         put("mods_gfx", "Gráficos y sonido", "Graphics & sound");
         put("mods_one_campaign", "solo una campaña activada a la vez", "only one campaign active at a time");

@@ -124,8 +124,7 @@ sub("source/common/rendering/v_video.cpp",
     "#ifdef __ANDROID__\nCUSTOM_CVAR (Bool, vid_vsync, true, CVAR_ARCHIVE|CVAR_GLOBALCONFIG)\n#else\n"
     "CUSTOM_CVAR (Bool, vid_vsync, false, CVAR_ARCHIVE|CVAR_GLOBALCONFIG)\n#endif")
 
-# 13. Motor gráfico elegido en la app (RAZE_BACKEND: 1 Vulkan, 2 OpenGL ES). Si Vulkan falla,
-#     Raze pasa solo a OpenGL ES.
+# 13. En Android solo Vulkan (sin OpenGL ni OpenGL ES), diga lo que diga la configuración.
 sub("source/common/rendering/v_video.cpp",
     "int V_GetBackend()\n{",
-    "#ifdef __ANDROID__\n#include <stdlib.h>\n#endif\nint V_GetBackend()\n{\n#ifdef __ANDROID__\n\tif (const char* b = getenv(\"RAZE_BACKEND\")) return atoi(b) == 2 ? 2 : 1;\n#endif")
+    "int V_GetBackend()\n{\n#ifdef __ANDROID__\n\treturn 1;\n#endif")

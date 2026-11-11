@@ -352,7 +352,6 @@ public class GameActivity extends SDLActivity {
             Os.setenv("DUKE3D_LANG", lang != null ? lang : "en", true);
             if (Motor.RAZE) {
                 Os.setenv("RAZE_PROGDIR", Motor.prepareRazeData(this).getAbsolutePath(), true);
-                Os.setenv("RAZE_BACKEND", String.valueOf(GraphicsSettings.razeBackend(this)), true);
             }
         } catch (ErrnoException ignored) {
         }
