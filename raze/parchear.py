@@ -101,3 +101,13 @@ sub("source/common/cutscenes/movieplayer.cpp",
     "\tVpxPlayer(FileReader&, TArray<int>&, int, int, FString& error) { error = \"VPX video not supported\"; }\n"
     "\tbool isvalid() { return false; }\n\tbool Frame(uint64_t) override { return false; }\n"
     "\tFTextureID GetTexture() override { return FTextureID(); }\n};\n#endif\n\nstruct AudioData\n{")
+
+# 9. Que no se cambie el nombre de la biblioteca (libmain.so) más abajo.
+sub("source/CMakeLists.txt",
+    "\tset_target_properties( ${PROJECT_NAME} PROPERTIES OUTPUT_NAME ${PROJECT_NAME} )",
+    "\tif( NOT ANDROID )\n\tset_target_properties( ${PROJECT_NAME} PROPERTIES OUTPUT_NAME ${PROJECT_NAME} )\n\tendif()")
+
+# 10. En Android pthread va dentro de libc (no hay libpthread).
+sub("libraries/discordrpc/src/CMakeLists.txt",
+    "    target_link_libraries(discord-rpc PUBLIC pthread)",
+    "    if(NOT ANDROID)\n    target_link_libraries(discord-rpc PUBLIC pthread)\n    endif()")

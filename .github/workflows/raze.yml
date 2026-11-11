@@ -120,10 +120,10 @@ jobs:
           J=android/app/src/raze/jniLibs/arm64-v8a
           D=android/app/src/raze/assets/raze
           mkdir -p $J $D
-          cp raze-a/libmain.so $J/
+          cp $(find raze-a -name libmain.so | head -1) $J/
           cp prefijo/lib/*.so $J/
           cp $NDK/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/libc++_shared.so $J/
-          cp raze-a/*.pk3 $D/
+          find raze-a -name '*.pk3' -exec cp {} $D/ \;
           cp raze-src/soundfont/*.sf2 $D/ 2>/dev/null || true
           ls -la $J $D
           $NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-readelf -d $J/libmain.so | grep NEEDED
