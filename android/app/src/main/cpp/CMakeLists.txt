@@ -4,6 +4,12 @@
 cmake_minimum_required(VERSION 3.22)
 project(duke3d C CXX)
 
+# APK de Raze: el motor y SDL2 vienen ya compilados (src/raze/jniLibs, workflow raze.yml).
+if(MOTOR_RAZE)
+    add_library(vacio SHARED ${CMAKE_CURRENT_SOURCE_DIR}/vacio.c)
+    return()
+endif()
+
 if(NOT SDL2_DIR)
     message(FATAL_ERROR "Falta -DSDL2_DIR con el código de SDL2")
 endif()

@@ -293,7 +293,7 @@ final class GameData {
             } catch (java.io.IOException ignored) {
             }
         }
-        if (!args.isEmpty()) {
+        if (!args.isEmpty() && !Motor.RAZE) {
             // Las campañas grandes (Alien Armageddon, AMC...) no caben en la caché de 96 MB del
             // motor ("CACHE SPACE ALL LOCKED UP!"): con mods se le dan 384 MB.
             args.add("-cachesize");
@@ -616,17 +616,24 @@ final class GameData {
     /** @param def módulo .def extra (la traducción), relativo a la carpeta del juego, o null. */
     static String[] arguments(File gameDir, Game game, String def) {
         List<String> args = new ArrayList<>();
-        args.add("-usecwd");          // configuración y partidas guardadas en la carpeta del juego
+        if (!Motor.RAZE) args.add("-usecwd"); // configuración y partidas guardadas en la carpeta del juego
         for (File d : addonDirs(gameDir)) {
             args.add("-j");
             args.add(d.getAbsolutePath());
         }
-        if (def != null) {
+        if (def != null && !Motor.RAZE) {
             args.add("-mh");
             args.add(def);
         }
         args.add("-gamegrp");
         args.add(game.grpName);
+        if (Motor.RAZE) {
+            args.add("-nosetup"); // sin la ventana de elegir juego de Raze
+            if (I18n.ES.equals(I18n.lang())) {
+                args.add("+language"); // Raze trae su propia traducción
+                args.add("es");
+            }
+        }
         return args.toArray(new String[0]);
     }
 

@@ -32,6 +32,31 @@ android {
         }
     }
 
+    // Dos APK con el mismo lanzador: EDuke32 (software) y Raze (OpenGL ES). Raze se compila
+    // aparte (workflow raze.yml) y sus bibliotecas y datos se copian en src/raze/.
+    flavorDimensions += "motor"
+    productFlavors {
+        create("eduke32") {
+            dimension = "motor"
+            isDefault = true
+        }
+        create("raze") {
+            dimension = "motor"
+            applicationIdSuffix = ".raze"
+            versionNameSuffix = "-raze"
+            resValue("string", "app_name", "Duke3D Raze Edition")
+            externalNativeBuild {
+                cmake {
+                    arguments += listOf("-DMOTOR_RAZE=ON")
+                }
+            }
+        }
+    }
+
+    buildFeatures {
+        buildConfig = true
+    }
+
     externalNativeBuild {
         cmake {
             path = file("src/main/cpp/CMakeLists.txt")
@@ -68,5 +93,6 @@ android {
 
     packaging {
         jniLibs.useLegacyPackaging = false
+        jniLibs.pickFirsts += listOf("**/libc++_shared.so")
     }
 }

@@ -33,6 +33,8 @@
 #include "menustate.h"
 #include "m_joy.h"
 
+extern int paused;
+
 #define LOG_TAG "Raze"
 
 namespace
@@ -82,6 +84,28 @@ const char *raze_command(int func)
     default: return nullptr;
     }
 }
+// Las órdenes que manda la app son las de EDuke32: aquí se pasan a las de Raze.
+std::string translate(const std::string &c)
+{
+    int a = 0, b = 0;
+    if (sscanf(c.c_str(), "pausegame %d", &a) == 1)
+        return (a != 0) != (paused != 0) ? "pause" : "";
+    if (sscanf(c.c_str(), "r_maxfps %d", &a) == 1)
+        return "vid_maxfps " + std::to_string(a <= 0 ? 1000 : a);
+    if (sscanf(c.c_str(), "vidmode %d %d", &a, &b) == 2)
+    {
+        // Resolución interna: la app pide un tamaño; en Raze es una escala de la ventana.
+        int w = 0, h = 0;
+        SDL_Window *win = SDL_GL_GetCurrentWindow();
+        if (win) SDL_GL_GetDrawableSize(win, &w, &h);
+        float f = w > 0 ? (float)a / w : 1.f;
+        if (f > 1.f) f = 1.f;
+        char buf[64];
+        snprintf(buf, sizeof(buf), "vid_scalefactor %.3f", f);
+        return buf;
+    }
+    return c;
+}
 } // namespace
 
 // Lo llama I_StartTic() en el hilo del juego.
@@ -93,7 +117,11 @@ void android_raze_tick()
         cmds.swap(pending);
     }
     for (auto &c : cmds)
-        AddCommandString(c.c_str());
+    {
+        std::string r = translate(c);
+        if (!r.empty())
+            AddCommandString(r.c_str());
+    }
 
     float dx, dy;
     {
@@ -309,6 +337,8 @@ extern "C" int SDL_main(int argc, char *argv[])
     {
         if (chdir(dir) != 0)
             __android_log_print(ANDROID_LOG_ERROR, "Duke3D", "No se pudo entrar en %s", dir);
+        // La configuración y las partidas de Raze ($HOME/.config/raze) van en la carpeta del juego.
+        setenv("HOME", dir, 1);
     }
 
     // Pila grande: el hilo de SDL en Android tiene ~1 MB.

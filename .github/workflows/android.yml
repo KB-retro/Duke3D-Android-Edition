@@ -95,9 +95,9 @@ jobs:
           SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
         run: |
           chmod +x gradlew
-          ./gradlew assembleRelease --stacktrace
+          ./gradlew assembleEduke32Release --stacktrace
           mkdir -p ../salida
-          cp app/build/outputs/apk/release/app-release.apk "../salida/Duke3D-Android-Edition-0.1.${VERSION_CODE}.apk"
+          cp app/build/outputs/apk/eduke32/release/app-eduke32-release.apk "../salida/Duke3D-Android-Edition-0.1.${VERSION_CODE}.apk"
 
       - uses: actions/upload-artifact@v4
         with:

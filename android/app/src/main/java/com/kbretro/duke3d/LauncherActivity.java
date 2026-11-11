@@ -648,7 +648,7 @@ public class LauncherActivity extends Activity {
         // La traducción se prepara aparte (lee los .CON y hace las letras con tilde).
         new Thread(() -> {
             String def = null;
-            if (spanish) {
+            if (spanish && !Motor.RAZE) {
                 try {
                     List<GameData.Game> games = GameData.games(gameDir);
                     def = Translator.prepare(this, gameDir, games.get(0), game);

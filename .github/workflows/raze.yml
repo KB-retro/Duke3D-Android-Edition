@@ -64,7 +64,7 @@ jobs:
         run: |
           A="-G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=$NDK/build/cmake/android.toolchain.cmake
              -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=$API -DANDROID_STL=c++_shared
-             -DCMAKE_INSTALL_PREFIX=$PWD/android -DCMAKE_FIND_ROOT_PATH=$PWD/android
+             -DCMAKE_INSTALL_PREFIX=$PWD/prefijo -DCMAKE_FIND_ROOT_PATH=$PWD/prefijo
              -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON -DCMAKE_POLICY_VERSION_MINIMUM=3.5"
           cmake -S sdl2 -B sdl-a $A -DSDL_SHARED=ON -DSDL_STATIC=OFF -DSDL_TEST=OFF
           ninja -C sdl-a install > /dev/null
@@ -73,19 +73,19 @@ jobs:
           ninja -C openal-a install > /dev/null
           cmake -S zmusic -B zm-a $A
           ninja -C zm-a install > /dev/null
-          ls -la android/lib
+          ls -la prefijo/lib
 
       - name: Raze para Android (todos los errores)
         run: |
           cmake -S raze-src -B raze-a -G Ninja -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_TOOLCHAIN_FILE=$NDK/build/cmake/android.toolchain.cmake \
             -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=$API -DANDROID_STL=c++_shared \
-            -DCMAKE_FIND_ROOT_PATH=$PWD/android -DCMAKE_PREFIX_PATH=$PWD/android \
+            -DCMAKE_FIND_ROOT_PATH=$PWD/prefijo -DCMAKE_PREFIX_PATH=$PWD/prefijo \
             -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DIMPORT_EXECUTABLES=$PWD/raze-pc/ImportExecutables.cmake \
-            -DSDL2_INCLUDE_DIR=$PWD/android/include/SDL2 -DSDL2_LIBRARY=$PWD/android/lib/libSDL2.so \
-            -DCMAKE_C_FLAGS="-I$PWD/android/include" -DCMAKE_CXX_FLAGS="-I$PWD/android/include" \
-            -DOPENAL_INCLUDE_DIR=$PWD/android/include/AL -DOPENAL_LIBRARY=$PWD/android/lib/libopenal.so \
+            -DSDL2_INCLUDE_DIR=$PWD/prefijo/include/SDL2 -DSDL2_LIBRARY=$PWD/prefijo/lib/libSDL2.so \
+            -DCMAKE_C_FLAGS="-I$PWD/prefijo/include" -DCMAKE_CXX_FLAGS="-I$PWD/prefijo/include" \
+            -DOPENAL_INCLUDE_DIR=$PWD/prefijo/include/AL -DOPENAL_LIBRARY=$PWD/prefijo/lib/libopenal.so \
             -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
             -DHAVE_VULKAN=OFF -DHAVE_GLES2=ON -DNO_GTK=ON -DNO_OPENMP=ON -DHAVE_VM_JIT=OFF 2>&1 | tee cmake.log
           set +e
@@ -99,16 +99,67 @@ jobs:
           fi
           ls -la raze-a
 
-      - name: Guardar resultado
+      - name: Registro de la compilación
         if: always()
         run: |
           mkdir -p salida
           cp -f nativo.log cmake.log salida/ 2>/dev/null || true
-          cp -f raze-a/libmain.so raze-a/raze.pk3 android/lib/*.so salida/ 2>/dev/null || true
+
+      # ---- APK (el mismo lanzador que el de EDuke32, con Raze dentro) ----
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Bibliotecas y datos en el proyecto
+        run: |
+          cp -r sdl2 android/SDL2
+          J=android/app/src/raze/jniLibs/arm64-v8a
+          D=android/app/src/raze/assets/raze
+          mkdir -p $J $D
+          cp raze-a/libmain.so $J/
+          cp prefijo/lib/*.so $J/
+          cp $NDK/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/libc++_shared.so $J/
+          cp raze-a/*.pk3 $D/
+          cp raze-src/soundfont/*.sf2 $D/ 2>/dev/null || true
+          ls -la $J $D
+          $NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-readelf -d $J/libmain.so | grep NEEDED
+
+      - name: Clave de firma
+        env:
+          SIGNING_KEYSTORE_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
+          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+        run: |
+          if [ -n "$SIGNING_KEYSTORE_BASE64" ]; then
+            echo "$SIGNING_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/duke3d.p12"
+            echo "SIGNING_KEYSTORE_FILE=$RUNNER_TEMP/duke3d.p12" >> "$GITHUB_ENV"
+            if [ -z "$SIGNING_KEY_ALIAS" ]; then
+              alias=$(keytool -list -keystore "$RUNNER_TEMP/duke3d.p12" -storetype PKCS12 \
+                -storepass "$SIGNING_STORE_PASSWORD" | grep -i PrivateKeyEntry | head -1 | cut -d, -f1)
+              echo "SIGNING_KEY_ALIAS=$alias" >> "$GITHUB_ENV"
+            else
+              echo "SIGNING_KEY_ALIAS=$SIGNING_KEY_ALIAS" >> "$GITHUB_ENV"
+            fi
+          fi
+
+      - name: APK
+        working-directory: android
+        env:
+          VERSION_CODE: ${{ github.run_number }}
+          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRazeRelease --stacktrace
+          cp app/build/outputs/apk/raze/release/app-raze-release.apk "../salida/Duke3D-Raze-Edition-0.1.${VERSION_CODE}.apk"
 
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: Raze-nativo-${{ github.run_number }}
+          name: Duke3D-Raze-Edition-0.1.${{ github.run_number }}
           path: salida
-          retention-days: 7
+          retention-days: 14

@@ -8,3 +8,5 @@ salida/
 *.p12
 nativo/
 nativo.log
+android/app/src/raze/jniLibs/
+android/app/src/raze/assets/
