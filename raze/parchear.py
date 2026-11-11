@@ -13,7 +13,7 @@ root = pathlib.Path(sys.argv[1])
 def sub(path, old, new, count=1):
     p = root / path
     s = p.read_text(encoding="utf-8", errors="surrogateescape")
-    if new in s and old not in s:
+    if new in s:
         return  # ya aplicado
     if s.count(old) < 1:
         sys.exit(f"parchear: no se encuentra en {path}:\n{old}")
@@ -45,3 +45,13 @@ sub("source/common/platform/posix/sdl/i_main.cpp",
     "\tprogdir = getenv(\"RAZE_PROGDIR\") ? getenv(\"RAZE_PROGDIR\") : \"./\";\n"
     "\tif (progdir.Len() > 0 && progdir[progdir.Len() - 1] != '/') progdir += '/';\n"
     "#elif defined(PROGDIR)\n\tprogdir = PROGDIR;\n#else")
+
+# 4. En Android solo hay OpenGL ES: se usa ese motor de dibujo por defecto.
+sub("source/common/rendering/v_video.cpp",
+    "CUSTOM_CVAR(Int, vid_preferbackend, 1, CVAR_ARCHIVE",
+    "#ifdef __ANDROID__\n#define RAZE_BACKEND_DEFAULT 2\n#else\n#define RAZE_BACKEND_DEFAULT 1\n#endif\n"
+    "CUSTOM_CVAR(Int, vid_preferbackend, RAZE_BACKEND_DEFAULT, CVAR_ARCHIVE")
+sub("source/common/platform/posix/sdl/sdlglvideo.cpp",
+    "CUSTOM_CVAR(Bool, gl_es, false, CVAR_ARCHIVE",
+    "#ifdef __ANDROID__\n#define RAZE_GLES_DEFAULT true\n#else\n#define RAZE_GLES_DEFAULT false\n#endif\n"
+    "CUSTOM_CVAR(Bool, gl_es, RAZE_GLES_DEFAULT, CVAR_ARCHIVE")
