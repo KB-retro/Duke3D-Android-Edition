@@ -1440,6 +1440,20 @@ void videoGetModes(int display)
 
     SDL_CHECKFSMODES(maxx, maxy);
 
+#ifdef __ANDROID__
+    // Duke3D Android Edition: resoluciones internas del lanzador (50%-150% de la pantalla); la
+    // GPU las escala (postfx.c). Sin esto "vidmode" se quedaba siempre en la de la pantalla.
+    {
+        static int const pct[] = { 50, 75, 125, 150 };
+        for (int const p : pct)
+        {
+            int const w = (maxx * p / 100) & ~1, h = (maxy * p / 100) & ~1;
+            if (SDL_CHECKMODE(w, h))
+                SDL_ADDMODE(w, h, 8, 1);
+        }
+    }
+#endif
+
     // add windowed modes next
     // SDL sorts display modes largest to smallest, so we can just compare with mode 0
     // to make sure we aren't adding modes that are larger than the actual screen res
@@ -1853,7 +1867,26 @@ int32_t videoSetMode(int32_t x, int32_t y, int32_t c, int32_t fs)
     VLOG_F(LOG_GFX, "Setting video mode %dx%d (%d-bpp %s).", x, y, c, ((fs & 1) ? "fullscreen" : "windowed"));
 
     if (sdl_window)
+    {
+#ifdef __ANDROID__
+        // Con la ventana ya creada, la imagen del juego tiene que tener el tamaño nuevo (si no,
+        // con más resolución que antes se escribía fuera de ella y el juego se cerraba).
+        if (!sdl_surface || sdl_surface->w != x || sdl_surface->h != y)
+        {
+            if (sdl_surface) SDL_FreeSurface(sdl_surface);
+            sdl_surface = SDL_CreateRGBSurfaceWithFormat(0, x, y, 32, SDL_PIXELFORMAT_ARGB8888);
+            if (!sdl_surface)
+                SDL2_VIDEO_ERR("SDL_CreateRGBSurfaceWithFormat");
+            if (android_renderer)
+            {
+                if (android_texture) SDL_DestroyTexture(android_texture);
+                SDL_RenderSetLogicalSize(android_renderer, x, y);
+                android_texture = SDL_CreateTexture(android_renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, x, y);
+            }
+        }
+#endif
         return setvideomode_sdlcommonpost(x, y, c, fs, regrab);
+    }
 
     int const display = r_displayindex < SDL_GetNumVideoDisplays() ? r_displayindex : 0;
 

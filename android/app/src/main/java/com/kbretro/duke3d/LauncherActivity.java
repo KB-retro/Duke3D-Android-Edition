@@ -423,8 +423,10 @@ public class LauncherActivity extends Activity {
         if (classicRoot.getParent() == null) setContentView(classicRoot);
         showSystemBars();
         list.removeAllViews();
-        setErrorBackground(hasCrash());
-        addBanner();
+        // Con fallo (o sin datos) solo el fondo de Game Over, sin la carátula encima.
+        boolean error = hasCrash() || (hasStoragePermission() && GameData.findGameDir(baseDir()) == null);
+        setErrorBackground(error);
+        if (!error) addBanner();
         addSpace(12);
         showCrash();
 
