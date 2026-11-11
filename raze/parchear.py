@@ -81,3 +81,26 @@ sub("source/common/platform/posix/sdl/i_input.cpp",
 sub("source/core/gameinput.cpp",
     "\tI_GetAxes(joyAxes);",
     "\tI_GetAxes(joyAxes);\n#ifdef __ANDROID__\n\t{ void android_raze_axes(float *); android_raze_axes(joyAxes); }\n#endif")
+
+# 8. Sin libvpx (no hay en Android): los vídeos VP8/VP9 no se reproducen y el resto sí.
+sub("source/common/textures/animtexture.cpp",
+    '#include "vpx/vpx_image.h"',
+    '#ifdef USE_LIBVPX\n#include "vpx/vpx_image.h"\n#endif')
+sub("source/common/textures/animtexture.cpp",
+    "\t\telse if(pixelformat == VPX)\n",
+    "#ifdef USE_LIBVPX\n\t\telse if(pixelformat == VPX)\n")
+sub("source/common/textures/animtexture.cpp",
+    "\t\t}\n\t\telse if(pixelformat == RGB)",
+    "\t\t}\n#endif\n\t\telse if(pixelformat == RGB)")
+sub("source/common/cutscenes/movieplayer.cpp",
+    "#include <vpx/vpx_decoder.h>\n#include <vpx/vp8dx.h>",
+    "#ifdef USE_LIBVPX\n#include <vpx/vpx_decoder.h>\n#include <vpx/vp8dx.h>\n#endif")
+sub("source/common/cutscenes/movieplayer.cpp",
+    "class VpxPlayer : public MoviePlayer\n{",
+    "#ifdef USE_LIBVPX\nclass VpxPlayer : public MoviePlayer\n{")
+sub("source/common/cutscenes/movieplayer.cpp",
+    "struct AudioData\n{",
+    "#else\nclass VpxPlayer : public MoviePlayer\n{\npublic:\n\tint soundtrack = -1;\n"
+    "\tVpxPlayer(FileReader&, TArray<int>&, int, int, FString& error) { error = \"VPX video not supported\"; }\n"
+    "\tbool isvalid() { return false; }\n\tbool Frame(uint64_t) override { return false; }\n"
+    "\tFTextureID GetTexture() override { return FTextureID(); }\n};\n#endif\n\nstruct AudioData\n{")
