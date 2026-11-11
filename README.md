@@ -1,5 +1,7 @@
 # Duke3D Android Edition
 
+![Duke Nukem 3D Megaton Edition para Android - Edición especial](docs/portada.jpg)
+
 Duke Nukem 3D para Android con los archivos de tu copia de **Duke Nukem 3D: Megaton Edition**
 (Steam), incluidas las expansiones *Duke It Out in D.C.*, *Nuclear Winter* y *Caribbean: Life's
 a Beach*. El motor es [EDuke32](https://www.eduke32.com) (GPL v2).
