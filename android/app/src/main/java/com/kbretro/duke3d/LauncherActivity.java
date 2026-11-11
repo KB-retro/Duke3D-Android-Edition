@@ -48,7 +48,9 @@ public class LauncherActivity extends Activity {
     private static final int COLOR_ACCENT = 0xFFFFC21A;
 
     private LinearLayout list;
-    private ScrollView classicRoot;
+    private android.widget.FrameLayout classicRoot;
+    /** Fondo "Game Over" cuando hay un fallo (el juego se cerró o faltan los datos). */
+    private ImageView errorBackground;
 
     /** Gráficos del juego ya cargados para el menú (se cargan una vez por carpeta). */
     private static final class MenuAssets {
@@ -65,14 +67,24 @@ public class LauncherActivity extends Activity {
     private boolean loading;
     /** Últimas líneas del registro de la última partida (para ver por qué se cerró). */
     private List<String> lastLog;
+    /** Aviso en Opciones al generar el registro a mano. */
+    private volatile String logStatus;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         I18n.load(this);
         ScrollView scroll = new ScrollView(this);
-        classicRoot = scroll;
-        scroll.setBackgroundColor(COLOR_BG);
+        classicRoot = new android.widget.FrameLayout(this);
+        classicRoot.setBackgroundColor(COLOR_BG);
+        errorBackground = new ImageView(this);
+        errorBackground.setImageResource(R.drawable.fondo_error);
+        errorBackground.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        errorBackground.setVisibility(View.GONE);
+        classicRoot.addView(errorBackground, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT));
+        classicRoot.addView(scroll, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT));
         scroll.setFillViewport(true);
         list = new LinearLayout(this);
         list.setOrientation(LinearLayout.VERTICAL);
@@ -81,7 +93,7 @@ public class LauncherActivity extends Activity {
         list.setPadding(pad, pad, pad, pad);
         scroll.addView(list, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
-        setContentView(scroll);
+        setContentView(classicRoot);
     }
 
     @Override
@@ -370,8 +382,16 @@ public class LauncherActivity extends Activity {
             menuView.push(g);
         });
         p.add(I18n.t("folder"), null, this::pickFolder);
+        p.add(I18n.t("make_log"), null, () -> {
+            logStatus = I18n.t("making_log");
+            new Thread(() -> {
+                saveLog();
+                logStatus = I18n.t("log_saved") + new File(baseDir(), "registro.txt").getAbsolutePath();
+            }, "Registro").start();
+        });
         p.add(I18n.t("back"), null, () -> menuView.pop());
-        p.footer = () -> I18n.t("data") + gameDir.getAbsolutePath();
+        p.onLeave = () -> logStatus = null;
+        p.footer = () -> logStatus != null ? logStatus : I18n.t("data") + gameDir.getAbsolutePath();
         return p;
     }
 
@@ -390,6 +410,12 @@ public class LauncherActivity extends Activity {
 
     // ---- Menú sencillo (sin permiso, sin datos o tras un fallo) ----
 
+    /** Con fallo, la imagen de Game Over de fondo y el texto sobre un panel oscuro para leerlo. */
+    private void setErrorBackground(boolean on) {
+        errorBackground.setVisibility(on ? View.VISIBLE : View.GONE);
+        list.setBackgroundColor(on ? Color.argb(185, 0, 0, 0) : Color.TRANSPARENT);
+    }
+
     private boolean hasCrash() {
         if (lastLog == null) return false;
         for (String line : lastLog) if (line.contains("F/Duke3D")) return true;
@@ -401,6 +427,7 @@ public class LauncherActivity extends Activity {
         if (classicRoot.getParent() == null) setContentView(classicRoot);
         showSystemBars();
         list.removeAllViews();
+        setErrorBackground(hasCrash());
         addBanner();
         addSpace(12);
         showCrash();
@@ -414,6 +441,7 @@ public class LauncherActivity extends Activity {
         File base = baseDir();
         File gameDir = GameData.findGameDir(base);
         if (gameDir == null) {
+            setErrorBackground(true);
             if (base.equals(GameData.defaultDir()) && !base.exists()) base.mkdirs();
             addText("No se encuentra DUKE3D.GRP en:\n" + base.getAbsolutePath(), 18, COLOR_ACCENT);
             addSpace(8);

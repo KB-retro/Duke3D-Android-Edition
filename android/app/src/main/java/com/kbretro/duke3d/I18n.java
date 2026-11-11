@@ -90,6 +90,9 @@ final class I18n {
         put("gfx_no_hd", "OpenGL: sin packs HD (pon los .zip en la carpeta hd)", "OpenGL: no HD packs (put .zip files in the hd folder)");
         put("gfx_hd_found", "Packs HD: ", "HD packs: ");
         put("gfx_soft_note", "Software: escalado, FXAA, nitidez y CRT por GPU", "Software: GPU scaling, FXAA, sharpening and CRT");
+        put("make_log", "Generar registro", "Save log");
+        put("making_log", "Guardando registro...", "Saving log...");
+        put("log_saved", "Registro guardado: ", "Log saved: ");
         put("multiplayer", "Multijugador", "Multiplayer");
         put("net_game", "Juego", "Game");
         put("net_name", "Nombre", "Name");
