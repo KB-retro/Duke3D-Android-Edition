@@ -93,7 +93,9 @@ final class I18n {
         put("touch_sens", "Sensibilidad táctil", "Touch sensitivity");
         put("controls_reset", "Restablecer botones", "Reset buttons");
         put("controls_reset_done", "Botones como al principio", "Buttons reset");
-        put("controls_hint", "A: cambiar la acción del botón (en plena partida)", "A: change the button's action (in game)");
+        put("controls_hint", "A: cambiar la acción   Start: dejar ese botón por defecto",
+                "A: change the action   Start: reset that button");
+        put("gamepad_config", "Configurar mando", "Gamepad setup");
         put("mods", "Mods", "Mods");
         put("mods_empty", "Pon los mods (.zip, .pk3, .grp) en ", "Put mods (.zip, .pk3, .grp) in ");
         put("mods_note", "vóxeles y mapas sí; texturas y modelos HD no", "voxels and maps work; HD textures and models do not");

@@ -575,10 +575,24 @@ public class GameActivity extends SDLActivity {
             ControlSettings.cycleSens(this);
             updateTouch();
         });
+        p.add(I18n.t("gamepad_config"), null, () -> quickMenu.push(gamepadPage()));
+        p.add(I18n.t("back"), null, () -> quickMenu.pop());
+        return p;
+    }
+
+    /** Configurar mando: la acción de cada botón (A: cambiar, Start: por defecto). */
+    private DukeMenuView.Page gamepadPage() {
+        DukeMenuView.Page p = new DukeMenuView.Page();
+        status = null;
         for (int i = 0; i < ControlSettings.KEYS.length; i++) {
             int key = ControlSettings.KEYS[i];
-            p.addValue(ControlSettings.keyName(i), () -> ControlSettings.actionName(ControlSettings.remap(this, key)),
+            String name = ControlSettings.keyName(i);
+            p.addValue(name, () -> ControlSettings.actionName(ControlSettings.remap(this, key)),
                     () -> ControlSettings.cycleRemap(this, key));
+            p.entries.get(p.entries.size() - 1).reset = () -> {
+                ControlSettings.resetRemap(this, key);
+                status = name + ": " + ControlSettings.actionName(ControlSettings.DEFAULT);
+            };
         }
         p.add(I18n.t("controls_reset"), null, () -> {
             ControlSettings.resetRemaps(this);

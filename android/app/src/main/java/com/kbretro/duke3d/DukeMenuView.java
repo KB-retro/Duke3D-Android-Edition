@@ -36,6 +36,8 @@ final class DukeMenuView extends View {
         final Supplier<String> value;
         /** Imagen grande (la caja del juego) que se ve a la derecha mientras está elegida. */
         Bitmap cover;
+        /** Si no es null, Start sobre la opción la restablece (p. ej. un botón del mando). */
+        Runnable reset;
         /** Si devuelve true, la opción se pinta de otro color (p. ej. la pista que suena). */
         java.util.function.BooleanSupplier active;
 
@@ -530,8 +532,18 @@ final class DukeMenuView extends View {
             case KeyEvent.KEYCODE_DPAD_CENTER:
             case KeyEvent.KEYCODE_ENTER:
             case KeyEvent.KEYCODE_NUMPAD_ENTER:
+            case KeyEvent.KEYCODE_BUTTON_START: {
+                Page p = page();
+                Entry e = p.entries.isEmpty() ? null : p.entries.get(p.selected);
+                if (e != null && e.reset != null) {
+                    e.reset.run();
+                    invalidate();
+                } else {
+                    activate();
+                }
+                return true;
+            }
             case KeyEvent.KEYCODE_BUTTON_A:
-            case KeyEvent.KEYCODE_BUTTON_START:
                 activate();
                 return true;
             case KeyEvent.KEYCODE_BACK:

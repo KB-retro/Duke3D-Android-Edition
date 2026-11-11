@@ -104,6 +104,10 @@ final class ControlSettings {
         else prefs(c).edit().putInt("boton_" + keyCode, next).apply();
     }
 
+    static void resetRemap(Context c, int keyCode) {
+        prefs(c).edit().remove("boton_" + keyCode).apply();
+    }
+
     static void resetRemaps(Context c) {
         SharedPreferences.Editor e = prefs(c).edit();
         for (int k : KEYS) e.remove("boton_" + k);
