@@ -28,9 +28,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #ifdef EDUKE32_ANDROID_LEGACY
 #include "android.h"
-#ifdef __ANDROID__
-extern "C" void duke3d_android_touch(int32_t *dx, int32_t *dz, int32_t *yaw, float *pitch);
-#endif
 #endif
 
 hudweapon_t hudweap;
@@ -3200,6 +3197,9 @@ void P_UpdateAngles(int const playerNum, input_t &input)
 }
 
 
+#ifdef __ANDROID__
+extern "C" void duke3d_android_touch(int32_t *dx, int32_t *dz, int32_t *yaw, float *pitch);
+#endif
 void P_GetInput(int const playerNum)
 {
     auto      &thisPlayer = g_player[playerNum];
