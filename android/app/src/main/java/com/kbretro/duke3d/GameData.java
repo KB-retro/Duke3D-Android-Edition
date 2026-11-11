@@ -182,39 +182,36 @@ final class GameData {
                 android.util.Log.i("Duke3D", "Mod " + f.getName() + ": raiz=" + rootFiles.subList(0, Math.min(25, rootFiles.size()))
                         + " carpetas=" + topDirs + " tipos=" + exts);
 
-                // Todo dentro de una carpeta: se extrae y se usa como carpeta.
-                File base = null;
-                if (rootFiles.isEmpty() && topDirs.size() == 1) {
-                    String dir = topDirs.iterator().next();
-                    File dest = new File(outDir, safe);
-                    File stamp = new File(dest, ".extraido");
-                    String id = f.length() + ":" + f.lastModified();
-                    if (!stamp.exists() || !id.equals(readText(stamp))) {
-                        deleteTree(dest);
-                        java.util.Enumeration<? extends java.util.zip.ZipEntry> e2 = z.entries();
-                        while (e2.hasMoreElements()) {
-                            java.util.zip.ZipEntry entry = e2.nextElement();
-                            String name = entry.getName();
-                            if (entry.isDirectory() || !name.startsWith(dir + "/") || name.contains("..")) continue;
-                            File out = new File(dest, name.substring(dir.length() + 1));
-                            out.getParentFile().mkdirs();
-                            try (java.io.InputStream in = z.getInputStream(entry);
-                                 java.io.OutputStream o = new java.io.FileOutputStream(out)) {
-                                copy(in, o);
-                            }
+                // Se descomprime una vez a su carpeta y se carga ya descomprimido (-j): el juego
+                // arranca más rápido que leyéndolo del zip. Si todo va dentro de una sola carpeta
+                // del zip, se quita esa carpeta. Se repite solo si el zip cambia.
+                String strip = rootFiles.isEmpty() && topDirs.size() == 1 ? topDirs.iterator().next() + "/" : "";
+                File dest = new File(outDir, safe);
+                File stamp = new File(dest, ".extraido");
+                String id = f.length() + ":" + f.lastModified();
+                if (!stamp.exists() || !id.equals(readText(stamp))) {
+                    android.util.Log.i("Duke3D", "Descomprimiendo el mod " + f.getName());
+                    deleteTree(dest);
+                    java.util.Enumeration<? extends java.util.zip.ZipEntry> e2 = z.entries();
+                    while (e2.hasMoreElements()) {
+                        java.util.zip.ZipEntry entry = e2.nextElement();
+                        String name = entry.getName();
+                        if (entry.isDirectory() || !name.startsWith(strip) || name.contains("..")) continue;
+                        File out = new File(dest, name.substring(strip.length()));
+                        out.getParentFile().mkdirs();
+                        try (java.io.InputStream in = z.getInputStream(entry);
+                             java.io.OutputStream o = new java.io.FileOutputStream(out)) {
+                            copy(in, o);
                         }
-                        writeText(stamp, id);
                     }
-                    base = dest;
-                    args.add("-j");
-                    args.add(dest.getAbsolutePath());
-                    rootFiles.clear();
-                    File[] inner = dest.listFiles();
-                    if (inner != null) for (File x : inner) if (x.isFile() && !x.getName().startsWith(".")) rootFiles.add(x.getName());
-                } else {
-                    args.add("-g");
-                    args.add(f.getAbsolutePath());
+                    writeText(stamp, id);
                 }
+                File base = dest;
+                args.add("-j");
+                args.add(dest.getAbsolutePath());
+                rootFiles.clear();
+                File[] inner = dest.listFiles();
+                if (inner != null) for (File x : inner) if (x.isFile() && !x.getName().startsWith(".")) rootFiles.add(x.getName());
 
                 String mainDef = null;
                 for (String r : rootFiles) {
