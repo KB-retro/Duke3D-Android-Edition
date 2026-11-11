@@ -350,7 +350,10 @@ public class GameActivity extends SDLActivity {
             // Idioma del juego (el motor lo aplica tras cargar las traducciones).
             String lang = getIntent().getStringExtra(EXTRA_LANG);
             Os.setenv("DUKE3D_LANG", lang != null ? lang : "en", true);
-            if (Motor.RAZE) Os.setenv("RAZE_PROGDIR", Motor.prepareRazeData(this).getAbsolutePath(), true);
+            if (Motor.RAZE) {
+                Os.setenv("RAZE_PROGDIR", Motor.prepareRazeData(this).getAbsolutePath(), true);
+                Os.setenv("RAZE_BACKEND", String.valueOf(GraphicsSettings.razeBackend(this)), true);
+            }
         } catch (ErrnoException ignored) {
         }
         // Pantalla completa desde el principio (antes de que SDL cree su superficie): si la

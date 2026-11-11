@@ -95,7 +95,7 @@ jobs:
             -DCMAKE_C_FLAGS="-I$PWD/prefijo/include" -DCMAKE_CXX_FLAGS="-I$PWD/prefijo/include" \
             -DOPENAL_INCLUDE_DIR=$PWD/prefijo/include/AL -DOPENAL_LIBRARY=$PWD/prefijo/lib/libopenal.so \
             -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
-            -DHAVE_VULKAN=OFF -DHAVE_GLES2=ON -DNO_GTK=ON -DNO_OPENMP=ON -DHAVE_VM_JIT=OFF 2>&1 | tee cmake.log
+            -DHAVE_VULKAN=ON -DVULKAN_USE_XLIB=OFF -DVULKAN_USE_WAYLAND=OFF -DHAVE_GLES2=ON -DNO_GTK=ON -DNO_OPENMP=ON -DHAVE_VM_JIT=OFF 2>&1 | tee cmake.log
           set +e
           ninja -C raze-a -k 0 > nativo.log 2>&1
           rc=$?

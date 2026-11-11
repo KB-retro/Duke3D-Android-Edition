@@ -55,7 +55,7 @@ sub("source/common/platform/posix/sdl/i_main.cpp",
 # 4. En Android solo hay OpenGL ES: se usa ese motor de dibujo por defecto.
 sub("source/common/rendering/v_video.cpp",
     "CUSTOM_CVAR(Int, vid_preferbackend, 1, CVAR_ARCHIVE",
-    "#ifdef __ANDROID__\n#define RAZE_BACKEND_DEFAULT 2\n#else\n#define RAZE_BACKEND_DEFAULT 1\n#endif\n"
+    "#ifdef __ANDROID__\n#define RAZE_BACKEND_DEFAULT 1\n#else\n#define RAZE_BACKEND_DEFAULT 1\n#endif\n"
     "CUSTOM_CVAR(Int, vid_preferbackend, RAZE_BACKEND_DEFAULT, CVAR_ARCHIVE")
 sub("source/common/platform/posix/sdl/sdlglvideo.cpp",
     "CUSTOM_CVAR(Bool, gl_es, false, CVAR_ARCHIVE",
@@ -123,3 +123,9 @@ sub("source/common/rendering/v_video.cpp",
     "CUSTOM_CVAR (Bool, vid_vsync, false, CVAR_ARCHIVE|CVAR_GLOBALCONFIG)",
     "#ifdef __ANDROID__\nCUSTOM_CVAR (Bool, vid_vsync, true, CVAR_ARCHIVE|CVAR_GLOBALCONFIG)\n#else\n"
     "CUSTOM_CVAR (Bool, vid_vsync, false, CVAR_ARCHIVE|CVAR_GLOBALCONFIG)\n#endif")
+
+# 13. Motor gráfico elegido en la app (RAZE_BACKEND: 1 Vulkan, 2 OpenGL ES). Si Vulkan falla,
+#     Raze pasa solo a OpenGL ES.
+sub("source/common/rendering/v_video.cpp",
+    "int V_GetBackend()\n{",
+    "#ifdef __ANDROID__\n#include <stdlib.h>\n#endif\nint V_GetBackend()\n{\n#ifdef __ANDROID__\n\tif (const char* b = getenv(\"RAZE_BACKEND\")) return atoi(b) == 2 ? 2 : 1;\n#endif")

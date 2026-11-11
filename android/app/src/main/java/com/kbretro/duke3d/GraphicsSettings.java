@@ -58,12 +58,23 @@ final class GraphicsSettings {
      * @param onScale    al cambiar la resolución interna (o null)
      * @param onChange   al cambiar cualquier otra (o null)
      */
+    /** Solo Raze: 1 Vulkan, 2 OpenGL ES (se aplica al arrancar el juego). */
+    static int razeBackend(Context c) {
+        return prefs(c).getInt("raze_motor", 1) == 2 ? 2 : 1;
+    }
+
     static void addTo(Context c, DukeMenuView.Page p, IntConsumer onScale, Runnable onChange) {
         p.addValue(I18n.t("resolution"), () -> scaleLabel(scale(c)), () -> {
             int next = next(SCALE_VALUES, scale(c));
             prefs(c).edit().putInt("escala", next).apply();
             if (onScale != null) onScale.accept(next);
         });
+        if (Motor.RAZE) {
+            // Raze dibuja con la GPU: los filtros de EDuke32 no se usan; se elige el motor gráfico.
+            p.addValue(I18n.t("gfx_backend"), () -> razeBackend(c) == 1 ? "Vulkan" : "OpenGL ES",
+                    () -> prefs(c).edit().putInt("raze_motor", razeBackend(c) == 1 ? 2 : 1).apply());
+            return;
+        }
         p.addValue(I18n.t("gfx_scaler"), () -> I18n.t(SCALER_KEYS[scaler(c)]),
                 () -> cycle(c, "escalado", scaler(c), SCALER_KEYS.length, onChange));
         p.addValue("FXAA", () -> I18n.t(fxaa(c) != 0 ? "yes" : "no"),
