@@ -97,7 +97,7 @@ final class I18n {
                 "A: change the action   Start: reset that button");
         put("gamepad_config", "Configurar mando", "Gamepad setup");
         put("mods", "Mods", "Mods");
-        put("mods_empty", "Pon los mods (.zip, .pk3, .grp) en ", "Put mods (.zip, .pk3, .grp) in ");
+        put("mods_empty", "Pon los mods (.zip, .pk3, .grp o carpetas) en ", "Put mods (.zip, .pk3, .grp or folders) in ");
         put("mods_note", "vóxeles y mapas sí; texturas y modelos HD no", "voxels and maps work; HD textures and models do not");
         put("achievement_unlocked", "LOGRO DESBLOQUEADO", "ACHIEVEMENT UNLOCKED");
         put("unlocked_short", "OK", "OK");
