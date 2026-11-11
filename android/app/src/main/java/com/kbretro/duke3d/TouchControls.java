@@ -275,34 +275,43 @@ final class TouchControls extends View {
 
     private void drawButton(Canvas c, Button b) {
         float r = b.r;
-        fill.setShader(new RadialGradient(b.cx - r * 0.3f, b.cy - r * 0.3f, r * 1.3f,
-                b.pressed ? new int[]{Color.argb(220, 255, 170, 40), Color.argb(200, 170, 40, 0)}
-                        : new int[]{Color.argb(150, 95, 95, 100), Color.argb(150, 20, 20, 24)},
+        // Sangre que gotea del borde (siempre igual en cada botón)
+        drawBlood(c, b.cx, b.cy, r, b.func * 7919 + 13, b.pressed);
+        // Metal oscuro manchado de rojo
+        fill.setShader(new RadialGradient(b.cx - r * 0.3f, b.cy - r * 0.35f, r * 1.35f,
+                b.pressed ? new int[]{Color.argb(235, 230, 30, 10), Color.argb(225, 90, 0, 0)}
+                        : new int[]{Color.argb(200, 70, 18, 14), Color.argb(215, 12, 4, 4)},
                 null, Shader.TileMode.CLAMP));
         c.drawCircle(b.cx, b.cy, r, fill);
         fill.setShader(null);
-        // Borde amarillo radiactivo con un halo
-        glow.setStrokeWidth(r * 0.18f);
-        glow.setColor(b.pressed ? Color.argb(120, 255, 120, 0) : Color.argb(60, 255, 200, 0));
+        // Halo rojo y borde grueso de metal ensangrentado
+        glow.setStrokeWidth(r * 0.22f);
+        glow.setColor(b.pressed ? Color.argb(150, 255, 40, 0) : Color.argb(70, 160, 0, 0));
         c.drawCircle(b.cx, b.cy, r, glow);
-        ring.setStrokeWidth(Math.max(2f, r * 0.07f));
-        ring.setColor(b.pressed ? Color.rgb(255, 230, 120) : Color.argb(220, 255, 196, 0));
+        ring.setStrokeWidth(Math.max(3f, r * 0.11f));
+        ring.setColor(b.pressed ? Color.rgb(255, 80, 40) : Color.argb(235, 120, 8, 4));
         c.drawCircle(b.cx, b.cy, r, ring);
+        ring.setStrokeWidth(Math.max(1f, r * 0.025f));
+        ring.setColor(Color.argb(200, 20, 0, 0));
+        c.drawCircle(b.cx, b.cy, r * 0.94f, ring);
+        drawRivets(c, b.cx, b.cy, r * 1.0f, Math.max(2f, r * 0.07f));
         drawIcon(c, b, r * 0.62f);
     }
 
     private void drawStick(Canvas c) {
         float r = stickR;
         // Base
-        fill.setShader(new RadialGradient(stickBaseX, stickBaseY, r, new int[]{Color.argb(70, 60, 60, 60),
-                Color.argb(130, 15, 15, 15)}, null, Shader.TileMode.CLAMP));
+        drawBlood(c, stickBaseX, stickBaseY, r, 4242, false);
+        fill.setShader(new RadialGradient(stickBaseX, stickBaseY, r, new int[]{Color.argb(110, 60, 12, 10),
+                Color.argb(180, 10, 3, 3)}, null, Shader.TileMode.CLAMP));
         c.drawCircle(stickBaseX, stickBaseY, r, fill);
         fill.setShader(null);
-        ring.setStrokeWidth(Math.max(2f, r * 0.04f));
-        ring.setColor(Color.argb(170, 255, 196, 0));
+        ring.setStrokeWidth(Math.max(3f, r * 0.07f));
+        ring.setColor(Color.argb(220, 120, 8, 4));
         c.drawCircle(stickBaseX, stickBaseY, r, ring);
+        drawRivets(c, stickBaseX, stickBaseY, r, Math.max(2f, r * 0.045f));
         // Marcas de dirección
-        ring.setColor(Color.argb(110, 255, 196, 0));
+        ring.setColor(Color.argb(150, 200, 30, 20));
         for (int i = 0; i < 4; i++) {
             double a = Math.PI / 2 * i;
             float ix = stickBaseX + (float) Math.cos(a) * r * 0.82f, iy = stickBaseY + (float) Math.sin(a) * r * 0.82f;
@@ -322,6 +331,61 @@ final class TouchControls extends View {
         ring.setStrokeWidth(Math.max(1.5f, kr * 0.06f));
         c.drawCircle(stickX, stickY, kr, ring);
         fill.setColor(Color.WHITE);
+    }
+
+    private final Paint blood = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Path drip = new Path();
+
+    /** Salpicaduras y goterones de sangre alrededor del borde; la forma depende de seed. */
+    private void drawBlood(Canvas c, float x, float y, float r, int seed, boolean pressed) {
+        java.util.Random rnd = new java.util.Random(seed);
+        blood.setStyle(Paint.Style.FILL);
+        int alpha = pressed ? 235 : 200;
+        // Manchas pegadas al borde
+        int spots = 5 + rnd.nextInt(4);
+        for (int i = 0; i < spots; i++) {
+            double a = rnd.nextDouble() * Math.PI * 2;
+            float d = r * (0.92f + rnd.nextFloat() * 0.22f);
+            float sr = r * (0.07f + rnd.nextFloat() * 0.13f);
+            blood.setColor(Color.argb(alpha, 110 + rnd.nextInt(60), 0, 0));
+            c.drawCircle(x + (float) Math.cos(a) * d, y + (float) Math.sin(a) * d, sr, blood);
+        }
+        // Gotas sueltas un poco más lejos
+        int drops = 4 + rnd.nextInt(4);
+        for (int i = 0; i < drops; i++) {
+            double a = rnd.nextDouble() * Math.PI * 2;
+            float d = r * (1.15f + rnd.nextFloat() * 0.3f);
+            blood.setColor(Color.argb(alpha - 40, 140, 0, 0));
+            c.drawCircle(x + (float) Math.cos(a) * d, y + (float) Math.sin(a) * d, r * (0.025f + rnd.nextFloat() * 0.04f), blood);
+        }
+        // Chorretones que caen por debajo
+        int runs = 2 + rnd.nextInt(2);
+        for (int i = 0; i < runs; i++) {
+            double a = Math.PI / 2 + (rnd.nextDouble() - 0.5) * 1.6; // parte de abajo
+            float sx = x + (float) Math.cos(a) * r * 0.9f, sy = y + (float) Math.sin(a) * r * 0.9f;
+            float w = r * (0.07f + rnd.nextFloat() * 0.06f), len = r * (0.35f + rnd.nextFloat() * 0.5f);
+            drip.reset();
+            drip.moveTo(sx - w, sy);
+            drip.lineTo(sx + w, sy);
+            drip.lineTo(sx + w * 0.6f, sy + len);
+            drip.lineTo(sx - w * 0.6f, sy + len);
+            drip.close();
+            blood.setColor(Color.argb(alpha, 125, 0, 0));
+            c.drawPath(drip, blood);
+            c.drawCircle(sx, sy + len, w * 1.15f, blood); // gota al final
+        }
+    }
+
+    /** Remaches metálicos alrededor del borde. */
+    private void drawRivets(Canvas c, float x, float y, float r, float size) {
+        for (int i = 0; i < 6; i++) {
+            double a = Math.PI / 3 * i + Math.PI / 6;
+            float rx = x + (float) Math.cos(a) * r, ry = y + (float) Math.sin(a) * r;
+            fill.setShader(new RadialGradient(rx - size * 0.3f, ry - size * 0.3f, size * 1.2f,
+                    new int[]{Color.rgb(200, 190, 180), Color.rgb(60, 50, 45)}, null, Shader.TileMode.CLAMP));
+            c.drawCircle(rx, ry, size, fill);
+        }
+        fill.setShader(null);
     }
 
     /** El símbolo de radiación: tres aspas y un círculo en el centro. */
@@ -350,7 +414,7 @@ final class TouchControls extends View {
      */
     private void drawIcon(Canvas c, Button b, float s) {
         float x = b.cx, y = b.cy;
-        int color = b.pressed ? Color.WHITE : Color.rgb(255, 214, 30);
+        int color = b.pressed ? Color.rgb(255, 214, 30) : Color.rgb(240, 228, 205); // blanco hueso; amarillo al pulsar
         iconFill.setStyle(Paint.Style.FILL);
         iconFill.setColor(color);
         iconLine.setStyle(Paint.Style.STROKE);
