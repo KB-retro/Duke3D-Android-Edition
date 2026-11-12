@@ -288,8 +288,36 @@ public class LauncherActivity extends Activity {
     private DukeMenuView.Page extrasPage(File gameDir) {
         DukeMenuView.Page p = new DukeMenuView.Page();
         p.add(I18n.t("dos_games"), null, () -> menuView.push(dosPage(gameDir)));
+        p.add(I18n.t("guide"), null, () -> menuView.push(guidePage()));
         p.add(I18n.t("music"), null, () -> menuView.push(musicPage(gameDir)));
         p.add(I18n.t("achievements"), null, () -> menuView.push(achievementsPage()));
+        p.add(I18n.t("back"), null, () -> menuView.pop());
+        return p;
+    }
+
+    // ---- Guía de uso ----
+
+    private DukeMenuView.Page guidePage() {
+        DukeMenuView.Page p = new DukeMenuView.Page();
+        for (int i = 0; i < Guide.TOPICS.length; i++) {
+            int n = i;
+            p.add(Guide.TOPICS[i].title(), null, () -> menuView.push(guideTopic(n)));
+        }
+        p.add(I18n.t("back"), null, () -> menuView.pop());
+        return p;
+    }
+
+    private DukeMenuView.Page guideTopic(int i) {
+        Guide.Topic t = Guide.TOPICS[i];
+        DukeMenuView.Page p = new DukeMenuView.Page();
+        p.title = t.title();
+        p.body = t.lines();
+        if (i + 1 < Guide.TOPICS.length) {
+            p.add(I18n.t("next"), null, () -> {
+                menuView.pop();
+                menuView.push(guideTopic(i + 1));
+            });
+        }
         p.add(I18n.t("back"), null, () -> menuView.pop());
         return p;
     }

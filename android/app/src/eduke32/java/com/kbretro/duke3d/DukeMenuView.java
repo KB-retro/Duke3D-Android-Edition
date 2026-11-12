@@ -56,6 +56,9 @@ final class DukeMenuView extends View {
         Supplier<String> footer;
         /** Se llama al salir de la página con B/Atrás. */
         Runnable onLeave;
+        /** Página de texto (la guía): título arriba y párrafos en letra pequeña; las opciones, abajo. */
+        String title;
+        String[] body;
         int selected;
 
         Page add(String label, Bitmap icon, Runnable action) {
@@ -239,6 +242,11 @@ final class DukeMenuView extends View {
         // Lista centrada en vertical (en el lanzador y en el menú rápido, que ya no lleva logo).
         float block = Math.min(19f, 156f / Math.max(1, visible)) * visible;
         float top = 100 - block / 2f;
+        if (p.body != null) {
+            drawBody(c, p);
+            block = 13f * visible;
+            top = 186 - block;
+        }
         float bottom = top + block;
         float step = Math.min(19f, (bottom - top) / Math.max(1, visible));
         float textScale = step >= 17 ? 1f : step / 17f;
@@ -473,6 +481,63 @@ final class DukeMenuView extends View {
             c.drawBitmap(b, null, dst, paint);
             x += b.getWidth() * scale;
         }
+    }
+
+    /** Texto de una página de la guía: título grande y párrafos ajustados al ancho. */
+    private void drawBody(Canvas c, Page p) {
+        float y0 = 8;
+        if (p.title != null) {
+            float ts = 0.8f, tw = bigWidth(p.title) * ts;
+            if (tw > 290) {
+                ts *= 290 / tw;
+                tw = 290;
+            }
+            drawBig(c, p.title, 160 - tw / 2f, 16, ts, pixel);
+            y0 = 30;
+        }
+        float glyphH = art.height(DukeArt.STARTALPHANUM) > 0 ? art.height(DukeArt.STARTALPHANUM) : 8;
+        float avail = (186 - 13f * p.entries.size() - 6) - y0;
+        float width = 296, left = 12;
+        float s = 0.75f;
+        java.util.List<String> lines = null;
+        // Letra lo más grande posible que quepa en el hueco.
+        for (int tries = 0; tries < 8; tries++) {
+            lines = wrap(p.body, width / s);
+            if (lines.size() * (glyphH + 3) * s <= avail) break;
+            s *= 0.9f;
+        }
+        float lh = (glyphH + 3) * s;
+        float y = y0 + lh / 2f;
+        for (String l : lines) {
+            if (!l.isEmpty()) drawSmall(c, l, left, y, s, false);
+            y += lh;
+        }
+    }
+
+    /** Parte los párrafos en líneas del ancho dado (en unidades de la letra pequeña). */
+    private java.util.List<String> wrap(String[] paras, float maxW) {
+        java.util.List<String> out = new ArrayList<>();
+        for (String para : paras) {
+            String indent = para.startsWith("- ") ? "  " : "";
+            StringBuilder line = new StringBuilder();
+            float lw = 0;
+            for (String word : para.split(" ")) {
+                float ww = 0;
+                for (char ch : clean(word).toCharArray()) ww += smallAdvance(ch);
+                float space = line.length() > 0 ? 5 : 0;
+                if (line.length() > 0 && lw + space + ww > maxW) {
+                    out.add(line.toString());
+                    line = new StringBuilder(indent);
+                    lw = indent.length() * 5;
+                    space = 0;
+                }
+                if (space > 0) line.append(' ');
+                line.append(word);
+                lw += space + ww;
+            }
+            if (line.length() > 0) out.add(line.toString());
+        }
+        return out;
     }
 
     /** Letra pequeña del juego (STARTALPHANUM). */
