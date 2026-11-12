@@ -337,6 +337,17 @@ public class LauncherActivity extends Activity {
         return null;
     }
 
+    /** Carpetas "extras" posibles: en la carpeta elegida, junto al juego o encima de él. */
+    private List<File> extrasDirs(File gameDir) {
+        List<File> out = new ArrayList<>();
+        File[] bases = {baseDir(), gameDir, gameDir != null ? gameDir.getParentFile() : null};
+        for (File b : bases) {
+            File d = findIgnoreCase(b, "extras");
+            if (d != null && d.isDirectory() && !out.contains(d)) out.add(d);
+        }
+        return out;
+    }
+
     private File extrasDir() {
         File d = findIgnoreCase(baseDir(), "extras");
         return d != null ? d : new File(baseDir(), "extras");
@@ -344,17 +355,25 @@ public class LauncherActivity extends Activity {
 
     private DukeMenuView.Page dosPage(File gameDir) {
         DukeMenuView.Page p = new DukeMenuView.Page();
-        File extras = extrasDir();
+        List<File> dirs = extrasDirs(gameDir);
         int found = 0;
         for (DosGame g : DOS_GAMES) {
-            File exe = findExe(findIgnoreCase(extras, g.folder), g.exe, 3);
-            if (exe == null || !exe.isFile()) continue;
+            File exe = null;
+            for (File extras : dirs) {
+                // Primero en su carpeta (duke1 / duke2); si no, en cualquier sitio dentro de extras.
+                exe = findExe(findIgnoreCase(extras, g.folder), g.exe, 3);
+                if (exe == null) exe = findExe(extras, g.exe, 4);
+                if (exe != null) break;
+            }
+            if (exe == null) continue;
             found++;
-            p.add(g.title, null, () -> launchDos(gameDir, g, exe));
+            File f = exe;
+            p.add(g.title, null, () -> launchDos(gameDir, g, f));
         }
         p.add(I18n.t("back"), null, () -> menuView.pop());
-        String where = new File(extras, "duke1").getAbsolutePath() + " / duke2";
-        p.footer = found == 0 ? () -> I18n.t("dos_none") + where : () -> "";
+        String where = (dirs.isEmpty() ? extrasDir() : dirs.get(0)).getAbsolutePath();
+        android.util.Log.i("Duke3D", "Juegos de MS-DOS: " + found + " en " + dirs);
+        p.footer = found == 0 ? () -> I18n.t("dos_none") + where + "/duke1 - duke2" : () -> "";
         return p;
     }
 
