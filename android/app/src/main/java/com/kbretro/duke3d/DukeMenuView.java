@@ -89,6 +89,15 @@ final class DukeMenuView extends View {
     private final Paint frame = new Paint();
     private final List<Page> stack = new ArrayList<>();
     private Runnable onBackFromRoot;
+    /** Texto de la versión (p. ej. «Duke3D Raze Edition 0.1.27»), o null. */
+    String versionText;
+    private final Paint versionPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+
+    {
+        versionPaint.setColor(Color.argb(200, 255, 255, 255));
+        versionPaint.setTextAlign(Paint.Align.RIGHT);
+        versionPaint.setShadowLayer(3, 1, 1, Color.BLACK);
+    }
 
     private final Paint pixel = new Paint();
     private final Paint dim = new Paint();
@@ -324,6 +333,11 @@ final class DukeMenuView extends View {
         // Pie: una línea de información si la hay (carpeta, pista que suena...).
         if (p.footer != null) drawSmall(c, p.footer.get(), 160, 191, 0.6f, true);
 
+        // Versión de la app, pequeña y en blanco, arriba a la derecha (solo en el lanzador).
+        if (versionText != null && !overlay) {
+            versionPaint.setTextSize(Math.max(18f, h / 60f));
+            c.drawText(versionText, w - versionPaint.getTextSize() * 0.6f, versionPaint.getTextSize() * 1.3f, versionPaint);
+        }
         postInvalidateDelayed(50);
     }
 
