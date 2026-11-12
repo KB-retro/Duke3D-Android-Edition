@@ -608,7 +608,8 @@ public class GameActivity extends SDLActivity {
         p.add(I18n.t("game_menu"), null, () -> {
             // El menú del propio juego (el de Escape).
             closeMenu();
-            ui.postDelayed(() -> sendKey(KeyEvent.KEYCODE_ESCAPE), 150);
+            if (Motor.RAZE) command("menu_main");
+            else ui.postDelayed(() -> sendKey(KeyEvent.KEYCODE_ESCAPE), 150);
         });
         p.add(I18n.t("cheats"), null, () -> quickMenu.push(cheatsPage()));
         p.add(I18n.t("graphics"), null, () -> quickMenu.push(graphicsPage()));
@@ -842,14 +843,22 @@ public class GameActivity extends SDLActivity {
         boolean down = e.getAction() == KeyEvent.ACTION_DOWN;
         boolean first = down && e.getRepeatCount() == 0;
         if (key == KeyEvent.KEYCODE_BUTTON_START || key == KeyEvent.KEYCODE_MENU) {
-            // Start: abre y cierra el menú del propio juego (Escape), en partida y en el menú.
-            if (first) sendKey(KeyEvent.KEYCODE_ESCAPE);
+            // Start: abre y cierra el menú del propio juego (lo decide Raze según esté o no abierto).
+            if (first) {
+                releaseAllFuncs(); // que no se quede nada pulsado al pasar al menú
+                command("android_start");
+            }
             return true;
         }
         if (inGame()) {
             int f = razeDefault(key);
             if (f >= 0 && (e.getRepeatCount() == 0 || !down)) pressFunc(f, down);
             return true; // ningún botón del mando llega a Raze por su cuenta (lo haría dos veces)
+        }
+        // Fuera de la partida: si se suelta un botón que se pulsó jugando, se suelta también en el juego.
+        if (!down) {
+            int f = remapOr(key);
+            if (f >= 0) pressFunc(f, false);
         }
         int k = razeMenuKey(key);
         if (k >= 0) {

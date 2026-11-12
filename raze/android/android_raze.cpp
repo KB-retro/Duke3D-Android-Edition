@@ -99,6 +99,12 @@ std::string translate(const std::string &c)
         paused = a != 0 ? 2 : 0;
         return "";
     }
+    if (c == "android_start")
+    {
+        // Start del mando: abre o cierra el menú del juego (y cierra la consola si se abrió).
+        if (ConsoleState != c_up) return "toggleconsole";
+        return menuactive != MENU_Off ? "closemenu" : "menu_main";
+    }
     if (sscanf(c.c_str(), "r_maxfps %d", &a) == 1)
         return "vid_maxfps " + std::to_string(a <= 0 ? 1000 : a);
     if (sscanf(c.c_str(), "vidmode %d %d", &a, &b) == 2)
