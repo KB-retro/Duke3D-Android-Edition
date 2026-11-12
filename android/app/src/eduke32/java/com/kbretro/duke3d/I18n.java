@@ -134,6 +134,11 @@ final class I18n {
         put("achievement_unlocked", "LOGRO DESBLOQUEADO", "ACHIEVEMENT UNLOCKED");
         put("unlocked_short", "OK", "OK");
         put("dos_keys", "Teclas", "Keys");
+        put("dos_act_jump", "Saltar (Ctrl)", "Jump (Ctrl)");
+        put("dos_act_fire", "Disparar (Alt)", "Fire (Alt)");
+        put("dos_act_use", "Usar / Arriba", "Use / Up");
+        put("dos_act_down", "Abajo", "Down");
+        put("dos_act_none", "Nada", "Nothing");
         put("dos_jump", "SALTAR", "JUMP");
         put("dos_fire", "DISPARAR", "FIRE");
         put("dos_use", "USAR", "USE");
@@ -148,8 +153,8 @@ final class I18n {
         put("dos_no_save", "No hay ninguna partida guardada", "No saved game");
         put("dos_save_error", "No se pudo guardar", "Could not save");
         put("dos_load_error", "No se pudo cargar", "Could not load");
-        put("dos_pad_help", "A saltar - B/X/R2 disparar - Y usar - Start Intro - Select Esc",
-                "A jump - B/X/R2 fire - Y use - Start Enter - Select Esc");
+        put("dos_pad_help", "A: cambiar - la cruceta y el stick son siempre las flechas",
+                "A: change - D-pad and stick are always the arrows");
         put("dos_games", "Clásicos de MS-DOS", "MS-DOS classics");
         put("dos_missing", "Copia el juego en ", "Copy the game to ");
         put("dos_none", "No hay juegos: copia los archivos en ", "No games: copy the files to ");

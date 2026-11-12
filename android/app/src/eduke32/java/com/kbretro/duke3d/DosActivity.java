@@ -215,7 +215,6 @@ public class DosActivity extends SDLActivity {
         p.add(I18n.t("quickload"), null, () -> stateCommand(CMD_LOAD));
         p.add(I18n.t("graphics"), null, () -> quickMenu.push(graphicsPage()));
         p.add(I18n.t("controls"), null, () -> quickMenu.push(controlsPage()));
-        p.add(I18n.t("dos_keys"), null, () -> quickMenu.push(keysPage()));
         p.add(I18n.t("to_launcher"), null, () -> quit(false));
         p.add(I18n.t("quit_game"), null, () -> quit(true));
         p.footer = () -> status != null ? status : "";
@@ -266,28 +265,61 @@ public class DosActivity extends SDLActivity {
         DukeMenuView.Page p = new DukeMenuView.Page();
         p.addValue(I18n.t("touch_controls"), () -> ControlSettings.touchModeLabel(this),
                 () -> ControlSettings.cycleTouchMode(this));
+        p.add(I18n.t("gamepad_config"), null, () -> quickMenu.push(gamepadPage()));
         p.add(I18n.t("back"), null, () -> quickMenu.pop());
-        p.footer = () -> I18n.t("dos_pad_help");
         return p;
     }
 
-    /** Teclas que el mando no tiene: se pulsan al volver al juego. */
-    private DukeMenuView.Page keysPage() {
+    // ---- Configurar mando ----
+
+    /** Botones que se pueden cambiar (la cruceta y el stick siempre son las flechas). */
+    private static final int[] PAD_BUTTONS = {
+            KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BUTTON_X, KeyEvent.KEYCODE_BUTTON_Y,
+            KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_BUTTON_R1, KeyEvent.KEYCODE_BUTTON_L2, KeyEvent.KEYCODE_BUTTON_R2,
+            KeyEvent.KEYCODE_BUTTON_THUMBL, KeyEvent.KEYCODE_BUTTON_THUMBR,
+            KeyEvent.KEYCODE_BUTTON_START, KeyEvent.KEYCODE_BUTTON_SELECT,
+    };
+    private static final String[] PAD_NAMES = {"A", "B", "X", "Y", "L1", "R1", "L2", "R2", "L3", "R3", "Start", "Select"};
+
+    /** Lo que puede hacer un botón: tecla del juego y su nombre (clave de I18n o texto). */
+    private static final int[] ACTION_KEYS = {K_CTRL, K_ALT, K_UP, K_DOWN, K_ENTER, K_ESC, K_SPACE,
+            'y', 'n', K_F1, K_F1 + 1, K_F1 + 2, K_F1 + 9, K_SHIFT, K_TAB, -1};
+    private static final String[] ACTION_NAMES = {"dos_act_jump", "dos_act_fire", "dos_act_use", "dos_act_down",
+            "Intro", "Esc", "dos_space", "Y", "N", "F1", "F2", "F3", "F10", "Shift", "Tab", "dos_act_none"};
+
+    private static String actionName(int key) {
+        for (int i = 0; i < ACTION_KEYS.length; i++)
+            if (ACTION_KEYS[i] == key) return I18n.t(ACTION_NAMES[i]);
+        return "?";
+    }
+
+    /** Tecla del botón: la elegida en "Configurar mando" o la de serie. */
+    private int padAction(int code) {
+        return prefs().getInt("dos_boton_" + code, padKey(code));
+    }
+
+    private void cyclePadAction(int code) {
+        int cur = padAction(code), i = 0;
+        for (int k = 0; k < ACTION_KEYS.length; k++) if (ACTION_KEYS[k] == cur) i = k;
+        int next = ACTION_KEYS[(i + 1) % ACTION_KEYS.length];
+        if (next == padKey(code)) prefs().edit().remove("dos_boton_" + code).apply();
+        else prefs().edit().putInt("dos_boton_" + code, next).apply();
+    }
+
+    private DukeMenuView.Page gamepadPage() {
         DukeMenuView.Page p = new DukeMenuView.Page();
-        Object[][] keys = {
-                {"Intro / Enter", K_ENTER}, {"Esc", K_ESC}, {I18n.t("dos_space"), K_SPACE},
-                {I18n.t("dos_yes_key"), (int) 'y'}, {I18n.t("dos_no_key"), (int) 'n'},
-                {"F1", K_F1}, {"F2", K_F1 + 1}, {"F3", K_F1 + 2}, {"F10", K_F1 + 9},
-        };
-        for (Object[] k : keys) {
-            int code = (Integer) k[1];
-            p.add((String) k[0], null, () -> {
-                closeMenu();
-                ui.postDelayed(() -> key(code, true), 150);
-                ui.postDelayed(() -> key(code, false), 300);
-            });
+        for (int i = 0; i < PAD_BUTTONS.length; i++) {
+            int code = PAD_BUTTONS[i];
+            p.addValue(PAD_NAMES[i], () -> actionName(padAction(code)), () -> cyclePadAction(code));
         }
+        p.add(I18n.t("controls_reset"), null, () -> {
+            SharedPreferences.Editor ed = prefs().edit();
+            for (int code : PAD_BUTTONS) ed.remove("dos_boton_" + code);
+            ed.apply();
+            status = I18n.t("controls_reset_done");
+        });
         p.add(I18n.t("back"), null, () -> quickMenu.pop());
+        p.footer = () -> status != null ? status : I18n.t("dos_pad_help");
         return p;
     }
 
@@ -408,7 +440,7 @@ public class DosActivity extends SDLActivity {
             padUsed = true;
             updateTouch(false);
         }
-        int k = pad ? padKey(code) : keyboardKey(code);
+        int k = pad ? padAction(code) : keyboardKey(code);
         if (k < 0) return true;
         if (e.getRepeatCount() == 0 || !down) key(k, down);
         return true;
@@ -454,8 +486,16 @@ public class DosActivity extends SDLActivity {
         }
         boolean l = Math.max(e.getAxisValue(MotionEvent.AXIS_LTRIGGER), e.getAxisValue(MotionEvent.AXIS_BRAKE)) > 0.5f;
         boolean r = Math.max(e.getAxisValue(MotionEvent.AXIS_RTRIGGER), e.getAxisValue(MotionEvent.AXIS_GAS)) > 0.5f;
-        if (l != trigL) key(K_CTRL, trigL = l);
-        if (r != trigR) key(K_ALT, trigR = r);
+        if (l != trigL) {
+            trigL = l;
+            int k = padAction(KeyEvent.KEYCODE_BUTTON_L2);
+            if (k >= 0) key(k, l);
+        }
+        if (r != trigR) {
+            trigR = r;
+            int k = padAction(KeyEvent.KEYCODE_BUTTON_R2);
+            if (k >= 0) key(k, r);
+        }
         return true;
     }
 
