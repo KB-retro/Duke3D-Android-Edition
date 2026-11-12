@@ -632,8 +632,6 @@ final class GameData {
             // Sin sincronía vertical: el límite de FPS del lanzador (60/120...) manda.
             args.add("+vid_vsync");
             args.add("0");
-            args.add("+vk_debug_callstack");
-            args.add("0");
             for (String cmd : GraphicsSettings.razeCommands(ctx)) {
                 int sp = cmd.indexOf(' ');
                 args.add("+" + cmd.substring(0, sp));

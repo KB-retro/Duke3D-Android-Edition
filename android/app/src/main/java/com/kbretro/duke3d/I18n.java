@@ -41,13 +41,6 @@ final class I18n {
         put("quickload", "Carga rápida", "Quick load");
         put("cheats", "Trucos", "Cheats");
         put("graphics", "Gráficos", "Graphics");
-        put("vk_driver", "Driver Vulkan", "Vulkan driver");
-        put("vk_driver_system", "Del sistema", "System");
-        put("vk_driver_note", "Pulsa para cargar un driver (.so o .zip, p. ej. malisx2); otra vez para volver al del sistema",
-                "Press to load a driver (.so or .zip, e.g. malisx2); again to go back to the system one");
-        put("vk_driver_loading", "Copiando el driver...", "Copying the driver...");
-        put("vk_driver_ok", "Driver cargado: ", "Driver loaded: ");
-        put("vk_driver_error", "No se pudo cargar el driver: ", "Could not load the driver: ");
         put("game_menu", "Menú del juego", "Game menu");
         put("to_launcher", "Volver al lanzador", "Back to launcher");
         put("quit_game", "Salir del juego", "Quit game");
@@ -114,13 +107,6 @@ final class I18n {
         put("gfx_ssao", "Oclusión ambiental", "Ambient occlusion");
         put("gfx_hq", "Texturas suavizadas", "Smoothed textures");
         put("gfx_lens", "Destellos de luz", "Lens flares");
-        put("vk_driver", "Driver Vulkan", "Vulkan driver");
-        put("vk_driver_system", "Del sistema", "System");
-        put("vk_driver_note", "Pulsa para cargar un driver (.so o .zip, p. ej. malisx2); otra vez para volver al del sistema",
-                "Press to load a driver (.so or .zip, e.g. malisx2); again to go back to the system one");
-        put("vk_driver_loading", "Copiando el driver...", "Copying the driver...");
-        put("vk_driver_ok", "Driver cargado: ", "Driver loaded: ");
-        put("vk_driver_error", "No se pudo cargar el driver: ", "Could not load the driver: ");
         put("game_menu", "Menú del juego", "Game menu");
         put("mods_campaigns", "Campañas", "Campaigns");
         put("mods_gfx", "Gráficos y sonido", "Graphics & sound");

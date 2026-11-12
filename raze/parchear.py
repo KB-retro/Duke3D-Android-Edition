@@ -124,10 +124,10 @@ sub("source/common/rendering/v_video.cpp",
     "#ifdef __ANDROID__\nCUSTOM_CVAR (Bool, vid_vsync, true, CVAR_ARCHIVE|CVAR_GLOBALCONFIG)\n#else\n"
     "CUSTOM_CVAR (Bool, vid_vsync, false, CVAR_ARCHIVE|CVAR_GLOBALCONFIG)\n#endif")
 
-# 13. En Android solo Vulkan (sin OpenGL ni OpenGL ES), diga lo que diga la configuración.
+# 13. En Android solo OpenGL ES, diga lo que diga la configuración.
 sub("source/common/rendering/v_video.cpp",
     "int V_GetBackend()\n{",
-    "int V_GetBackend()\n{\n#ifdef __ANDROID__\n\treturn 1;\n#endif")
+    "int V_GetBackend()\n{\n#ifdef __ANDROID__\n\treturn 2;\n#endif")
 
 # 14. Errores graves: en Android se escriben en el registro (no hay kdialog ni GTK) y se
 #     enseñan con el cuadro de SDL.
@@ -142,13 +142,6 @@ sub("source/common/platform/posix/sdl/i_system.cpp",
 sub("source/common/rendering/vulkan/system/vk_renderdevice.cpp",
     "\tmaxuniformblock = device->PhysicalDevice.Properties.Properties.limits.maxUniformBufferRange;",
     "\tmaxuniformblock = std::min<uint32_t>(device->PhysicalDevice.Properties.Properties.limits.maxUniformBufferRange, 65536);")
-
-# 16. Diagnóstico: con RAZE_VKDEBUG se activan las capas de validación de Vulkan (van en el
-#     APK de diagnóstico) aunque la configuración guardada diga lo contrario.
-sub("source/common/platform/posix/sdl/sdlglvideo.cpp",
-    "\t\t\tbuilder.DebugLayer(vk_debug);",
-    "#ifdef __ANDROID__\n\t\t\tbuilder.DebugLayer(vk_debug || getenv(\"RAZE_VKDEBUG\") != nullptr);\n#else\n"
-    "\t\t\tbuilder.DebugLayer(vk_debug);\n#endif")
 
 # 17. Vulkan en Android (las capas de validación lo señalan en la Mali-G615):
 #  a) La cadena de imágenes pedía alfa OPACO y Android solo admite INHERIT: se elige uno admitido.
@@ -193,28 +186,6 @@ sub("source/common/rendering/vulkan/textures/vk_framebuffer.cpp",
 sub("source/common/rendering/vulkan/system/vk_commandbuffer.cpp",
     "\t\tsubmit.AddSignal(fb->GetFramebufferManager()->RenderFinishedSemaphore.get());",
     "\t\tsubmit.AddSignal(fb->GetFramebufferManager()->RenderFinished());")
-
-# 18. Driver Vulkan alternativo (malisx2, opción de Extras): ver android_raze.cpp.
-sub("libraries/ZVulkan/src/vulkaninstance.cpp",
-    '#include "vulkaninstance.h"\n',
-    '#include "vulkaninstance.h"\n#ifdef __ANDROID__\nextern "C" void* android_raze_vk_gipa();\n#endif\n')
-sub("libraries/ZVulkan/src/vulkaninstance.cpp",
-    "\tif (volkInitialize() != VK_SUCCESS)",
-    "#ifdef __ANDROID__\n\tif (void* gipa = android_raze_vk_gipa()) volkInitializeCustom((PFN_vkGetInstanceProcAddr)gipa); else\n#endif\n"
-    "\tif (volkInitialize() != VK_SUCCESS)")
-sub("source/common/platform/posix/sdl/sdlglvideo.cpp",
-    "bool I_GetVulkanPlatformExtensions(unsigned int *count, const char **names)\n{",
-    "#ifdef __ANDROID__\nbool android_raze_custom_driver();\nbool android_raze_vk_extensions(unsigned int *count, const char **names);\n"
-    "bool android_raze_vk_surface(SDL_Window *win, VkInstance instance, VkSurfaceKHR *surface);\n#endif\n"
-    "bool I_GetVulkanPlatformExtensions(unsigned int *count, const char **names)\n{\n"
-    "#ifdef __ANDROID__\n\tif (android_raze_custom_driver()) return android_raze_vk_extensions(count, names);\n#endif")
-sub("source/common/platform/posix/sdl/sdlglvideo.cpp",
-    "bool I_CreateVulkanSurface(VkInstance instance, VkSurfaceKHR *surface)\n{",
-    "bool I_CreateVulkanSurface(VkInstance instance, VkSurfaceKHR *surface)\n{\n"
-    "#ifdef __ANDROID__\n\tif (android_raze_custom_driver()) return android_raze_vk_surface(Priv::window, instance, surface);\n#endif")
-sub("source/CMakeLists.txt",
-    "\ttarget_link_libraries( ${PROJECT_NAME} log android EGL GLESv2 )",
-    "\ttarget_link_libraries( ${PROJECT_NAME} log android EGL GLESv2 ${ADRENOTOOLS_LIBS} )")
 
 # 19. Pantallas que Android gira (p. ej. la Odin 2 Portal, panel vertical): Raze no gira la
 #     imagen él mismo, así que la cadena de imágenes va sin giro y lo hace el sistema (si no,

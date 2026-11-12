@@ -352,17 +352,6 @@ public class GameActivity extends SDLActivity {
             Os.setenv("DUKE3D_LANG", lang != null ? lang : "en", true);
             if (Motor.RAZE) {
                 Os.setenv("RAZE_PROGDIR", Motor.prepareRazeData(this).getAbsolutePath(), true);
-                // Driver Vulkan propio (Opciones → Gráficos), si hay uno cargado.
-                String drv = Motor.vkDriver(this);
-                if (drv != null) {
-                    Os.setenv("RAZE_VK_DRIVER", drv, true);
-                    Os.setenv("RAZE_DRIVERDIR", Motor.driverDir(this).getAbsolutePath() + "/", true);
-                    Os.setenv("RAZE_LIBDIR", getApplicationInfo().nativeLibraryDir + "/", true);
-                }
-                // Diagnóstico de Vulkan si el APK trae las capas de validación.
-                if (new File(getApplicationInfo().nativeLibraryDir, "libVkLayer_khronos_validation.so").exists()) {
-                    Os.setenv("RAZE_VKDEBUG", "1", true);
-                }
             }
         } catch (ErrnoException ignored) {
         }
@@ -813,9 +802,8 @@ public class GameActivity extends SDLActivity {
             case KeyEvent.KEYCODE_BUTTON_R2: return 5;     // disparar
             case KeyEvent.KEYCODE_BUTTON_THUMBL: return 7; // correr
             case KeyEvent.KEYCODE_BUTTON_THUMBR: return 41; // centrar vista
-            case KeyEvent.KEYCODE_BUTTON_SELECT: return 38; // mapa
             case KeyEvent.KEYCODE_DPAD_UP: return 35;      // botiquín
-            case KeyEvent.KEYCODE_DPAD_DOWN: return 33;    // jetpack
+            case KeyEvent.KEYCODE_DPAD_DOWN: return 38;    // mapa
             case KeyEvent.KEYCODE_DPAD_LEFT: return 30;    // objeto anterior
             case KeyEvent.KEYCODE_DPAD_RIGHT: return 31;   // objeto siguiente
             default: return -1;
@@ -847,6 +835,11 @@ public class GameActivity extends SDLActivity {
         boolean down = e.getAction() == KeyEvent.ACTION_DOWN;
         if (inGame()) {
             if (key == KeyEvent.KEYCODE_BUTTON_START) {
+                // Start: el menú del propio juego (Escape); Select: nuestro menú rápido.
+                if (down && e.getRepeatCount() == 0) sendKey(KeyEvent.KEYCODE_ESCAPE);
+                return true;
+            }
+            if (key == KeyEvent.KEYCODE_BUTTON_SELECT) {
                 if (down && e.getRepeatCount() == 0 && art != null) openMenu();
                 return true;
             }
