@@ -323,6 +323,20 @@ public class LauncherActivity extends Activity {
         return null;
     }
 
+    /** El ejecutable en la carpeta o en sus subcarpetas (zips descomprimidos tal cual). */
+    private static File findExe(File dir, String name, int depth) {
+        File f = findIgnoreCase(dir, name);
+        if (f != null && f.isFile()) return f;
+        File[] list = depth > 0 && dir != null ? dir.listFiles() : null;
+        if (list == null) return null;
+        for (File d : list) {
+            if (!d.isDirectory()) continue;
+            f = findExe(d, name, depth - 1);
+            if (f != null) return f;
+        }
+        return null;
+    }
+
     private File extrasDir() {
         File d = findIgnoreCase(baseDir(), "extras");
         return d != null ? d : new File(baseDir(), "extras");
@@ -333,7 +347,7 @@ public class LauncherActivity extends Activity {
         File extras = extrasDir();
         int found = 0;
         for (DosGame g : DOS_GAMES) {
-            File exe = findIgnoreCase(findIgnoreCase(extras, g.folder), g.exe);
+            File exe = findExe(findIgnoreCase(extras, g.folder), g.exe, 3);
             if (exe == null || !exe.isFile()) continue;
             found++;
             p.add(g.title, null, () -> launchDos(gameDir, g, exe));
