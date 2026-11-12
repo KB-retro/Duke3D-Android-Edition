@@ -744,7 +744,7 @@ public class GameActivity extends SDLActivity {
                 return true;
             }
         }
-        if (Motor.RAZE && isPadKey(e) && razePadKey(e)) return true;
+        if (isPadKey(e) && razePadKey(e)) return true;
         if (key == KeyEvent.KEYCODE_BACK) {
             if (e.getAction() == KeyEvent.ACTION_DOWN && e.getRepeatCount() == 0) {
                 // En plena partida, el menú rápido; en los menús del juego, el título, etc., Escape.
@@ -761,7 +761,7 @@ public class GameActivity extends SDLActivity {
     @Override
     public boolean dispatchGenericMotionEvent(MotionEvent e) {
         gamepadUsed(e);
-        if (Motor.RAZE && !menuOpen() && (e.getSource() & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK) {
+        if (!menuOpen() && (e.getSource() & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK) {
             razePadMotion(e);
             return true;
         }
@@ -779,10 +779,10 @@ public class GameActivity extends SDLActivity {
         return true;
     }
 
-    // ---- Mando en Raze ----
-    // Raze no trae botones asignados al mando por SDL en Android: aquí el mando pasa por la app
-    // como los táctiles (y respeta "Configurar mando"). En los menús de Raze, el mando hace de
-    // teclado: cruceta/stick = flechas, A = Intro, B = Escape.
+    // ---- Mando (las dos versiones, la misma disposición) ----
+    // El mando pasa por la app como los táctiles (y respeta "Configurar mando"), en Raze y en
+    // EDuke32. En los menús del juego hace de teclado: cruceta/stick = flechas, A = Intro,
+    // B/Select = Escape; Start abre y cierra el menú del juego.
 
     private static boolean isPadKey(KeyEvent e) {
         int src = e.getSource();
@@ -843,7 +843,8 @@ public class GameActivity extends SDLActivity {
             // menú rápido, que se abre con Atrás o el botón táctil).
             if (first) {
                 releaseAllFuncs(); // que no se quede nada pulsado al pasar al menú
-                command("android_start");
+                if (Motor.RAZE) command("android_start");
+                else sendKey(KeyEvent.KEYCODE_ESCAPE); // EDuke32: Escape abre y cierra su menú
             }
             return true;
         }

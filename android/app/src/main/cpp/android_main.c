@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <time.h>
 #include <android/log.h>
 
 int main(int argc, char *argv[]);
@@ -301,6 +302,8 @@ int SDL_main(int argc, char *argv[])
 static pthread_mutex_t touch_lock = PTHREAD_MUTEX_INITIALIZER;
 static float touch_mx, touch_my, touch_lx, touch_ly, touch_sens = 1.f;
 static uint64_t touch_buttons;
+static float stick_x, stick_y;          // stick derecho del mando (-1..1)
+static struct timespec stick_last;
 
 JNIEXPORT void JNICALL Java_com_kbretro_duke3d_GameActivity_nativeTouchMove(JNIEnv *env, jclass cls, jfloat x, jfloat y)
 {
@@ -320,6 +323,17 @@ JNIEXPORT void JNICALL Java_com_kbretro_duke3d_GameActivity_nativeTouchLook(JNIE
     touch_lx += dx;
     touch_ly += dy;
     touch_sens = sens;
+    pthread_mutex_unlock(&touch_lock);
+}
+
+/** Stick derecho del mando: giro continuo (como en la versión Raze). */
+JNIEXPORT void JNICALL Java_com_kbretro_duke3d_GameActivity_nativeStickLook(JNIEnv *env, jclass cls, jfloat x, jfloat y)
+{
+    (void)env;
+    (void)cls;
+    pthread_mutex_lock(&touch_lock);
+    stick_x = x;
+    stick_y = y;
     pthread_mutex_unlock(&touch_lock);
 }
 
@@ -353,8 +367,16 @@ void duke3d_android_touch(int32_t *dx, int32_t *dz, int32_t *yaw, float *pitch)
 {
     pthread_mutex_lock(&touch_lock);
     float mx = touch_mx, my = touch_my, lx = touch_lx, ly = touch_ly, s = touch_sens;
+    float sx = stick_x, sy = stick_y;
     touch_lx = touch_ly = 0;
     pthread_mutex_unlock(&touch_lock);
+
+    // El stick gira según el tiempo transcurrido (igual a 60 que a 120 FPS).
+    struct timespec now;
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    float dt = stick_last.tv_sec ? (now.tv_sec - stick_last.tv_sec) + (now.tv_nsec - stick_last.tv_nsec) / 1e9f : 0.f;
+    stick_last = now;
+    if (dt < 0.f || dt > 0.1f) dt = 0.f;
 
     if (mx != 0.f || my != 0.f)
     {
@@ -367,6 +389,6 @@ void duke3d_android_touch(int32_t *dx, int32_t *dz, int32_t *yaw, float *pitch)
         if (*dz < -32767) *dz = -32767;
     }
     // Arrastrar la pantalla entera (unos 1900 px) gira algo más de media vuelta.
-    *yaw += (int32_t)(lx * 18.f * s);
-    *pitch = ly * 0.22f * s;
+    *yaw += (int32_t)(lx * 18.f * s + sx * 30000.f * dt);
+    *pitch = ly * 0.22f * s + sy * 160.f * dt;
 }
