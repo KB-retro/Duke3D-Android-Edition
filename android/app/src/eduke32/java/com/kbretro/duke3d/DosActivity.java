@@ -293,17 +293,34 @@ public class DosActivity extends SDLActivity {
         return "?";
     }
 
+    /** Duke Nukem II: B vuelve atrás en sus menús (Esc); disparar va en X y R2. */
+    private boolean isDuke2() {
+        String exe = getIntent().getStringExtra(EXTRA_EXE);
+        return exe != null && exe.toUpperCase(java.util.Locale.ROOT).endsWith("NUKEM2.EXE");
+    }
+
+    /** Lo de serie de cada juego. */
+    private int defaultKey(int code) {
+        if (isDuke2() && code == KeyEvent.KEYCODE_BUTTON_B) return K_ESC;
+        return padKey(code);
+    }
+
+    /** Cada juego guarda su propia configuración del mando. */
+    private String padPref(int code) {
+        return "dos_boton_" + (isDuke2() ? "d2_" : "") + code;
+    }
+
     /** Tecla del botón: la elegida en "Configurar mando" o la de serie. */
     private int padAction(int code) {
-        return prefs().getInt("dos_boton_" + code, padKey(code));
+        return prefs().getInt(padPref(code), defaultKey(code));
     }
 
     private void cyclePadAction(int code) {
         int cur = padAction(code), i = 0;
         for (int k = 0; k < ACTION_KEYS.length; k++) if (ACTION_KEYS[k] == cur) i = k;
         int next = ACTION_KEYS[(i + 1) % ACTION_KEYS.length];
-        if (next == padKey(code)) prefs().edit().remove("dos_boton_" + code).apply();
-        else prefs().edit().putInt("dos_boton_" + code, next).apply();
+        if (next == defaultKey(code)) prefs().edit().remove(padPref(code)).apply();
+        else prefs().edit().putInt(padPref(code), next).apply();
     }
 
     private DukeMenuView.Page gamepadPage() {
@@ -314,7 +331,7 @@ public class DosActivity extends SDLActivity {
         }
         p.add(I18n.t("controls_reset"), null, () -> {
             SharedPreferences.Editor ed = prefs().edit();
-            for (int code : PAD_BUTTONS) ed.remove("dos_boton_" + code);
+            for (int code : PAD_BUTTONS) ed.remove(padPref(code));
             ed.apply();
             status = I18n.t("controls_reset_done");
         });
