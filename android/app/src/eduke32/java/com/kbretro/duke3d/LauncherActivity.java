@@ -328,6 +328,18 @@ public class LauncherActivity extends Activity {
                     {"ppakgame.con", null}, {"ppakdefs.con", null}, {"ppakuser.con", null},
                     {"ppakpent.map", null}, {"needle.wav", null}, {"needle2.wav", null}, {"pob.mid", null},
             };
+            // Además: sus texturas (TILES014.ART) y todos sus sonidos y músicas.
+            File[] all = src.listFiles();
+            if (all != null) {
+                for (File in : all) {
+                    String n = in.getName().toLowerCase(java.util.Locale.ROOT);
+                    if (!in.isFile() || !(n.endsWith(".art") || n.endsWith(".voc") || n.endsWith(".wav")
+                            || n.endsWith(".mid"))) continue;
+                    copyFile(in, new File(prep, n));
+                    copyFile(in, new File(prep, n.toUpperCase(java.util.Locale.ROOT)));
+                    copyFile(in, new File(prep, in.getName()));
+                }
+            }
             for (String[] f : files) {
                 File in = findIgnoreCase(src, f[0]);
                 if (in == null) continue;
