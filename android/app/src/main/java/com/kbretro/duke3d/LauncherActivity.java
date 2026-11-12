@@ -492,6 +492,27 @@ public class LauncherActivity extends Activity {
     // ---- Carpeta del juego ----
 
     private static final int REQUEST_FOLDER = 2;
+
+    /** Carpeta elegida por el usuario, o /Duke3D si no ha elegido ninguna. */
+    private File baseDir() {
+        String path = getPreferences(MODE_PRIVATE).getString("carpeta", null);
+        return path != null ? new File(path) : GameData.defaultDir();
+    }
+
+    private void setBaseDir(File dir) {
+        getPreferences(MODE_PRIVATE).edit()
+                .putString("carpeta", dir != null ? dir.getAbsolutePath() : null).apply();
+        refresh();
+    }
+
+    private void pickFolder() {
+        try {
+            startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE), REQUEST_FOLDER);
+        } catch (Exception e) {
+            addText("Este dispositivo no tiene selector de carpetas.", 14, COLOR_ACCENT);
+        }
+    }
+
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
