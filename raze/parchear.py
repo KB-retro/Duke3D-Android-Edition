@@ -317,21 +317,36 @@ sub("source/core/menu/razemenu.cpp",
     "\tif (!desc || !(*desc)->IsKindOf(RUNTIME_CLASS(DListMenuDescriptor))) return;\n"
     "\tauto ld = static_cast<DListMenuDescriptor*>(*desc);\n"
     "\tconst char* lang = getenv(\"DUKE3D_LANG\");\n"
-    "\tbool es = lang && !strcmp(lang, \"es\");\n"
+    "\tbool es = lang && !strcmp(lang, \"es\");\n\tint removed = 0;\n"
     "\tfor (unsigned i = 0; i < ld->mItems.Size(); i++)\n\t{\n"
     # «Terminar partida» (vuelve al título): en castellano Raze lo traduce igual que «Salir».
     "\t\tif (ld->mItems[i]->mAction == FName(\"EndgameMenu\"))\n\t\t{\n"
-    "\t\t\tld->mItems[i] = CreateCustomListMenuItemText(ld->mXpos, ld->mItems[i]->mYpos, ld->mLinespacing, 'e',\n"
-    "\t\t\t\tes ? \"Terminar partida\" : \"End Game\", ld->mFont, CR_UNTRANSLATED, 0, FName(\"EndgameMenu\"), -1);\n"
+    "\t\t\tld->mItems[i]->StringVar(FName(\"mText\")) = es ? \"Terminar partida\" : \"End Game\";\n"
     "\t\t\tcontinue;\n\t\t}\n"
     "\t\tif (ld->mItems[i]->mAction != FName(\"OptionsMenu\") && ld->mItems[i]->mAction != FName(\"QuitMenu\")) continue;\n"
     "\t\tfor (unsigned j = i + 1; j < ld->mItems.Size(); j++) ld->mItems[j]->mYpos -= ld->mLinespacing;\n"
     "\t\tld->mItems.Delete(i);\n"
     "\t\tif (ld->mSelectedItem > (int)i) ld->mSelectedItem--;\n"
-    "\t\ti--;\n\t}\n}\n#endif\n\n"
+    "\t\tremoved++;\n"
+    "\t\ti--;\n\t}\n"
+    # Con menos opciones, las que quedan bajan para seguir centradas.
+    "\tfor (auto item : ld->mItems)\n"
+    "\t\tif (item->mAction != NAME_None) item->mYpos += removed * ld->mLinespacing / 2.;\n"
+    "}\n#endif\n\n"
     "void BuildGameMenus()\n{\n#ifdef __ANDROID__\n\tandroid_hide_options(NAME_Mainmenu);\n"
     "\tandroid_hide_options(NAME_IngameMenu);\n#endif\n\tBuildEpisodeMenu();")
 sub("source/core/menu/razemenu.cpp",
     "bool M_SetSpecialMenu(FName& menu, int param)\n{",
     "bool M_SetSpecialMenu(FName& menu, int param)\n{\n"
     "#ifdef __ANDROID__\n\tif (menu == FName(\"OptionsMenu\")) return false;\n#endif")
+
+# 26. Sin consola en Android: no se puede usar sin teclado y, fuera de partida, dejaba la
+#     pantalla sin el menú ni su fondo. Donde Raze pondría la consola a pantalla completa (al
+#     cerrar el menú sin partida), vuelve al menú principal.
+sub("source/common/console/c_console.cpp",
+    "void C_FullConsole ()\n{",
+    "void C_FullConsole ()\n{\n#ifdef __ANDROID__\n\tConsoleState = c_up;\n\tgamestate = GS_MENUSCREEN;\n"
+    "\tC_DoCommand(\"menu_main\");\n\treturn;\n#endif")
+sub("source/common/console/c_console.cpp",
+    "void C_ToggleConsole ()\n{\n\tint togglestate;",
+    "void C_ToggleConsole ()\n{\n#ifdef __ANDROID__\n\treturn;\n#endif\n\tint togglestate;")

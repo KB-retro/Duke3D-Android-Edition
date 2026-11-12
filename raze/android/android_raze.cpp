@@ -130,8 +130,20 @@ std::string translate(const std::string &c)
     }
     if (c == "android_start")
     {
-        // Start del mando: abre o cierra el menú del juego (y cierra la consola si se abrió).
-        if (ConsoleState != c_up) return "toggleconsole";
+        // Start del mando: en los vídeos y pantallas intermedias los salta (antes los pausaba
+        // al abrir el menú encima); en partida abre o cierra el menú del juego; fuera de partida
+        // el menú principal está siempre abierto.
+        if (gamestate == GS_CUTSCENE || gamestate == GS_INTRO || gamestate == GS_INTERMISSION)
+        {
+            event_t ev = {};
+            ev.type = EV_KeyDown;
+            ev.data1 = KEY_SPACE;
+            D_PostEvent(&ev);
+            ev.type = EV_KeyUp;
+            D_PostEvent(&ev);
+            return "";
+        }
+        if (gamestate != GS_LEVEL) return menuactive == MENU_Off ? "menu_main" : "";
         return menuactive != MENU_Off ? "closemenu" : "menu_main";
     }
     if (sscanf(c.c_str(), "r_maxfps %d", &a) == 1)
@@ -160,6 +172,14 @@ void android_raze_tick()
         std::lock_guard<std::mutex> g(queueLock);
         cmds.swap(pending);
     }
+    // Fuera de partida (título), el menú principal de Raze siempre abierto: si algo lo cierra se
+    // quedaba la pantalla vacía o la consola.
+    if ((gamestate == GS_MENUSCREEN || gamestate == GS_FULLCONSOLE) && menuactive == MENU_Off)
+    {
+        if (gamestate == GS_FULLCONSOLE) gamestate = GS_MENUSCREEN;
+        AddCommandString("menu_main");
+    }
+
     bool flush = false;
     for (auto &c : cmds)
     {

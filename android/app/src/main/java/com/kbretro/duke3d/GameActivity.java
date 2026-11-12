@@ -601,14 +601,6 @@ public class GameActivity extends SDLActivity {
     private DukeMenuView.Page rootPage() {
         DukeMenuView.Page p = new DukeMenuView.Page();
         p.add(I18n.t("continue"), null, this::closeMenu);
-        p.add(I18n.t("quicksave"), null, () -> {
-            closeMenu();
-            command("quicksave");
-        });
-        p.add(I18n.t("quickload"), null, () -> {
-            closeMenu();
-            command("quickload");
-        });
         p.add(I18n.t("cheats"), null, () -> quickMenu.push(cheatsPage()));
         p.add(I18n.t("graphics"), null, () -> quickMenu.push(graphicsPage()));
         p.add(I18n.t("controls"), null, () -> quickMenu.push(controlsPage()));
@@ -758,7 +750,8 @@ public class GameActivity extends SDLActivity {
         if (key == KeyEvent.KEYCODE_BACK) {
             if (e.getAction() == KeyEvent.ACTION_DOWN && e.getRepeatCount() == 0) {
                 // En plena partida, el menú rápido; en los menús del juego, el título, etc., Escape.
-                if (art != null && inGame()) openMenu();
+                // En Raze, Atrás abre siempre el menú rápido (su menú se maneja con B).
+                if (art != null && (inGame() || Motor.RAZE)) openMenu();
                 else sendKey(KeyEvent.KEYCODE_ESCAPE);
             }
             return true;
