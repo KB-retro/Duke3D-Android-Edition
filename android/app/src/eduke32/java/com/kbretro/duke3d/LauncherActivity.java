@@ -264,7 +264,7 @@ public class LauncherActivity extends Activity {
         // Penthouse Paradise (DLC gratuito de 1997), si está en extras/; como las expansiones,
         // no sale con una campaña activada.
         File pent = campaign ? null : findPenthouse(gameDir);
-        if (pent != null) root.add("Penthouse Paradise", null, () -> launchPenthouse(gameDir, pent));
+        if (pent != null) root.addGame("Penthouse Paradise", box(R.drawable.caja_penthouse), () -> launchPenthouse(gameDir, pent));
         root.add(I18n.t("mods"), null, () -> menuView.push(modsPage(gameDir)));
         root.add(I18n.t("options"), null, () -> menuView.push(optionsPage(gameDir)));
         root.add(I18n.t("extras"), null, () -> menuView.push(extrasPage(gameDir)));
