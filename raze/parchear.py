@@ -225,3 +225,11 @@ sub("libraries/ZVulkan/src/vulkanswapchain.cpp",
     "\tswapChainCreateInfo.preTransform = (caps.Capabilites.supportedTransforms & VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR)\n"
     "\t\t? VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR : caps.Capabilites.currentTransform;\n#else\n"
     "\tswapChainCreateInfo.preTransform = caps.Capabilites.currentTransform;\n#endif")
+
+# 20. Al terminar Raze (por cualquier vía: «Salir» de su menú, el menú rápido, Android cerrando
+#     la ventana...) se guarda la configuración y se sale sin la limpieza final: al cerrar el
+#     sonido OpenAL abortaba en alcCloseDevice y Vulkan fallaba al desmontarse.
+sub("source/core/gamecontrol.cpp",
+    "\t//DeleteScreenJob();\n\tif (gi)",
+    "#ifdef __ANDROID__\n\tG_SaveConfig();\n\tfflush(stdout);\n\tfflush(stderr);\n\t_Exit(r == -1 ? 1 : 0);\n#endif\n"
+    "\t//DeleteScreenJob();\n\tif (gi)")
