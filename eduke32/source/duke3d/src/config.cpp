@@ -549,7 +549,7 @@ void CONFIG_SetupJoystick(void)
     {
         int32_t layout = 0;
         SCRIPT_GetNumber(ud.config.scripthandle, "Controls", "AndroidPadLayout", &layout);
-        if (layout < 1)
+        if (layout < 2)
             CONFIG_SetGameControllerDefaults();
         g_androidPadLayoutDone = 1;  // a partir de aquí ya se puede guardar la marca
     }
@@ -984,7 +984,7 @@ void CONFIG_WriteSetup(uint32_t flags)
 #ifdef __ANDROID__
     // Solo cuando ya se ha leído el mando (al arrancar se guarda una vez antes de leerlo).
     if (g_androidPadLayoutDone)
-        SCRIPT_PutNumber(ud.config.scripthandle, "Controls", "AndroidPadLayout", 1, FALSE, FALSE);
+        SCRIPT_PutNumber(ud.config.scripthandle, "Controls", "AndroidPadLayout", 2, FALSE, FALSE);
 #endif
 
     SCRIPT_PutNumber(ud.config.scripthandle, "Setup", "CacheSize", MAXCACHE1DSIZE, FALSE, FALSE);
