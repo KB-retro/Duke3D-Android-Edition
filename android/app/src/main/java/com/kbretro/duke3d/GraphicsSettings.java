@@ -113,26 +113,14 @@ final class GraphicsSettings {
                     new String[]{"no", "4x", "8x", "16x"},
                     new String[]{"gl_texture_filter_anisotropic 1", "gl_texture_filter_anisotropic 4",
                             "gl_texture_filter_anisotropic 8", "gl_texture_filter_anisotropic 16"}),
-            new RazeOpt("FXAA", "raze_fxaa", 0,
-                    new String[]{"no", "gfx_low", "gfx_mid", "gfx_high"},
-                    new String[]{"gl_fxaa 0", "gl_fxaa 1", "gl_fxaa 2", "gl_fxaa 3"}),
-            new RazeOpt("gfx_bloom", "raze_bloom", 0,
-                    new String[]{"no", "yes"},
-                    new String[]{"gl_bloom 0", "gl_bloom 1"}),
-            new RazeOpt("gfx_color", "raze_color", 0,
-                    new String[]{"gfx_normal", "gfx_cinema", "gfx_vivid", "gfx_palette"},
-                    new String[]{"gl_tonemap 0", "gl_tonemap 1", "gl_tonemap 2", "gl_tonemap 5"}),
-            new RazeOpt("gfx_ssao", "raze_ssao", 0,
-                    new String[]{"no", "gfx_low", "gfx_mid", "gfx_high"},
-                    new String[]{"gl_ssao 0", "gl_ssao 1", "gl_ssao 2", "gl_ssao 3"}),
+            new RazeOpt("gfx_colors", "raze_paleta", 0,
+                    new String[]{"gfx_truecolor", "gfx_palette"},
+                    new String[]{"hw_useindexedcolortextures 0", "hw_useindexedcolortextures 1"}),
             new RazeOpt("gfx_hq", "raze_hq", 0,
                     new String[]{"no", "xBRZ 2x", "xBRZ 3x"},
                     new String[]{"gl_texture_hqresizemode 0",
                             "gl_texture_hqresizemult 2;gl_texture_hqresizemode 4",
                             "gl_texture_hqresizemult 3;gl_texture_hqresizemode 4"}),
-            new RazeOpt("gfx_lens", "raze_lens", 0,
-                    new String[]{"no", "yes"},
-                    new String[]{"gl_lens 0", "gl_lens 1"}),
     };
 
     private static int razeIndex(Context c, RazeOpt o) {
@@ -143,6 +131,11 @@ final class GraphicsSettings {
     /** Las órdenes de consola de Raze para los ajustes guardados. */
     static java.util.List<String> razeCommands(Context c) {
         java.util.List<String> out = new java.util.ArrayList<>();
+        // OpenGL ES no tiene posprocesado (FXAA, resplandor, tonos, oclusión, destellos): apagado.
+        out.add("gl_fxaa 0");
+        out.add("gl_bloom 0");
+        out.add("gl_ssao 0");
+        out.add("gl_lens 0");
         for (RazeOpt o : RAZE_OPTS) {
             for (String cmd : o.commands[razeIndex(c, o)].split(";")) out.add(cmd.trim());
         }

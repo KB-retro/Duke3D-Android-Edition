@@ -34,6 +34,7 @@
 #include "m_joy.h"
 #include "gameconfigfile.h"
 #include "savegamemanager.h"
+#include "texturemanager.h"
 #include "tarray.h"
 #include "zstring.h"
 
@@ -143,8 +144,14 @@ void android_raze_tick()
         std::lock_guard<std::mutex> g(queueLock);
         cmds.swap(pending);
     }
+    bool flush = false;
     for (auto &c : cmds)
     {
+        // Filtrado, anisotrópico y suavizado de texturas: en OpenGL ES solo se aplican al crear
+        // cada textura, así que tras cambiarlos se rehacen todas.
+        if (c.rfind("gl_texture_filter", 0) == 0 || c.rfind("gl_texture_hqresize", 0) == 0 ||
+            c.rfind("hw_useindexedcolortextures", 0) == 0)
+            flush = true;
         if (c == "quit")
         {
             // Salir: se guarda la configuración y se termina sin desmontar Vulkan (al cerrarlo
@@ -158,6 +165,8 @@ void android_raze_tick()
         if (!r.empty())
             AddCommandString(r.c_str());
     }
+    if (flush)
+        TexMan.FlushAll();
 
     float dx, dy;
     {
