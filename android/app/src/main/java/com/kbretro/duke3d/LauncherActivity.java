@@ -99,6 +99,14 @@ public class LauncherActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        android.content.SharedPreferences aj = getSharedPreferences("ajustes", MODE_MULTI_PROCESS);
+        if (aj.getBoolean("salir_todo", false)) {
+            // «Salir del juego» desde el menú rápido: el juego ya ha terminado; ahora el lanzador.
+            aj.edit().putBoolean("salir_todo", false).apply();
+            getPreferences(MODE_PRIVATE).edit().putBoolean("jugando", false).apply();
+            finishAffinity();
+            return;
+        }
         if (getPreferences(MODE_PRIVATE).getBoolean("jugando", false)) {
             getPreferences(MODE_PRIVATE).edit().putBoolean("jugando", false).apply();
             lastLog = saveLog();

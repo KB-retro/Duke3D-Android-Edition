@@ -956,12 +956,9 @@ public class GameActivity extends SDLActivity {
      * @param all también cierra el lanzador
      */
     private void quitGame(boolean all) {
-        if (all) {
-            Intent i = new Intent(this, LauncherActivity.class);
-            i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-            i.putExtra(LauncherActivity.EXTRA_QUIT, true);
-            startActivity(i);
-        }
+        // Primero termina el juego; el lanzador se cierra después al volver a él (si se cerraba
+        // antes, la ventana del juego desaparecía con el juego aún dibujando y Raze fallaba).
+        if (all) prefs().edit().putBoolean("salir_todo", true).commit();
         if (quickMenu != null) quickMenu.setVisibility(View.GONE);
         command("pausegame 0");
         command("quit");
