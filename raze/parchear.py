@@ -307,8 +307,8 @@ sub("source/core/cheats.cpp",
     "void genericCheat(int player, TArrayView<uint8_t>& stream, bool skip)\n{\n    int cheat = ReadInt8(stream);\n    if (skip) return;\n"
     "#ifdef __ANDROID__\n\tif (player == myconnectindex) android_raze_event(5, cheat, 0, 0);\n#endif")
 
-# 25. El menú del juego de Raze se queda, pero sin «Opciones»: la configuración se hace desde
-#     el menú rápido de la app. Se quita la entrada del menú principal y del de partida (y
+# 25. El menú del juego de Raze se queda, pero sin «Opciones» ni «Salir del juego» (repetido):
+#     la configuración y la salida van en el menú rápido de la app. Se quita la entrada del menú principal y del de partida (y
 #     las de debajo suben), y tampoco se puede abrir por otro camino.
 sub("source/core/menu/razemenu.cpp",
     "void BuildGameMenus()\n{\n\tBuildEpisodeMenu();",
@@ -316,8 +316,15 @@ sub("source/core/menu/razemenu.cpp",
     "\tDMenuDescriptor** desc = MenuDescriptors.CheckKey(name);\n"
     "\tif (!desc || !(*desc)->IsKindOf(RUNTIME_CLASS(DListMenuDescriptor))) return;\n"
     "\tauto ld = static_cast<DListMenuDescriptor*>(*desc);\n"
+    "\tconst char* lang = getenv(\"DUKE3D_LANG\");\n"
+    "\tbool es = lang && !strcmp(lang, \"es\");\n"
     "\tfor (unsigned i = 0; i < ld->mItems.Size(); i++)\n\t{\n"
-    "\t\tif (ld->mItems[i]->mAction != FName(\"OptionsMenu\")) continue;\n"
+    # «Terminar partida» (vuelve al título): en castellano Raze lo traduce igual que «Salir».
+    "\t\tif (ld->mItems[i]->mAction == FName(\"EndgameMenu\"))\n\t\t{\n"
+    "\t\t\tld->mItems[i] = CreateCustomListMenuItemText(ld->mXpos, ld->mItems[i]->mYpos, ld->mLinespacing, 'e',\n"
+    "\t\t\t\tes ? \"Terminar partida\" : \"End Game\", ld->mFont, CR_UNTRANSLATED, 0, FName(\"EndgameMenu\"), -1);\n"
+    "\t\t\tcontinue;\n\t\t}\n"
+    "\t\tif (ld->mItems[i]->mAction != FName(\"OptionsMenu\") && ld->mItems[i]->mAction != FName(\"QuitMenu\")) continue;\n"
     "\t\tfor (unsigned j = i + 1; j < ld->mItems.Size(); j++) ld->mItems[j]->mYpos -= ld->mLinespacing;\n"
     "\t\tld->mItems.Delete(i);\n"
     "\t\tif (ld->mSelectedItem > (int)i) ld->mSelectedItem--;\n"

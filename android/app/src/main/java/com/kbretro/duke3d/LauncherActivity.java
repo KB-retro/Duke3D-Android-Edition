@@ -694,7 +694,7 @@ public class LauncherActivity extends Activity {
                 args.addAll(Arrays.asList(extraArgs));
                 args.addAll(modArgs);
                 intent.putExtra(GameActivity.EXTRA_ARGS, args.toArray(new String[0]));
-                intent.putExtra(GameActivity.EXTRA_LANG, defFile != null ? "es" : "en");
+                intent.putExtra(GameActivity.EXTRA_LANG, defFile != null || (Motor.RAZE && spanish) ? "es" : "en");
                 List<GameData.Game> all = GameData.games(gameDir);
                 if (!all.isEmpty()) intent.putExtra(GameActivity.EXTRA_BASE_GRP, all.get(0).grp.getAbsolutePath());
                 startActivity(intent);

@@ -869,11 +869,31 @@ public class GameActivity extends SDLActivity {
             if (f >= 0) pressFunc(f, false);
         }
         int k = razeMenuKey(key);
-        if (k >= 0) {
+        if (k < 0) return true;
+        if (Motor.RAZE) {
+            // Raze: la acción va directa a su menú (con teclas simuladas, B había que pulsarlo dos veces).
+            if (down) {
+                int mkey = menuKeyFor(k);
+                if (mkey >= 0) command("android_menukey " + mkey);
+            }
+        } else {
             super.dispatchKeyEvent(new KeyEvent(e.getDownTime(), e.getEventTime(), e.getAction(), k,
                     e.getRepeatCount(), 0, -1, 0, 0, InputDevice.SOURCE_KEYBOARD));
         }
         return true;
+    }
+
+    /** Tecla → acción de menú de Raze (MKEY_*: arriba 0, abajo 1, izquierda 2, derecha 3, aceptar 6, atrás 7). */
+    private static int menuKeyFor(int key) {
+        switch (key) {
+            case KeyEvent.KEYCODE_DPAD_UP: return 0;
+            case KeyEvent.KEYCODE_DPAD_DOWN: return 1;
+            case KeyEvent.KEYCODE_DPAD_LEFT: return 2;
+            case KeyEvent.KEYCODE_DPAD_RIGHT: return 3;
+            case KeyEvent.KEYCODE_ENTER: return 6;
+            case KeyEvent.KEYCODE_ESCAPE: return 7;
+            default: return -1;
+        }
     }
 
     private boolean triggerL, triggerR;
@@ -923,7 +943,8 @@ public class GameActivity extends SDLActivity {
         else if (x > 0.5f) k = KeyEvent.KEYCODE_DPAD_RIGHT;
         long now = android.os.SystemClock.uptimeMillis();
         if (k >= 0 && (k != stickMenuKey || now - lastAxisMove > 220)) {
-            sendKey(k);
+            if (Motor.RAZE) command("android_menukey " + menuKeyFor(k));
+            else sendKey(k);
             lastAxisMove = now;
         }
         stickMenuKey = k;

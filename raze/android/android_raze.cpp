@@ -34,6 +34,8 @@
 #include "m_joy.h"
 #include "gameconfigfile.h"
 #include "texturemanager.h"
+#include "menu.h"
+#include "keydef.h"
 #include "tarray.h"
 #include "zstring.h"
 
@@ -99,8 +101,31 @@ std::string translate(const std::string &c)
     {
         // Pausa del menú rápido: se pone o se quita directamente (como hace la tecla Pausa),
         // sin alternar: al abrir y cerrar rápido se descuadraba y el juego quedaba en pausa.
+        // paused = 1 (no 2): sin el cartel de «Juego en pausa» detrás del menú rápido.
         pausedWithKey = a != 0;
-        paused = a != 0 ? 2 : 0;
+        paused = a != 0 ? 1 : 0;
+        return "";
+    }
+    if (sscanf(c.c_str(), "android_menukey %d", &a) == 1)
+    {
+        // Mando en los menús de Raze: la acción va directa al menú (arriba, abajo, aceptar,
+        // atrás...). Sin menú abierto (intermedios, título), como la tecla equivalente.
+        if (CurrentMenu)
+            CurrentMenu->CallMenuEvent(a, true);
+        else
+        {
+            static const int keys[] = {KEY_UPARROW, KEY_DOWNARROW, KEY_LEFTARROW, KEY_RIGHTARROW, 0, 0, KEY_ENTER, KEY_ESCAPE};
+            int key = a >= 0 && a < 8 ? keys[a] : 0;
+            if (key)
+            {
+                event_t ev = {};
+                ev.type = EV_KeyDown;
+                ev.data1 = key;
+                D_PostEvent(&ev);
+                ev.type = EV_KeyUp;
+                D_PostEvent(&ev);
+            }
+        }
         return "";
     }
     if (c == "android_start")
