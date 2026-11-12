@@ -215,3 +215,13 @@ sub("source/common/platform/posix/sdl/sdlglvideo.cpp",
 sub("source/CMakeLists.txt",
     "\ttarget_link_libraries( ${PROJECT_NAME} log android EGL GLESv2 )",
     "\ttarget_link_libraries( ${PROJECT_NAME} log android EGL GLESv2 ${ADRENOTOOLS_LIBS} )")
+
+# 19. Pantallas que Android gira (p. ej. la Odin 2 Portal, panel vertical): Raze no gira la
+#     imagen él mismo, así que la cadena de imágenes va sin giro y lo hace el sistema (si no,
+#     salía en vertical y deformada).
+sub("libraries/ZVulkan/src/vulkanswapchain.cpp",
+    "\tswapChainCreateInfo.preTransform = caps.Capabilites.currentTransform;",
+    "#ifdef __ANDROID__\n"
+    "\tswapChainCreateInfo.preTransform = (caps.Capabilites.supportedTransforms & VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR)\n"
+    "\t\t? VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR : caps.Capabilites.currentTransform;\n#else\n"
+    "\tswapChainCreateInfo.preTransform = caps.Capabilites.currentTransform;\n#endif")

@@ -32,6 +32,7 @@
 #include "gamestate.h"
 #include "menustate.h"
 #include "m_joy.h"
+#include "gameconfigfile.h"
 
 extern int paused;
 
@@ -119,6 +120,15 @@ void android_raze_tick()
     }
     for (auto &c : cmds)
     {
+        if (c == "quit")
+        {
+            // Salir: se guarda la configuración y se termina sin desmontar Vulkan (al cerrarlo
+            // fallaba y el lanzador enseñaba la pantalla de fallo).
+            G_SaveConfig();
+            fflush(stdout);
+            fflush(stderr);
+            _exit(0);
+        }
         std::string r = translate(c);
         if (!r.empty())
             AddCommandString(r.c_str());
