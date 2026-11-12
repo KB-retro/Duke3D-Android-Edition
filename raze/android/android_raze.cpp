@@ -33,6 +33,12 @@
 #include "menustate.h"
 #include "m_joy.h"
 #include "gameconfigfile.h"
+#include "savegamemanager.h"
+#include "tarray.h"
+#include "zstring.h"
+
+bool android_raze_newgame(int episode, int skill);
+TArray<FString> android_raze_episodes();
 
 extern int paused;
 extern bool pausedWithKey;
@@ -97,6 +103,12 @@ std::string translate(const std::string &c)
         // sin alternar: al abrir y cerrar rápido se descuadraba y el juego quedaba en pausa.
         pausedWithKey = a != 0;
         paused = a != 0 ? 2 : 0;
+        return "";
+    }
+    int e = 0, k = 0;
+    if (sscanf(c.c_str(), "android_newgame %d %d", &e, &k) == 2)
+    {
+        android_raze_newgame(e, k);
         return "";
     }
     if (c == "android_start")
@@ -180,7 +192,7 @@ extern "C" {
 
 static JavaVM *java_vm;
 static jclass game_class;
-static jmethodID vibrate_method, achievement_method;
+static jmethodID vibrate_method, achievement_method, quickmenu_method;
 
 JNIEXPORT jint JNI_OnLoad(JavaVM *vm, void *)
 {
@@ -193,6 +205,8 @@ JNIEXPORT void JNICALL Java_com_kbretro_duke3d_GameActivity_nativeInit(JNIEnv *e
     if (!game_class) game_class = (jclass)env->NewGlobalRef(cls);
     vibrate_method = env->GetStaticMethodID(cls, "vibrate", "(II)V");
     achievement_method = env->GetStaticMethodID(cls, "achievementEvent", "(IIII)V");
+    if (env->ExceptionCheck()) env->ExceptionClear();
+    quickmenu_method = env->GetStaticMethodID(cls, "openQuickMenuFromGame", "()V");
     if (env->ExceptionCheck()) env->ExceptionClear();
 }
 
@@ -212,6 +226,37 @@ __attribute__((visibility("default"))) void android_raze_rumble(int strength, in
     if (!env || !vibrate_method) return;
     env->CallStaticVoidMethod(game_class, vibrate_method, strength, ms);
     if (env->ExceptionCheck()) env->ExceptionClear();
+}
+
+// Raze iba a abrir su menú principal: se abre el menú rápido de la app en su lugar.
+__attribute__((visibility("default"))) void android_raze_quickmenu()
+{
+    JNIEnv *env = game_env();
+    if (!env || !quickmenu_method) return;
+    env->CallStaticVoidMethod(game_class, quickmenu_method);
+    if (env->ExceptionCheck()) env->ExceptionClear();
+}
+
+JNIEXPORT jobjectArray JNICALL Java_com_kbretro_duke3d_GameActivity_nativeEpisodes(JNIEnv *env, jclass)
+{
+    TArray<FString> eps = android_raze_episodes();
+    jobjectArray arr = env->NewObjectArray((jsize)eps.Size(), env->FindClass("java/lang/String"), nullptr);
+    for (unsigned i = 0; i < eps.Size(); i++)
+    {
+        jstring js = env->NewStringUTF(eps[i].GetChars());
+        env->SetObjectArrayElement(arr, (jsize)i, js);
+        env->DeleteLocalRef(js);
+    }
+    return arr;
+}
+
+// Ruta del archivo de la ranura de guardado «android_N» (para ver si existe y cuándo se guardó).
+JNIEXPORT jstring JNICALL Java_com_kbretro_duke3d_GameActivity_nativeSavePath(JNIEnv *env, jclass, jint slot)
+{
+    FString prefix;
+    prefix.Format("android_%d", (int)slot);
+    FString path = G_BuildSaveName(prefix.GetChars());
+    return env->NewStringUTF(path.GetChars());
 }
 
 __attribute__((visibility("default"))) void android_raze_event(int type, int a, int b, int c)

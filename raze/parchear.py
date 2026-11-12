@@ -306,3 +306,24 @@ sub("source/core/cheats.cpp",
     "#ifdef __ANDROID__\nextern \"C\" void android_raze_event(int type, int a, int b, int c);\n#endif\n"
     "void genericCheat(int player, TArrayView<uint8_t>& stream, bool skip)\n{\n    int cheat = ReadInt8(stream);\n    if (skip) return;\n"
     "#ifdef __ANDROID__\n\tif (player == myconnectindex) android_raze_event(5, cheat, 0, 0);\n#endif")
+
+# 25. Menú de Raze oculto: todo se hace desde el menú rápido de la app (que tiene prioridad).
+#     Cuando Raze abriría su menú principal (Escape, pantalla de título...), avisa a la app para
+#     que abra el suyo. La app empieza partidas, guarda y carga con estas funciones.
+sub("source/core/menu/razemenu.cpp",
+    "bool M_SetSpecialMenu(FName& menu, int param)\n{",
+    "#ifdef __ANDROID__\nextern \"C\" void android_raze_quickmenu();\nextern TArray<VolumeRecord> volumes;\n"
+    "// Nueva partida desde el menú rápido: episodio (índice de volumen) y dificultad.\n"
+    "bool android_raze_newgame(int episode, int skill)\n{\n"
+    "\tFNewGameStartup gs = { nullptr, episode, 0, skill };\n\treturn DoStartGame(gs);\n}\n"
+    "// Episodios para el menú rápido: «índice|nombre» por cada uno.\n"
+    "TArray<FString> android_raze_episodes()\n{\n\tTArray<FString> out;\n"
+    "\tfor (auto& vol : volumes)\n\t{\n"
+    "\t\tif (vol.name.IsEmpty() || (vol.flags & VF_HIDEFROMSP) || vol.startmap.IsEmpty()) continue;\n"
+    "\t\tFString s;\n\t\ts.Format(\"%d|%s\", vol.index, GStrings.localize(vol.name.GetChars()));\n"
+    "\t\tout.Push(s);\n\t}\n\treturn out;\n}\n#endif\n\n"
+    "bool M_SetSpecialMenu(FName& menu, int param)\n{")
+sub("source/core/menu/razemenu.cpp",
+    "\tcase NAME_Mainmenu:\n\t\tif (gi->CanSave()) menu = NAME_IngameMenu;\n\t\tbreak;",
+    "\tcase NAME_Mainmenu:\n#ifdef __ANDROID__\n\t\tM_ClearMenus();\n\t\tandroid_raze_quickmenu();\n\t\treturn false;\n#endif\n"
+    "\t\tif (gi->CanSave()) menu = NAME_IngameMenu;\n\t\tbreak;")

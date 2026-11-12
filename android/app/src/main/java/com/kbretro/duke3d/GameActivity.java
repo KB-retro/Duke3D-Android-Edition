@@ -221,6 +221,19 @@ public class GameActivity extends SDLActivity {
 
     static native void nativeButton(int gamefunc, boolean down);
 
+    /** Solo en Raze: los episodios («índice|nombre») y la ruta de la ranura de guardado. */
+    static native String[] nativeEpisodes();
+
+    static native String nativeSavePath(int slot);
+
+    /** Raze iba a abrir su menú: se abre el menú rápido (el de Raze está oculto). */
+    static void openQuickMenuFromGame() {
+        GameActivity a = instance;
+        if (a != null) a.ui.post(() -> {
+            if (!a.menuOpen()) a.openMenu();
+        });
+    }
+
     /** Solo en Raze: stick derecho del mando (-1..1), giro continuo. */
     static native void nativeStickLook(float x, float y);
 
@@ -579,6 +592,7 @@ public class GameActivity extends SDLActivity {
                     ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         }
         status = null;
+        razePlaying = Motor.RAZE && inGame();
         quickMenu.setRoot(rootPage(), this::closeMenu);
         quickMenu.setVisibility(View.VISIBLE);
         quickMenu.bringToFront();
@@ -590,11 +604,14 @@ public class GameActivity extends SDLActivity {
 
     private void closeMenu() {
         if (quickMenu != null) quickMenu.setVisibility(View.GONE);
+        // El foco vuelve al juego (si no, el mando dejaba de llegarle tras usar el menú).
+        if (mSurface != null) mSurface.requestFocus();
         hideSystemBars();
         command("pausegame 0");
     }
 
     private DukeMenuView.Page rootPage() {
+        if (Motor.RAZE) return razeRootPage();
         DukeMenuView.Page p = new DukeMenuView.Page();
         p.add(I18n.t("continue"), null, this::closeMenu);
         p.add(I18n.t("quicksave"), null, () -> {
@@ -604,12 +621,6 @@ public class GameActivity extends SDLActivity {
         p.add(I18n.t("quickload"), null, () -> {
             closeMenu();
             command("quickload");
-        });
-        p.add(I18n.t("game_menu"), null, () -> {
-            // El menú del propio juego (el de Escape).
-            closeMenu();
-            if (Motor.RAZE) command("menu_main");
-            else ui.postDelayed(() -> sendKey(KeyEvent.KEYCODE_ESCAPE), 150);
         });
         p.add(I18n.t("cheats"), null, () -> quickMenu.push(cheatsPage()));
         p.add(I18n.t("graphics"), null, () -> quickMenu.push(graphicsPage()));
@@ -621,6 +632,98 @@ public class GameActivity extends SDLActivity {
         });
         p.add(I18n.t("to_launcher"), null, () -> quitGame(false));
         p.add(I18n.t("quit_game"), null, () -> quitGame(true));
+        return p;
+    }
+
+    // ---- Menú rápido de Raze (el menú propio de Raze está oculto: todo se hace aquí) ----
+
+    private boolean razePlaying;
+
+    private DukeMenuView.Page razeRootPage() {
+        DukeMenuView.Page p = new DukeMenuView.Page();
+        if (razePlaying) {
+            p.add(I18n.t("continue"), null, this::closeMenu);
+            p.add(I18n.t("save_game"), null, () -> quickMenu.push(slotsPage(true)));
+        }
+        p.add(I18n.t("load_game"), null, () -> quickMenu.push(slotsPage(false)));
+        p.add(I18n.t("new_game"), null, () -> quickMenu.push(episodesPage()));
+        if (razePlaying) {
+            p.add(I18n.t("quicksave"), null, () -> {
+                closeMenu();
+                command("quicksave");
+            });
+            p.add(I18n.t("quickload"), null, () -> {
+                closeMenu();
+                command("quickload");
+            });
+            p.add(I18n.t("cheats"), null, () -> quickMenu.push(cheatsPage()));
+        }
+        p.add(I18n.t("graphics"), null, () -> quickMenu.push(graphicsPage()));
+        p.add(I18n.t("controls"), null, () -> quickMenu.push(controlsPage()));
+        p.addValue(I18n.t("vibration"), () -> I18n.t(vibrationOn ? "yes" : "no"), () -> {
+            vibrationOn = !vibrationOn;
+            prefs().edit().putBoolean("vibracion", vibrationOn).apply();
+            if (vibrationOn) vibrate(200, 120);
+        });
+        p.add(I18n.t("to_launcher"), null, () -> quitGame(false));
+        p.add(I18n.t("quit_game"), null, () -> quitGame(true));
+        return p;
+    }
+
+    private DukeMenuView.Page episodesPage() {
+        DukeMenuView.Page p = new DukeMenuView.Page();
+        String[] eps;
+        try {
+            eps = nativeEpisodes();
+        } catch (UnsatisfiedLinkError e) {
+            eps = new String[0];
+        }
+        for (String ep : eps) {
+            int bar = ep.indexOf('|');
+            if (bar < 0) continue;
+            int index = Integer.parseInt(ep.substring(0, bar));
+            p.add(ep.substring(bar + 1), null, () -> quickMenu.push(skillsPage(index)));
+        }
+        p.add(I18n.t("back"), null, () -> quickMenu.pop());
+        return p;
+    }
+
+    private DukeMenuView.Page skillsPage(int episode) {
+        DukeMenuView.Page p = new DukeMenuView.Page();
+        for (int k = 0; k < 4; k++) {
+            int skill = k;
+            p.add(I18n.t("skill_" + k), null, () -> {
+                closeMenu();
+                command("android_newgame " + episode + " " + skill);
+            });
+        }
+        p.add(I18n.t("back"), null, () -> quickMenu.pop());
+        p.selected = 1;
+        return p;
+    }
+
+    /** Seis ranuras: «Guardar partida» o «Cargar partida». */
+    private DukeMenuView.Page slotsPage(boolean save) {
+        DukeMenuView.Page p = new DukeMenuView.Page();
+        java.text.DateFormat fmt = java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT, java.text.DateFormat.SHORT);
+        for (int n = 1; n <= 6; n++) {
+            int slot = n;
+            File f;
+            try {
+                f = new File(nativeSavePath(slot));
+            } catch (Throwable e) {
+                f = null;
+            }
+            File file = f;
+            p.addValue(I18n.t("slot") + " " + slot, () -> file != null && file.exists()
+                    ? fmt.format(new java.util.Date(file.lastModified())) : I18n.t("slot_empty"), () -> {
+                if (!save && (file == null || !file.exists())) return;
+                closeMenu();
+                if (save) command("save android_" + slot + " \"" + I18n.t("slot") + " " + slot + "\"");
+                else command("load android_" + slot);
+            });
+        }
+        p.add(I18n.t("back"), null, () -> quickMenu.pop());
         return p;
     }
 
@@ -730,7 +833,8 @@ public class GameActivity extends SDLActivity {
         if (menuOpen()) {
             // Con el menú abierto, el mando y las teclas son para el menú, no para el juego.
             if (e.getAction() == KeyEvent.ACTION_DOWN) {
-                if (key == KeyEvent.KEYCODE_BACK || key == KeyEvent.KEYCODE_BUTTON_SELECT) closeMenu();
+                if (key == KeyEvent.KEYCODE_BACK || key == KeyEvent.KEYCODE_BUTTON_SELECT
+                        || (Motor.RAZE && key == KeyEvent.KEYCODE_BUTTON_START)) closeMenu();
                 else quickMenu.onKeyDown(key, e);
             }
             return true;
@@ -843,11 +947,8 @@ public class GameActivity extends SDLActivity {
         boolean down = e.getAction() == KeyEvent.ACTION_DOWN;
         boolean first = down && e.getRepeatCount() == 0;
         if (key == KeyEvent.KEYCODE_BUTTON_START || key == KeyEvent.KEYCODE_MENU) {
-            // Start: abre y cierra el menú del propio juego (lo decide Raze según esté o no abierto).
-            if (first) {
-                releaseAllFuncs(); // que no se quede nada pulsado al pasar al menú
-                command("android_start");
-            }
+            // Start: el menú rápido (el de Raze está oculto).
+            if (first && art != null) openMenu();
             return true;
         }
         if (inGame()) {

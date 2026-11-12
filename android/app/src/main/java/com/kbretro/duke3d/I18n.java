@@ -108,6 +108,15 @@ final class I18n {
         put("gfx_hq", "Texturas suavizadas", "Smoothed textures");
         put("gfx_lens", "Destellos de luz", "Lens flares");
         put("game_menu", "Menú del juego", "Game menu");
+        put("new_game", "Nueva partida", "New game");
+        put("save_game", "Guardar partida", "Save game");
+        put("load_game", "Cargar partida", "Load game");
+        put("slot", "Ranura", "Slot");
+        put("slot_empty", "vacía", "empty");
+        put("skill_0", "Pan comido", "Piece of Cake");
+        put("skill_1", "Vamos allá", "Let's Rock");
+        put("skill_2", "Ven a por más", "Come Get Some");
+        put("skill_3", "Soy muy bueno", "Damn I'm Good");
         put("mods_campaigns", "Campañas", "Campaigns");
         put("mods_gfx", "Gráficos y sonido", "Graphics & sound");
         put("mods_one_campaign", "solo una campaña activada a la vez", "only one campaign active at a time");
