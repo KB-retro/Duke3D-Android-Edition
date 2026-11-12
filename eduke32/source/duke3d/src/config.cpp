@@ -540,6 +540,16 @@ void CONFIG_SetupJoystick(void)
         ud.config.JoystickAnalogueSaturate[i] = scale;
     }
 
+#ifdef __ANDROID__
+    // Duke3D Android Edition: las configuraciones guardadas antes reciben una vez la disposición nueva.
+    {
+        int32_t layout = 0;
+        SCRIPT_GetNumber(ud.config.scripthandle, "Controls", "AndroidPadLayout", &layout);
+        if (layout < 1)
+            CONFIG_SetGameControllerDefaults();
+    }
+#endif
+
     for (i=0; i<MAXJOYBUTTONSANDHATS; i++)
     {
         CONTROL_MapButton(ud.config.JoystickFunctions[i][0], i, 0, controldevice_joystick);
@@ -645,6 +655,46 @@ void CONFIG_SetGameControllerDefaults()
         { CONTROLLER_AXIS_TRIGGERLEFT, 1, gamefunc_Jump },
         { CONTROLLER_AXIS_TRIGGERRIGHT, 1, gamefunc_Fire },
     };
+
+#ifdef __ANDROID__
+    // Duke3D Android Edition: la misma disposición de serie que la versión HD (Raze).
+    static GameControllerButtonSetting const buttonsAndroid[] =
+    {
+        { CONTROLLER_BUTTON_A, gamefunc_Jump },
+        { CONTROLLER_BUTTON_B, gamefunc_Crouch },
+        { CONTROLLER_BUTTON_X, gamefunc_Open },
+        { CONTROLLER_BUTTON_Y, gamefunc_Inventory },
+        { CONTROLLER_BUTTON_LEFTSHOULDER, gamefunc_Previous_Weapon },
+        { CONTROLLER_BUTTON_RIGHTSHOULDER, gamefunc_Next_Weapon },
+        { CONTROLLER_BUTTON_LEFTSTICK, gamefunc_Run },
+        { CONTROLLER_BUTTON_RIGHTSTICK, gamefunc_Center_View },
+        { CONTROLLER_BUTTON_BACK, gamefunc_Map },
+        { CONTROLLER_BUTTON_DPAD_UP, gamefunc_MedKit },
+        { CONTROLLER_BUTTON_DPAD_DOWN, gamefunc_Jetpack },
+        { CONTROLLER_BUTTON_DPAD_LEFT, gamefunc_Inventory_Left },
+        { CONTROLLER_BUTTON_DPAD_RIGHT, gamefunc_Inventory_Right },
+    };
+
+    static GameControllerDigitalAxisSetting const digitalAxesAndroid[] =
+    {
+        { CONTROLLER_AXIS_TRIGGERLEFT, 1, gamefunc_Quick_Kick },
+        { CONTROLLER_AXIS_TRIGGERRIGHT, 1, gamefunc_Fire },
+    };
+
+    if (!FURY)
+    {
+        for (auto const & button : buttonsAndroid)
+            button.apply();
+        for (auto const & digitalAxis : digitalAxesAndroid)
+            digitalAxis.apply();
+
+        ud.config.JoystickAimAssist     = 1;
+        ud.config.JoystickAimWeight     = 4;
+        ud.config.JoystickViewCentering = 4;
+        ud.config.controllerRumble = 1;
+        return;
+    }
+#endif
 
     for (auto const & button : buttons)
         button.apply();
@@ -926,6 +976,9 @@ void CONFIG_WriteSetup(uint32_t flags)
         ud.config.scripthandle = SCRIPT_Init(g_setupFileName);
 
     SCRIPT_PutNumber(ud.config.scripthandle, "Misc", "Executions", ud.executions, FALSE, FALSE);
+#ifdef __ANDROID__
+    SCRIPT_PutNumber(ud.config.scripthandle, "Controls", "AndroidPadLayout", 1, FALSE, FALSE);
+#endif
 
     SCRIPT_PutNumber(ud.config.scripthandle, "Setup", "CacheSize", MAXCACHE1DSIZE, FALSE, FALSE);
     SCRIPT_PutNumber(ud.config.scripthandle, "Setup", "ConfigVersion", BYTEVERSION_EDUKE32, FALSE, FALSE);
