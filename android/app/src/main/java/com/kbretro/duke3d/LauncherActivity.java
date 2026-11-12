@@ -717,7 +717,7 @@ public class LauncherActivity extends Activity {
                 while ((line = r.readLine()) != null) {
                     w.write(line);
                     w.write('\n');
-                    if (line.contains("EDuke32") || line.contains("Duke3D") || line.contains("SDL")
+                    if (line.contains("EDuke32") || line.contains("Duke3D") || line.contains("Raze") || line.contains("SDL")
                             || line.contains("AndroidRuntime") || line.contains("DEBUG")
                             || line.contains(" F/") || line.contains(" E/")) {
                         important.add(line);

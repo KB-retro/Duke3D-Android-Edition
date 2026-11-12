@@ -352,6 +352,12 @@ public class GameActivity extends SDLActivity {
             Os.setenv("DUKE3D_LANG", lang != null ? lang : "en", true);
             if (Motor.RAZE) {
                 Os.setenv("RAZE_PROGDIR", Motor.prepareRazeData(this).getAbsolutePath(), true);
+                // Carpetas donde Raze busca los juegos: las expansiones de la Megaton (addons/dc...).
+                if (dir != null) {
+                    StringBuilder sb = new StringBuilder(dir);
+                    for (File d : GameData.addonDirs(new File(dir))) sb.append(':').append(d.getAbsolutePath());
+                    Os.setenv("RAZE_SEARCH", sb.toString(), true);
+                }
             }
         } catch (ErrnoException ignored) {
         }

@@ -133,8 +133,10 @@ sub("source/common/rendering/v_video.cpp",
 #     enseñan con el cuadro de SDL.
 sub("source/common/platform/posix/sdl/i_system.cpp",
     "void I_ShowFatalError(const char *message)\n{\n#ifdef __APPLE__",
+    "#ifdef __ANDROID__\nextern \"C\" int __android_log_print(int prio, const char* tag, const char* fmt, ...);\n#endif\n"
     "void I_ShowFatalError(const char *message)\n{\n#ifdef __ANDROID__\n"
     "\tfprintf(stderr, \"ERROR GRAVE: %s\\n\", message);\n"
+    "\t__android_log_print(7 /* FATAL */, \"Duke3D\", \"ERROR GRAVE: %s\", message);\n"
     "\tSDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, \"Raze\", message, NULL);\n\treturn;\n#endif\n#ifdef __APPLE__")
 
 # 15. Algunas GPU de móvil (Mali) dicen que admiten bloques uniformes de 4 GB (sale negativo):
@@ -243,6 +245,7 @@ sub("source/games/duke/src/premap.cpp",
 sub("source/games/duke/src/gameloop.cpp",
     "void GameInterface::Ticker()\n{",
     "#ifdef __ANDROID__\nextern \"C\" void android_raze_rumble(int strength, int ms);\n"
+    "extern \"C\" void android_raze_event(int type, int a, int b, int c);\n"
     "static void android_duke_tick()\n{\n"
     "\tstatic int lastHealth = -1, lastQuake = 0, lastKick = 0;\n"
     "\tauto p = getPlayer(myconnectindex);\n"
@@ -256,8 +259,50 @@ sub("source/games/duke/src/gameloop.cpp",
     "\tlastQuake = ud.earthquaketime;\n"
     "\tint kick = p ? p->kickback_pic : 0;\n"
     "\tif (kick == 1 && lastKick != 1) android_raze_rumble(80, 45);\n"
-    "\tlastKick = kick;\n}\n#endif\n\n"
+    "\tlastKick = kick;\n"
+    # Logros de cercanía (cada 8 tics): ver a Luke o al marine de Doom, pisar la caca.
+    "\tstatic int frame = 0;\n"
+    "\tif (!act || ud.multimode > 1 || (++frame & 7) != 0) return;\n"
+    "\tstatic FName nLuke(\"DukeLuke\"), nMarine(\"DukeSpaceMarine\");\n"
+    "\tstatic FTextureID poop = tileGetTextureID(4094);\n"
+    "\tDukeSpriteIterator it;\n"
+    "\twhile (auto s = it.Next())\n\t{\n"
+    "\t\tint ev = 0; double range = 0;\n"
+    "\t\tFName cname = s->GetClass()->TypeName;\n"
+    "\t\tif (cname == nLuke) { ev = 7; range = 128; }\n"
+    "\t\telse if (cname == nMarine) { ev = 8; range = 128; }\n"
+    "\t\telse if (s->spr.spritetexture() == poop) { ev = 6; range = 18; }\n"
+    "\t\telse continue;\n"
+    "\t\tif (!s->sector() || !act->sector()) continue;\n"
+    "\t\tauto d = s->spr.pos.XY() - act->spr.pos.XY();\n"
+    "\t\tif (d.LengthSquared() > range * range) continue;\n"
+    "\t\tif (ev == 6) { if (!p->on_ground || fabs(s->spr.pos.Z - act->spr.pos.Z) > 16) continue; }\n"
+    "\t\telse if (!cansee(s->spr.pos.plusZ(-16), s->sector(), act->spr.pos, act->sector())) continue;\n"
+    "\t\tandroid_raze_event(ev, 0, 0, 0);\n\t}\n"
+    "}\n#endif\n\n"
     "void GameInterface::Ticker()\n{")
 sub("source/games/duke/src/gameloop.cpp",
     "\t\tfi.think();\n",
     "\t\tfi.think();\n#ifdef __ANDROID__\n\t\tandroid_duke_tick();\n#endif\n")
+
+# 22. Carpetas de búsqueda de juegos que pasa la app (RAZE_SEARCH, separadas por ':'): las
+#     expansiones de la Megaton van en addons/dc, addons/nw... (dos niveles por debajo).
+sub("source/core/searchpaths.cpp",
+    "\t// Unify and remove trailing slashes\n\tfor (auto &str : searchpaths)",
+    "#ifdef __ANDROID__\n\tif (const char* extra = getenv(\"RAZE_SEARCH\"))\n\t{\n"
+    "\t\tFString all = extra;\n\t\tauto parts = all.Split(\":\");\n"
+    "\t\tfor (auto& part : parts) if (part.Len() > 0) AddSearchPath(searchpaths, part.GetChars());\n\t}\n#endif\n"
+    "\t// Unify and remove trailing slashes\n\tfor (auto &str : searchpaths)")
+
+# 23. Rendimiento en OpenGL ES (Mali/Adreno): menos luces dinámicas por superficie en el
+#     sombreador (32 → 16), que es lo que más pesa por píxel en GPU de móvil.
+sub("source/common/rendering/gles/gles_system.cpp",
+    "CVAR(Int, gles_max_lights_per_surface, 32, 0);",
+    "#ifdef __ANDROID__\nCVAR(Int, gles_max_lights_per_surface, 16, 0);\n#else\nCVAR(Int, gles_max_lights_per_surface, 32, 0);\n#endif")
+
+# 24. Logro de trucos también con los trucos tecleados en el juego (god, give...).
+sub("source/core/cheats.cpp",
+    "void genericCheat(int player, TArrayView<uint8_t>& stream, bool skip)\n{\n    int cheat = ReadInt8(stream);\n    if (skip) return;",
+    "#ifdef __ANDROID__\nextern \"C\" void android_raze_event(int type, int a, int b, int c);\n#endif\n"
+    "void genericCheat(int player, TArrayView<uint8_t>& stream, bool skip)\n{\n    int cheat = ReadInt8(stream);\n    if (skip) return;\n"
+    "#ifdef __ANDROID__\n\tif (player == myconnectindex) android_raze_event(5, cheat, 0, 0);\n#endif")
