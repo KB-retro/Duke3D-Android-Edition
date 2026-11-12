@@ -764,7 +764,8 @@ public class GameActivity extends SDLActivity {
     @Override
     public boolean dispatchGenericMotionEvent(MotionEvent e) {
         gamepadUsed(e);
-        if (!menuOpen() && (e.getSource() & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK) {
+        if (!menuOpen() && (e.getSource() & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK
+                && (Motor.RAZE || inGame())) {
             razePadMotion(e);
             return true;
         }
@@ -841,6 +842,11 @@ public class GameActivity extends SDLActivity {
         if (key == KeyEvent.KEYCODE_BACK) return false; // Atrás: el menú rápido (más abajo)
         boolean down = e.getAction() == KeyEvent.ACTION_DOWN;
         boolean first = down && e.getRepeatCount() == 0;
+        // Classic (EDuke32): fuera de la partida y con Start, el mando va directo al juego como
+        // siempre (sus menús lo manejan bien); en plena partida, la misma disposición que Raze.
+        if (!Motor.RAZE && (!inGame() || key == KeyEvent.KEYCODE_BUTTON_START || key == KeyEvent.KEYCODE_MENU)) {
+            return false;
+        }
         if (key == KeyEvent.KEYCODE_BUTTON_START || key == KeyEvent.KEYCODE_MENU) {
             // Start: abre y cierra el menú del juego de Raze (sin sus opciones: eso va en el
             // menú rápido, que se abre con Atrás o el botón táctil).
