@@ -287,9 +287,9 @@ public class LauncherActivity extends Activity {
 
     private DukeMenuView.Page extrasPage(File gameDir) {
         DukeMenuView.Page p = new DukeMenuView.Page();
+        p.add(I18n.t("dos_games"), null, () -> menuView.push(dosPage(gameDir)));
         p.add(I18n.t("music"), null, () -> menuView.push(musicPage(gameDir)));
         p.add(I18n.t("achievements"), null, () -> menuView.push(achievementsPage()));
-        p.add(I18n.t("dos_games"), null, () -> menuView.push(dosPage(gameDir)));
         p.add(I18n.t("back"), null, () -> menuView.pop());
         return p;
     }

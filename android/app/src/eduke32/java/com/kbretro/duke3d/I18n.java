@@ -155,7 +155,7 @@ final class I18n {
         put("dos_load_error", "No se pudo cargar", "Could not load");
         put("dos_pad_help", "A: cambiar - la cruceta y el stick son siempre las flechas",
                 "A: change - D-pad and stick are always the arrows");
-        put("dos_games", "Clásicos de MS-DOS", "MS-DOS classics");
+        put("dos_games", "Clásicos", "Classics");
         put("dos_missing", "Copia el juego en ", "Copy the game to ");
         put("dos_none", "No hay juegos: copia los archivos en ", "No games: copy the files to ");
     }
