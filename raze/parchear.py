@@ -207,3 +207,57 @@ sub("source/core/gamecontrol.cpp",
 sub("source/core/gamecontrol.cpp",
     "#include <stdexcept>\n",
     "#include <stdexcept>\n#include <stdlib.h>\n#include <stdio.h>\n")
+
+# 21. Logros y vibración en Duke (como en la versión EDuke32): android_raze_event() y
+#     android_raze_rumble() (android_raze.cpp) avisan a la app.
+#  Bajas (las que cuentan para la estadística).
+sub("source/games/duke/src/inlines.h",
+    "inline void addkill(DDukeActor* actor)\n{\n\tif ((actor->flags1 & SFLAG_KILLCOUNT) && (actor->spr.cstat2 & CSTAT2_SPRITE_COUNTKILL))\n\t{\n\t\tLevel.addKill(myconnectindex);",
+    "#ifdef __ANDROID__\nextern \"C\" void android_raze_event(int type, int a, int b, int c);\n#endif\n"
+    "inline void addkill(DDukeActor* actor)\n{\n\tif ((actor->flags1 & SFLAG_KILLCOUNT) && (actor->spr.cstat2 & CSTAT2_SPRITE_COUNTKILL))\n\t{\n\t\tLevel.addKill(myconnectindex);\n"
+    "#ifdef __ANDROID__\n\t\tif (ud.multimode < 2) android_raze_event(1, 1, 0, 0);\n#endif")
+#  Secretos.
+sub("source/games/duke/src/sectors_d.cpp",
+    "\t\tLevel.addSecret(p->pnum);\n\t\tSECRET_Trigger(sectindex(p->cursector));",
+    "\t\tLevel.addSecret(p->pnum);\n#ifdef __ANDROID__\n\t\tif (ud.multimode < 2) android_raze_event(3, 0, 0, 0);\n#endif\n"
+    "\t\tSECRET_Trigger(sectindex(p->cursector));")
+#  Propina a la stripper.
+sub("source/games/duke/src/gameexec.cpp",
+    "\tcase concmd_tip:\n\t\tinsptr++;\n\t\tp->tipincs = 26;",
+    "\tcase concmd_tip:\n\t\tinsptr++;\n\t\tp->tipincs = 26;\n#ifdef __ANDROID__\n\t\tif (ud.multimode < 2) android_raze_event(2, 0, 0, 0);\n#endif")
+#  Aplastar a un enemigo encogido.
+sub("source/games/duke/src/player.cpp",
+    "\t\t\t\telse\n\t\t\t\t{\n\t\t\t\t\taddkill(p->actorsqu);\n\t\t\t\t\tp->actorsqu->Destroy();",
+    "\t\t\t\telse\n\t\t\t\t{\n#ifdef __ANDROID__\n\t\t\t\t\tif (ud.multimode < 2) android_raze_event(4, 0, 0, 0);\n#endif\n"
+    "\t\t\t\t\taddkill(p->actorsqu);\n\t\t\t\t\tp->actorsqu->Destroy();")
+#  Fin de nivel: episodio y nivel (desde 0), si cayeron todos, si acaba el episodio y el tiempo.
+sub("source/games/duke/src/premap.cpp",
+    "\tLevel.fillSummary(info);\n\tinfo.endofgame = endofgame;",
+    "\tLevel.fillSummary(info);\n\tinfo.endofgame = endofgame;\n#ifdef __ANDROID__\n"
+    "\tif (currentLevel && currentLevel->levelNumber >= 1000 && ud.multimode < 2)\n\t{\n"
+    "\t\tint flags = (info.maxkills > 0 && info.kills >= info.maxkills) ? 1 : 0;\n"
+    "\t\tif (endofgame || (nextlevel && nextlevel->cluster != currentLevel->cluster)) flags |= 2;\n"
+    "\t\tandroid_raze_event(9, currentLevel->levelNumber / 1000 - 1, currentLevel->levelNumber % 1000 - 1, flags | ((info.time / 120) << 8));\n"
+    "\t}\n#endif")
+#  Vibración: daño recibido, terremotos y disparos (cada tic del juego).
+sub("source/games/duke/src/gameloop.cpp",
+    "void GameInterface::Ticker()\n{",
+    "#ifdef __ANDROID__\nextern \"C\" void android_raze_rumble(int strength, int ms);\n"
+    "static void android_duke_tick()\n{\n"
+    "\tstatic int lastHealth = -1, lastQuake = 0, lastKick = 0;\n"
+    "\tauto p = getPlayer(myconnectindex);\n"
+    "\tauto act = p ? p->GetActor() : nullptr;\n"
+    "\tint h = act ? act->spr.extra : -1;\n"
+    "\tif (lastHealth > 0 && h >= 0 && h < lastHealth)\n\t{\n"
+    "\t\tint d = lastHealth - h;\n"
+    "\t\tandroid_raze_rumble(std::min(255, 70 + d * 8), std::min(400, 80 + d * 10));\n\t}\n"
+    "\tlastHealth = h;\n"
+    "\tif (ud.earthquaketime > 0 && lastQuake == 0) android_raze_rumble(220, 350);\n"
+    "\tlastQuake = ud.earthquaketime;\n"
+    "\tint kick = p ? p->kickback_pic : 0;\n"
+    "\tif (kick == 1 && lastKick != 1) android_raze_rumble(80, 45);\n"
+    "\tlastKick = kick;\n}\n#endif\n\n"
+    "void GameInterface::Ticker()\n{")
+sub("source/games/duke/src/gameloop.cpp",
+    "\t\tfi.think();\n",
+    "\t\tfi.think();\n#ifdef __ANDROID__\n\t\tandroid_duke_tick();\n#endif\n")

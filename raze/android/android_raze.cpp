@@ -161,8 +161,52 @@ void android_raze_axes(float *axes)
 
 extern "C" {
 
-JNIEXPORT void JNICALL Java_com_kbretro_duke3d_GameActivity_nativeInit(JNIEnv *, jclass)
+// ---- Vibración y logros ----
+// El juego avisa (daño, disparos, bajas, secretos, fin de nivel...) desde su hilo; se llama a
+// los métodos estáticos GameActivity.vibrate(fuerza, ms) y achievementEvent(tipo, a, b, c).
+
+static JavaVM *java_vm;
+static jclass game_class;
+static jmethodID vibrate_method, achievement_method;
+
+JNIEXPORT jint JNI_OnLoad(JavaVM *vm, void *)
 {
+    java_vm = vm;
+    return JNI_VERSION_1_6;
+}
+
+JNIEXPORT void JNICALL Java_com_kbretro_duke3d_GameActivity_nativeInit(JNIEnv *env, jclass cls)
+{
+    if (!game_class) game_class = (jclass)env->NewGlobalRef(cls);
+    vibrate_method = env->GetStaticMethodID(cls, "vibrate", "(II)V");
+    achievement_method = env->GetStaticMethodID(cls, "achievementEvent", "(IIII)V");
+    if (env->ExceptionCheck()) env->ExceptionClear();
+}
+
+static JNIEnv *game_env()
+{
+    if (!java_vm || !game_class) return nullptr;
+    JNIEnv *env = nullptr;
+    if (java_vm->GetEnv((void **)&env, JNI_VERSION_1_6) != JNI_OK &&
+        java_vm->AttachCurrentThread(&env, nullptr) != JNI_OK)
+        return nullptr;
+    return env;
+}
+
+__attribute__((visibility("default"))) void android_raze_rumble(int strength, int ms)
+{
+    JNIEnv *env = game_env();
+    if (!env || !vibrate_method) return;
+    env->CallStaticVoidMethod(game_class, vibrate_method, strength, ms);
+    if (env->ExceptionCheck()) env->ExceptionClear();
+}
+
+__attribute__((visibility("default"))) void android_raze_event(int type, int a, int b, int c)
+{
+    JNIEnv *env = game_env();
+    if (!env || !achievement_method) return;
+    env->CallStaticVoidMethod(game_class, achievement_method, type, a, b, c);
+    if (env->ExceptionCheck()) env->ExceptionClear();
 }
 
 JNIEXPORT void JNICALL Java_com_kbretro_duke3d_GameActivity_nativeCommand(JNIEnv *env, jclass, jstring cmd)
