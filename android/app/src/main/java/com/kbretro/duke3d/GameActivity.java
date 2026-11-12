@@ -845,6 +845,8 @@ public class GameActivity extends SDLActivity {
         // Classic (EDuke32): fuera de la partida y con Start, el mando va directo al juego como
         // siempre (sus menús lo manejan bien); en plena partida, la misma disposición que Raze.
         if (!Motor.RAZE && (!inGame() || key == KeyEvent.KEYCODE_BUTTON_START || key == KeyEvent.KEYCODE_MENU)) {
+            // Al ir al menú con Start, que no se quede nada pulsado (ni el stick andando).
+            if (key == KeyEvent.KEYCODE_BUTTON_START && e.getAction() == KeyEvent.ACTION_DOWN) releaseAllFuncs();
             return false;
         }
         if (key == KeyEvent.KEYCODE_BUTTON_START || key == KeyEvent.KEYCODE_MENU) {
