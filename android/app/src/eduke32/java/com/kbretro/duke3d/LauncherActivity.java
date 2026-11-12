@@ -264,7 +264,11 @@ public class LauncherActivity extends Activity {
         // Penthouse Paradise (DLC gratuito de 1997), si está en extras/; como las expansiones,
         // no sale con una campaña activada.
         File pent = campaign ? null : findPenthouse(gameDir);
-        if (pent != null) root.addGame("Penthouse", box(R.drawable.caja_penthouse), () -> launchPenthouse(gameDir, pent));
+        if (pent != null) {
+            root.addGame("Penthouse", box(R.drawable.caja_penthouse), () -> launchPenthouse(gameDir, pent));
+            DukeMenuView.Entry e = root.entries.get(root.entries.size() - 1);
+            e.coverTap = () -> penthouseTap(e);
+        }
         root.add(I18n.t("mods"), null, () -> menuView.push(modsPage(gameDir)));
         root.add(I18n.t("options"), null, () -> menuView.push(optionsPage(gameDir)));
         root.add(I18n.t("extras"), null, () -> menuView.push(extrasPage(gameDir)));
@@ -300,6 +304,38 @@ public class LauncherActivity extends Activity {
     }
 
     // ---- Penthouse Paradise ----
+
+    // Huevo de pascua: 3 toques seguidos en su caja enseñan una portada de la revista de 1997
+    // al azar durante 10 segundos; luego vuelve la caja del juego.
+    private static final int[] PENT_EGGS = {
+            R.drawable.pent_egg_01, R.drawable.pent_egg_02, R.drawable.pent_egg_03, R.drawable.pent_egg_04,
+            R.drawable.pent_egg_05, R.drawable.pent_egg_06, R.drawable.pent_egg_07, R.drawable.pent_egg_08,
+            R.drawable.pent_egg_09, R.drawable.pent_egg_10,
+    };
+    private int pentTaps;
+    private long pentLastTap;
+    private int pentLastEgg = -1;
+    private final android.os.Handler eggHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+
+    private void penthouseTap(DukeMenuView.Entry e) {
+        long now = android.os.SystemClock.uptimeMillis();
+        pentTaps = now - pentLastTap < 700 ? pentTaps + 1 : 1;
+        pentLastTap = now;
+        if (pentTaps < 3) return;
+        pentTaps = 0;
+        int i;
+        do {
+            i = new java.util.Random().nextInt(PENT_EGGS.length);
+        } while (i == pentLastEgg && PENT_EGGS.length > 1);
+        pentLastEgg = i;
+        e.cover = box(PENT_EGGS[i]);
+        menuView.invalidate();
+        eggHandler.removeCallbacksAndMessages(null);
+        eggHandler.postDelayed(() -> {
+            e.cover = box(R.drawable.caja_penthouse);
+            if (menuView != null) menuView.invalidate();
+        }, 10000);
+    }
 
     /** La carpeta con ppakpent.map (versión Atomic del DLC) dentro de extras/, o null. */
     private File findPenthouse(File gameDir) {

@@ -38,6 +38,8 @@ final class DukeMenuView extends View {
         Bitmap cover;
         /** Si no es null, Start sobre la opción la restablece (p. ej. un botón del mando). */
         Runnable reset;
+        /** Si no es null, se llama al tocar su caja grande (la de la derecha). */
+        Runnable coverTap;
         /** Si devuelve true, la opción se pinta de otro color (p. ej. la pista que suena). */
         java.util.function.BooleanSupplier active;
 
@@ -232,6 +234,7 @@ final class DukeMenuView extends View {
             maxW = Math.min(listRight - listLeft, 240);
             // Solo con un juego elegido (en Opciones o Salir no se ve ninguna caja).
             Entry cur = n > 0 ? p.entries.get(p.selected) : null;
+            coverRect.setEmpty();
             if (cur != null && cur.cover != null) drawCover(c, cur.cover, boxLeft, 100 - boxH / 2f, boxW, boxH);
         }
         // Listas largas (las pistas de música): se ven unas cuantas y se desplazan con la elegida.
@@ -348,6 +351,8 @@ final class DukeMenuView extends View {
 
     /** La caja entera dentro del rectángulo (x, y, w, h) del 320x200, con marco. */
     private final Paint coverDim = new Paint(Paint.FILTER_BITMAP_FLAG);
+    /** Dónde está la caja grande en pantalla (para tocarla). */
+    private final RectF coverRect = new RectF();
 
     private void drawCover(Canvas c, Bitmap b, float x, float y, float bw, float bh) {
         // El 320x200 se ve estirado a 4:3: en píxeles de pantalla se mantiene la proporción real.
@@ -362,6 +367,7 @@ final class DukeMenuView extends View {
         c.drawRect(l - 6, t - 6, l + fw + 6, t + fh + 6, frame);
         frame.setColor(Color.rgb(255, 200, 40));
         c.drawRect(l - 3, t - 3, l + fw + 3, t + fh + 3, frame);
+        coverRect.set(l, t, l + fw, t + fh);
         float iw = b.getWidth(), ih = b.getHeight();
         // Fondo: la imagen llenando el marco (recortada) y oscurecida.
         android.graphics.Rect src;
@@ -691,6 +697,11 @@ final class DukeMenuView extends View {
                 return true;
             }
             case MotionEvent.ACTION_UP:
+                if (!dragged && idx < 0 && touched < 0 && coverRect.contains(ev.getX(), ev.getY())) {
+                    Page p = page();
+                    Entry e = p.entries.isEmpty() ? null : p.entries.get(p.selected);
+                    if (e != null && e.coverTap != null) e.coverTap.run();
+                }
                 if (!dragged && idx >= 0 && idx == touched) activate();
                 touched = -1;
                 return true;
