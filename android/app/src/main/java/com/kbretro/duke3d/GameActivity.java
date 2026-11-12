@@ -388,6 +388,8 @@ public class GameActivity extends SDLActivity {
             });
         }
         startWatchdog();
+        stickLookSens = ControlSettings.stickLook(this);
+        stickMoveSens = ControlSettings.stickMove(this);
         setupTouch();
         I18n.load(this);
         instance = this;
@@ -666,6 +668,14 @@ public class GameActivity extends SDLActivity {
     private DukeMenuView.Page gamepadPage() {
         DukeMenuView.Page p = new DukeMenuView.Page();
         status = null;
+        p.addValue(I18n.t("stick_look"), () -> ControlSettings.stickLookLabel(this), () -> {
+            ControlSettings.cycleStickLook(this);
+            stickLookSens = ControlSettings.stickLook(this);
+        });
+        p.addValue(I18n.t("stick_move"), () -> ControlSettings.stickMoveLabel(this), () -> {
+            ControlSettings.cycleStickMove(this);
+            stickMoveSens = ControlSettings.stickMove(this);
+        });
         for (int i = 0; i < ControlSettings.KEYS.length; i++) {
             int key = ControlSettings.KEYS[i];
             String name = ControlSettings.keyName(i);
@@ -867,6 +877,11 @@ public class GameActivity extends SDLActivity {
     }
 
     private boolean triggerL, triggerR;
+    private float stickLookSens = 1f, stickMoveSens = 1f;
+
+    private static float clampAxis(float v) {
+        return Math.max(-1f, Math.min(1f, v));
+    }
     private int stickMenuKey = -1;
 
     private static float dead(float v) {
@@ -881,8 +896,8 @@ public class GameActivity extends SDLActivity {
         float rt = Math.max(e.getAxisValue(MotionEvent.AXIS_RTRIGGER), e.getAxisValue(MotionEvent.AXIS_GAS));
         if (inGame()) {
             try {
-                nativeTouchMove(lx, ly);
-                nativeStickLook(rx, ry);
+                nativeTouchMove(clampAxis(lx * stickMoveSens), clampAxis(ly * stickMoveSens));
+                nativeStickLook(rx * stickLookSens, ry * stickLookSens);
             } catch (UnsatisfiedLinkError ignored) {
             }
             boolean l = lt > 0.5f, r = rt > 0.5f;

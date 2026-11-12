@@ -84,6 +84,44 @@ final class ControlSettings {
         prefs(c).edit().putInt("tactil_sens", (sensIndex(c) + 1) % SENS.length).apply();
     }
 
+    // ---- Sensibilidad de los sticks del mando ----
+
+    private static final float[] LOOK = {0.5f, 0.75f, 1f, 1.35f, 1.75f, 2.25f};
+    private static final float[] MOVE = {0.75f, 1f, 1.25f, 1.5f};
+    private static final String[] LOOK_LABELS = {"1", "2", "3", "4", "5", "6"};
+    private static final String[] MOVE_LABELS = {"1", "2", "3", "4"};
+
+    private static int stickIndex(Context c, String key, int def, int n) {
+        int v = prefs(c).getInt(key, def);
+        return v >= 0 && v < n ? v : def;
+    }
+
+    /** Stick derecho (mirar/girar). */
+    static float stickLook(Context c) {
+        return LOOK[stickIndex(c, "stick_mirar", 2, LOOK.length)];
+    }
+
+    /** Stick izquierdo (andar): con más sensibilidad se llega antes a la velocidad máxima. */
+    static float stickMove(Context c) {
+        return MOVE[stickIndex(c, "stick_andar", 1, MOVE.length)];
+    }
+
+    static String stickLookLabel(Context c) {
+        return LOOK_LABELS[stickIndex(c, "stick_mirar", 2, LOOK.length)] + "/" + LOOK.length;
+    }
+
+    static String stickMoveLabel(Context c) {
+        return MOVE_LABELS[stickIndex(c, "stick_andar", 1, MOVE.length)] + "/" + MOVE.length;
+    }
+
+    static void cycleStickLook(Context c) {
+        prefs(c).edit().putInt("stick_mirar", (stickIndex(c, "stick_mirar", 2, LOOK.length) + 1) % LOOK.length).apply();
+    }
+
+    static void cycleStickMove(Context c) {
+        prefs(c).edit().putInt("stick_andar", (stickIndex(c, "stick_andar", 1, MOVE.length) + 1) % MOVE.length).apply();
+    }
+
     /** La acción puesta en un botón del mando (DEFAULT si no se ha cambiado). */
     static int remap(Context c, int keyCode) {
         return prefs(c).getInt("boton_" + keyCode, DEFAULT);

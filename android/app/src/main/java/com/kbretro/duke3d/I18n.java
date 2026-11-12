@@ -110,6 +110,8 @@ final class I18n {
         put("game_menu", "Menú del juego", "Game menu");
         put("gfx_colors", "Colores", "Colors");
         put("gfx_truecolor", "Color real", "True color");
+        put("stick_look", "Sensibilidad de giro (stick dcho.)", "Look sensitivity (right stick)");
+        put("stick_move", "Sensibilidad de movimiento (stick izq.)", "Move sensitivity (left stick)");
         put("new_game", "Nueva partida", "New game");
         put("save_game", "Guardar partida", "Save game");
         put("load_game", "Cargar partida", "Load game");
