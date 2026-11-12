@@ -350,15 +350,28 @@ final class DukeMenuView extends View {
     private void drawCover(Canvas c, Bitmap b, float x, float y, float bw, float bh) {
         // El 320x200 se ve estirado a 4:3: en píxeles de pantalla se mantiene la proporción real.
         float pw = bw * sx, ph = bh * sy;
-        float k = Math.min(pw / b.getWidth(), ph / b.getHeight());
-        float dw = b.getWidth() * k, dh = b.getHeight() * k;
+        // Todas las cajas con el mismo marco (3:4, como una caja de juego): la imagen lo llena
+        // sin deformarse; lo que sobra por los lados o por arriba y abajo se recorta un poco.
+        final float aspect = 3f / 4f;
+        float dh = Math.min(ph, pw / aspect), dw = dh * aspect;
         float l = vx(x) + (pw - dw) / 2f, t = vy(y) + (ph - dh) / 2f;
+        float iw = b.getWidth(), ih = b.getHeight();
+        android.graphics.Rect src;
+        if (iw / ih > aspect) {
+            int cw = Math.round(ih * aspect);
+            int cx = Math.round((iw - cw) / 2f);
+            src = new android.graphics.Rect(cx, 0, cx + cw, (int) ih);
+        } else {
+            int ch = Math.round(iw / aspect);
+            int cy = Math.round((ih - ch) / 2f);
+            src = new android.graphics.Rect(0, cy, (int) iw, cy + ch);
+        }
         frame.setColor(Color.argb(200, 0, 0, 0));
         c.drawRect(l - 6, t - 6, l + dw + 6, t + dh + 6, frame);
         frame.setColor(Color.rgb(255, 200, 40));
         c.drawRect(l - 3, t - 3, l + dw + 3, t + dh + 3, frame);
         dst.set(l, t, l + dw, t + dh);
-        c.drawBitmap(b, null, dst, smooth);
+        c.drawBitmap(b, src, dst, smooth);
     }
 
     private static final int MAX_VISIBLE = 9;
