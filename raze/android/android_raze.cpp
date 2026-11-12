@@ -33,11 +33,11 @@
 #include "menustate.h"
 #include "m_joy.h"
 #include "gameconfigfile.h"
-#include "savegamemanager.h"
 #include "texturemanager.h"
 #include "tarray.h"
 #include "zstring.h"
 
+FString G_BuildSaveName(const char* prefix);
 bool android_raze_newgame(int episode, int skill);
 TArray<FString> android_raze_episodes();
 
