@@ -32,7 +32,14 @@ static volatile int pfx_crt = 0;     // 0 no, 1 líneas, 2 CRT, 3 LCD
 static volatile int pfx_color = 0;   // 0 normal, 1 vivo, 2 cálido, 3 frío, 4 cine
 static volatile int pfx_bloom = 0;   // 0 no, 1 suave, 2 fuerte
 
-JNIEXPORT void JNICALL Java_com_kbretro_duke3d_GameActivity_nativePostFx(JNIEnv *env, jclass cls, jint scaler, jint fxaa,
+#ifdef POSTFX_DOS
+// Juegos de MS-DOS (dos/dos_main.cpp): los ajustes llegan desde DosActivity.
+#define POSTFX_JNI Java_com_kbretro_duke3d_DosActivity_nativePostFx
+#else
+#define POSTFX_JNI Java_com_kbretro_duke3d_GameActivity_nativePostFx
+#endif
+
+JNIEXPORT void JNICALL POSTFX_JNI(JNIEnv *env, jclass cls, jint scaler, jint fxaa,
                                                                          jint sharp, jint crt, jint color, jint bloom)
 {
     (void)env;
@@ -549,12 +556,22 @@ void android_postfx_present(const void *pixels, int w, int h, int pitch)
     SDL_GL_GetDrawableSize(pfx_window, &ww, &wh);
     if (ww <= 0 || wh <= 0)
         return;
+#ifdef POSTFX_DOS
+    // Los juegos de MS-DOS (320x200 y similares) se veían en monitores 4:3.
+    int vw = ww, vh = ww * 3 / 4;
+    if (vh > wh)
+    {
+        vh = wh;
+        vw = wh * 4 / 3;
+    }
+#else
     int vw = ww, vh = (int)((long long)ww * h / w);
     if (vh > wh)
     {
         vh = wh;
         vw = (int)((long long)wh * w / h);
     }
+#endif
     int vx = (ww - vw) / 2, vy = (wh - vh) / 2;
 
     int scaler = pfx_scaler, sharp = pfx_sharp;

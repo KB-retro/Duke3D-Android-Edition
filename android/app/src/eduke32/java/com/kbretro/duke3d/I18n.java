@@ -133,6 +133,26 @@ final class I18n {
         put("mods_note", "vóxeles y mapas sí; texturas y modelos HD no", "voxels and maps work; HD textures and models do not");
         put("achievement_unlocked", "LOGRO DESBLOQUEADO", "ACHIEVEMENT UNLOCKED");
         put("unlocked_short", "OK", "OK");
+        put("dos_keys", "Teclas", "Keys");
+        put("dos_jump", "SALTAR", "JUMP");
+        put("dos_fire", "DISPARAR", "FIRE");
+        put("dos_use", "USAR", "USE");
+        put("dos_enter", "INTRO", "ENTER");
+        put("dos_space", "Espacio", "Space");
+        put("dos_yes_key", "Y (sí)", "Y (yes)");
+        put("dos_no_key", "N (no)", "N (no)");
+        put("dos_saving", "Guardando...", "Saving...");
+        put("dos_loading", "Cargando...", "Loading...");
+        put("dos_saved", "Partida guardada", "Game saved");
+        put("dos_loaded", "Partida cargada", "Game loaded");
+        put("dos_no_save", "No hay ninguna partida guardada", "No saved game");
+        put("dos_save_error", "No se pudo guardar", "Could not save");
+        put("dos_load_error", "No se pudo cargar", "Could not load");
+        put("dos_pad_help", "A saltar - B/X/R2 disparar - Y usar - Start Intro - Select Esc",
+                "A jump - B/X/R2 fire - Y use - Start Enter - Select Esc");
+        put("dos_games", "Clásicos de MS-DOS", "MS-DOS classics");
+        put("dos_missing", "Copia el juego en ", "Copy the game to ");
+        put("dos_none", "No hay juegos: copia los archivos en ", "No games: copy the files to ");
     }
 
     static void load(Context c) {

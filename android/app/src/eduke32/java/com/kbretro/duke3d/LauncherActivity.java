@@ -289,8 +289,73 @@ public class LauncherActivity extends Activity {
         DukeMenuView.Page p = new DukeMenuView.Page();
         p.add(I18n.t("music"), null, () -> menuView.push(musicPage(gameDir)));
         p.add(I18n.t("achievements"), null, () -> menuView.push(achievementsPage()));
+        p.add(I18n.t("dos_games"), null, () -> menuView.push(dosPage(gameDir)));
         p.add(I18n.t("back"), null, () -> menuView.pop());
         return p;
+    }
+
+    // ---- Juegos de MS-DOS (DosActivity) ----
+
+    /** Un juego de MS-DOS: su carpeta dentro de extras/ y el ejecutable que arranca. */
+    private static final class DosGame {
+        final String title, folder, exe, id;
+
+        DosGame(String title, String folder, String exe, String id) {
+            this.title = title;
+            this.folder = folder;
+            this.exe = exe;
+            this.id = id;
+        }
+    }
+
+    private static final DosGame[] DOS_GAMES = {
+            new DosGame("Duke Nukem - Shrapnel City", "duke1", "DN1.EXE", "duke1_ep1"),
+            new DosGame("Duke Nukem - Mission: Moonbase", "duke1", "DN2.EXE", "duke1_ep2"),
+            new DosGame("Duke Nukem - Trapped in the Future", "duke1", "DN3.EXE", "duke1_ep3"),
+            new DosGame("Duke Nukem II", "duke2", "NUKEM2.EXE", "duke2"),
+    };
+
+    /** Archivo o carpeta dentro de dir sin mirar mayúsculas (o null). */
+    private static File findIgnoreCase(File dir, String name) {
+        File[] list = dir != null ? dir.listFiles() : null;
+        if (list == null) return null;
+        for (File f : list) if (f.getName().equalsIgnoreCase(name)) return f;
+        return null;
+    }
+
+    private File extrasDir() {
+        File d = findIgnoreCase(baseDir(), "extras");
+        return d != null ? d : new File(baseDir(), "extras");
+    }
+
+    private DukeMenuView.Page dosPage(File gameDir) {
+        DukeMenuView.Page p = new DukeMenuView.Page();
+        File extras = extrasDir();
+        int found = 0;
+        for (DosGame g : DOS_GAMES) {
+            File exe = findIgnoreCase(findIgnoreCase(extras, g.folder), g.exe);
+            if (exe == null || !exe.isFile()) continue;
+            found++;
+            p.add(g.title, null, () -> launchDos(gameDir, g, exe));
+        }
+        p.add(I18n.t("back"), null, () -> menuView.pop());
+        String where = new File(extras, "duke1").getAbsolutePath() + " / duke2";
+        p.footer = found == 0 ? () -> I18n.t("dos_none") + where : () -> "";
+        return p;
+    }
+
+    private void launchDos(File gameDir, DosGame g, File exe) {
+        File saves = new File(extrasDir(), "partidas");
+        //noinspection ResultOfMethodCallIgnored
+        saves.mkdirs();
+        Intent intent = new Intent(this, DosActivity.class);
+        intent.putExtra(DosActivity.EXTRA_EXE, exe.getAbsolutePath());
+        intent.putExtra(DosActivity.EXTRA_SAVE_DIR, saves.getAbsolutePath());
+        intent.putExtra(DosActivity.EXTRA_STATE, new File(saves, g.id + ".estado").getAbsolutePath());
+        List<GameData.Game> all = GameData.games(gameDir);
+        if (!all.isEmpty()) intent.putExtra(DosActivity.EXTRA_BASE_GRP, all.get(0).grp.getAbsolutePath());
+        music.stop();
+        startActivity(intent);
     }
 
     /** Los 20 logros: los conseguidos en amarillo; abajo, qué hay que hacer para el elegido. */

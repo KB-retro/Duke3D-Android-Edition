@@ -6,12 +6,13 @@ on:
 
 env:
   SDL_VERSION: "2.30.9"
+  DOSBOX_PURE_TAG: "1.0-preview6"
 
 jobs:
   apk:
     name: APK
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
 
@@ -36,6 +37,19 @@ jobs:
           tar xzf sdl.tar.gz
           mv "SDL2-${SDL_VERSION}" android/SDL2
 
+      # DOSBox Pure (juegos de MS-DOS de los extras). Ya no se publica en GitHub: la última
+      # versión que hay allí es la 1.0-preview6.
+      - name: Caché de DOSBox Pure
+        id: dosbox
+        uses: actions/cache@v4
+        with:
+          path: android/dosbox-pure
+          key: dosbox-pure-${{ env.DOSBOX_PURE_TAG }}
+
+      - name: Descargar DOSBox Pure
+        if: steps.dosbox.outputs.cache-hit != 'true'
+        run: git clone -q --depth 1 --branch "$DOSBOX_PURE_TAG" https://github.com/schellingb/dosbox-pure.git android/dosbox-pure
+
       - name: NDK y CMake
         run: |
           SDKM=$(ls -d $ANDROID_HOME/cmdline-tools/*/bin | head -1)/sdkmanager
@@ -51,9 +65,9 @@ jobs:
             -DCMAKE_MAKE_PROGRAM=$CMAKE_BIN/ninja \
             -DCMAKE_TOOLCHAIN_FILE=$NDK/build/cmake/android.toolchain.cmake \
             -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=26 -DANDROID_STL=c++_shared \
-            -DCMAKE_BUILD_TYPE=Release -DSDL2_DIR=$PWD/android/SDL2
+            -DCMAKE_BUILD_TYPE=Release -DSDL2_DIR=$PWD/android/SDL2 -DDOSBOX_DIR=$PWD/android/dosbox-pure
           set +e
-          $CMAKE_BIN/ninja -C nativo -k 0 main > nativo.log 2>&1
+          $CMAKE_BIN/ninja -C nativo -k 0 main dos > nativo.log 2>&1
           rc=$?
           set -e
           if [ $rc -ne 0 ]; then
@@ -88,7 +102,7 @@ jobs:
 
       - name: Compilar
         working-directory: android
-        timeout-minutes: 15
+        timeout-minutes: 45
         env:
           VERSION_CODE: ${{ github.run_number }}
           SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}

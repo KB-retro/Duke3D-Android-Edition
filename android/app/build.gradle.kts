@@ -9,6 +9,8 @@ fun config(name: String, default: String = ""): String =
 
 // Código de SDL2: lo descarga el workflow (o scripts/descargar-sdl.sh) en android/SDL2.
 val sdlDir = rootProject.file("SDL2")
+// Código de DOSBox Pure (juegos de MS-DOS de los extras): lo descarga el workflow en android/dosbox-pure.
+val dosboxDir = rootProject.file("dosbox-pure")
 
 android {
     namespace = "com.kbretro.duke3d"
@@ -27,7 +29,8 @@ android {
         }
         externalNativeBuild {
             cmake {
-                arguments += listOf("-DSDL2_DIR=${sdlDir.absolutePath}", "-DANDROID_STL=c++_shared")
+                arguments += listOf("-DSDL2_DIR=${sdlDir.absolutePath}", "-DANDROID_STL=c++_shared",
+                    "-DDOSBOX_DIR=${dosboxDir.absolutePath}")
             }
         }
     }
