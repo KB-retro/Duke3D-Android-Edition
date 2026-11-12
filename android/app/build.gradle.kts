@@ -44,7 +44,7 @@ android {
             dimension = "motor"
             applicationIdSuffix = ".raze"
             versionNameSuffix = "-raze"
-            resValue("string", "app_name", "Duke3D Raze Edition")
+            resValue("string", "app_name", "Duke 3D RZ")
             externalNativeBuild {
                 cmake {
                     arguments += listOf("-DMOTOR_RAZE=ON")
