@@ -28,10 +28,12 @@ final class Guide {
                     "- Copia los datos del Duke Nukem 3D (DUKE3D.GRP) en la carpeta Duke3D de la memoria. Vale la carpeta del juego de Steam o GOG entera.",
                     "- Si los tienes en otro sitio, eligela en Opciones > Carpeta. Selecciona la carpeta que contiene a la del juego, no la de dentro.",
                     "- Las expansiones (Duke It Out in D.C., Nuclear Winter, Caribbean) salen solas si estan en la carpeta addons.",
+                    "- Penthouse Paradise: descomprime su zip tal cual en extras/penthouse y sale en el menu como un juego mas.",
             }, new String[]{
                     "- Copy the Duke Nukem 3D data (DUKE3D.GRP) to the Duke3D folder in storage. The whole Steam or GOG game folder works.",
                     "- If it is somewhere else, pick it in Options > Folder. Select the folder that contains the game folder, not the one inside.",
                     "- The expansions (Duke It Out in D.C., Nuclear Winter, Caribbean) show up on their own if they are in the addons folder.",
+                    "- Penthouse Paradise: unzip it as is into extras/penthouse and it shows up in the menu like another game.",
             }),
             new Topic("Mods", "Mods", new String[]{
                     "- Van en la carpeta mods del juego, que tiene dos subcarpetas:",

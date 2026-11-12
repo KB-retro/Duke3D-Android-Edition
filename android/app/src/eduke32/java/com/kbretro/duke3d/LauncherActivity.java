@@ -261,6 +261,10 @@ public class LauncherActivity extends Activity {
             if (cover != null) root.addGame(g.menuLabel(), cover, () -> launch(gameDir, g));
             else root.add(g.menuLabel(), assets.icons.get(g.title), () -> launch(gameDir, g));
         }
+        // Penthouse Paradise (DLC gratuito de 1997), si está en extras/; como las expansiones,
+        // no sale con una campaña activada.
+        File pent = campaign ? null : findPenthouse(gameDir);
+        if (pent != null) root.add("Penthouse Paradise", null, () -> launchPenthouse(gameDir, pent));
         root.add(I18n.t("mods"), null, () -> menuView.push(modsPage(gameDir)));
         root.add(I18n.t("options"), null, () -> menuView.push(optionsPage(gameDir)));
         root.add(I18n.t("extras"), null, () -> menuView.push(extrasPage(gameDir)));
@@ -293,6 +297,67 @@ public class LauncherActivity extends Activity {
         p.add(I18n.t("achievements"), null, () -> menuView.push(achievementsPage()));
         p.add(I18n.t("back"), null, () -> menuView.pop());
         return p;
+    }
+
+    // ---- Penthouse Paradise ----
+
+    /** La carpeta con ppakpent.map (versión Atomic del DLC) dentro de extras/, o null. */
+    private File findPenthouse(File gameDir) {
+        for (File extras : extrasDirs(gameDir)) {
+            File map = findExe(extras, "ppakpent.map", 5);
+            if (map != null) return map.getParentFile();
+        }
+        return null;
+    }
+
+    /**
+     * El paquete es una instalación entera del Duke 3D de 1997: solo se usan los archivos del DLC
+     * para la versión Atomic (la de la Megaton), copiados a una carpeta aparte con los nombres
+     * que espera el juego (GAME.CON, DEFS.CON, USER.CON). Así no se mezcla con nada más.
+     */
+    private void launchPenthouse(File gameDir, File src) {
+        File prep = new File(getFilesDir(), "penthouse");
+        try {
+            File[] old = prep.listFiles();
+            if (old != null) for (File f : old) //noinspection ResultOfMethodCallIgnored
+                f.delete();
+            //noinspection ResultOfMethodCallIgnored
+            prep.mkdirs();
+            String[][] files = {
+                    {"ppakgame.con", "GAME.CON"}, {"ppakdefs.con", "DEFS.CON"}, {"ppakuser.con", "USER.CON"},
+                    {"ppakgame.con", null}, {"ppakdefs.con", null}, {"ppakuser.con", null},
+                    {"ppakpent.map", null}, {"needle.wav", null}, {"needle2.wav", null}, {"pob.mid", null},
+            };
+            for (String[] f : files) {
+                File in = findIgnoreCase(src, f[0]);
+                if (in == null) continue;
+                if (f[1] != null) {
+                    copyFile(in, new File(prep, f[1]));
+                } else {
+                    // Con el nombre en minúsculas y en mayúsculas (los .CON los nombran de las dos formas).
+                    copyFile(in, new File(prep, f[0].toLowerCase(java.util.Locale.ROOT)));
+                    copyFile(in, new File(prep, f[0].toUpperCase(java.util.Locale.ROOT)));
+                    copyFile(in, new File(prep, in.getName()));
+                }
+            }
+        } catch (java.io.IOException e) {
+            android.widget.Toast.makeText(this, "Penthouse Paradise: " + e, android.widget.Toast.LENGTH_LONG).show();
+            return;
+        }
+        List<GameData.Game> all = GameData.games(gameDir);
+        if (all.isEmpty()) return;
+        launchAlone = true;
+        launch(gameDir, all.get(0), new String[]{"-j", prep.getAbsolutePath(), "-x", "GAME.CON", "-map", "ppakpent.map"});
+    }
+
+    private static void copyFile(File in, File out) throws java.io.IOException {
+        if (out.exists()) return;
+        try (java.io.InputStream is = new java.io.FileInputStream(in);
+             java.io.OutputStream os = new java.io.FileOutputStream(out)) {
+            byte[] buf = new byte[65536];
+            int n;
+            while ((n = is.read(buf)) > 0) os.write(buf, 0, n);
+        }
     }
 
     // ---- Guía de uso ----
@@ -767,14 +832,19 @@ public class LauncherActivity extends Activity {
         return p;
     }
 
+    /** El próximo lanzamiento va solo: sin mods ni traducción (Penthouse Paradise trae sus .CON). */
+    private boolean launchAlone;
+
     private void launch(File gameDir, GameData.Game game, String[] extraArgs) {
         if (launching) return;
         launching = true;
         music.stop();
-        boolean spanish = I18n.ES.equals(I18n.lang());
+        boolean alone = launchAlone;
+        launchAlone = false;
+        boolean spanish = I18n.ES.equals(I18n.lang()) && !alone;
         // Mientras se preparan (la primera vez se descomprimen y tarda), se enseña el progreso.
         DukeMenuView.Page wait = new DukeMenuView.Page();
-        if (!enabledMods().isEmpty()) {
+        if (!alone && !enabledMods().isEmpty()) {
             GameData.progress = "";
             GameData.progressValue = "";
             wait.addValue(I18n.t("mods_preparing"), () -> GameData.progressValue, null);
@@ -799,7 +869,7 @@ public class LauncherActivity extends Activity {
                 File camp = activeCampaign(gameDir);
                 java.util.Set<String> enabled = camp != null
                         ? java.util.Collections.singleton(camp.getName()) : enabledMods();
-                modArgs = GameData.modArguments(gameDir, enabled);
+                modArgs = alone ? new ArrayList<>() : GameData.modArguments(gameDir, enabled);
             } catch (Throwable t) {
                 android.util.Log.e("Duke3D", "No se pudieron preparar los mods", t);
                 runOnUiThread(() -> {
