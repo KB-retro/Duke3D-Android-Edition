@@ -233,3 +233,6 @@ sub("source/core/gamecontrol.cpp",
     "\t//DeleteScreenJob();\n\tif (gi)",
     "#ifdef __ANDROID__\n\tG_SaveConfig();\n\tfflush(stdout);\n\tfflush(stderr);\n\t_Exit(r == -1 ? 1 : 0);\n#endif\n"
     "\t//DeleteScreenJob();\n\tif (gi)")
+sub("source/core/gamecontrol.cpp",
+    "#include <stdexcept>\n",
+    "#include <stdexcept>\n#include <stdlib.h>\n#include <stdio.h>\n")
