@@ -413,59 +413,6 @@ final class DukeMenuView extends View {
         return n.replace("¿", "").replace("¡", "").toUpperCase(Locale.ROOT);
     }
 
-    /**
-     * La marca (tilde, virgulilla o diéresis) de cada letra de clean(s), o 0. Las letras del
-     * juego no tienen tildes: se dibujan encima con el apóstrofo, el guion o el punto del juego.
-     */
-    static char[] marks(String s) {
-        String n = Normalizer.normalize(s.replace("¿", "").replace("¡", ""), Normalizer.Form.NFD);
-        StringBuilder out = new StringBuilder();
-        for (int i = 0; i < n.length(); i++) {
-            char ch = n.charAt(i);
-            if (Character.getType(ch) == Character.NON_SPACING_MARK) {
-                if (out.length() > 0 && out.charAt(out.length() - 1) == 0) {
-                    char m = ch == '\u0301' || ch == '\u0300' ? '\'' : ch == '\u0303' ? '~' : ch == '\u0308' ? ':' : 0;
-                    out.setCharAt(out.length() - 1, m);
-                }
-                continue;
-            }
-            out.append((char) 0);
-        }
-        return out.toString().toCharArray();
-    }
-
-    /** Dibuja la marca de una letra (x, ancho y arriba de la letra, en coordenadas del juego). */
-    private void drawMark(Canvas c, char mark, float x, float w, float top, float scale, boolean big, Paint paint) {
-        int tile;
-        float k;
-        if (mark == '\'') {
-            tile = big ? DukeArt.BIGAPPOS : DukeArt.STARTALPHANUM + ('\'' - '!');
-            k = big ? 0.55f : 0.8f;
-        } else if (mark == '~') {
-            tile = big ? DukeArt.BIGALPHANUM - 11 : DukeArt.STARTALPHANUM + ('-' - '!');
-            k = big ? 0.6f : 0.9f;
-        } else if (mark == ':') {
-            tile = big ? DukeArt.BIGPERIOD : DukeArt.STARTALPHANUM + ('.' - '!');
-            k = big ? 0.5f : 0.9f;
-        } else {
-            return;
-        }
-        Bitmap b = art.tile(tile);
-        if (b == null) return;
-        float mw = b.getWidth() * scale * k, mh = b.getHeight() * scale * k;
-        float bottom = top + scale * (big ? 1.5f : 0.5f);
-        float cx = x + w / 2f;
-        if (mark == ':') {
-            float gap = w * 0.18f;
-            dst.set(vx(cx - gap - mw), vy(bottom - mh), vx(cx - gap), vy(bottom));
-            c.drawBitmap(b, null, dst, paint);
-            dst.set(vx(cx + gap), vy(bottom - mh), vx(cx + gap + mw), vy(bottom));
-        } else {
-            dst.set(vx(cx - mw / 2f), vy(bottom - mh), vx(cx + mw / 2f), vy(bottom));
-        }
-        c.drawBitmap(b, null, dst, paint);
-    }
-
     /** Letra grande roja del menú (BIGALPHANUM), como en G_GetStringTileLegacy. */
     static int bigTile(char c) {
         if (c >= '0' && c <= '9') return DukeArt.BIGALPHANUM - 10 + (c - '0');
@@ -513,10 +460,8 @@ final class DukeMenuView extends View {
     private void drawBig(Canvas c, String s, float x, float cy, float scale, Paint paint) {
         float lineH = art.height(DukeArt.BIGALPHANUM) > 0 ? art.height(DukeArt.BIGALPHANUM) : 15;
         float top = cy - lineH * scale / 2f;
-        char[] txt = clean(s).toCharArray();
-        char[] mk = marks(s);
-        for (int i = 0; i < txt.length; i++) {
-            int t = bigTile(txt[i]);
+        for (char ch : clean(s).toCharArray()) {
+            int t = bigTile(ch);
             Bitmap b = (t >= 0) ? art.tile(t) : null;
             if (b == null) {
                 x += 5 * scale;
@@ -526,7 +471,6 @@ final class DukeMenuView extends View {
             float bt = top + (lineH - b.getHeight()) * scale;
             dst.set(vx(x), vy(bt), vx(x + b.getWidth() * scale), vy(bt + b.getHeight() * scale));
             c.drawBitmap(b, null, dst, paint);
-            if (i < mk.length && mk[i] != 0) drawMark(c, mk[i], x, b.getWidth() * scale, bt, scale, true, paint);
             x += b.getWidth() * scale;
         }
     }
@@ -543,15 +487,12 @@ final class DukeMenuView extends View {
         if (center) x -= wsum * scale / 2f;
         float lineH = art.height(DukeArt.STARTALPHANUM) > 0 ? art.height(DukeArt.STARTALPHANUM) : 8;
         float top = cy - lineH * scale / 2f;
-        char[] mk = marks(s);
-        for (int i = 0; i < txt.length(); i++) {
-            char ch = txt.charAt(i);
+        for (char ch : txt.toCharArray()) {
             int t = ch > ' ' && ch <= '~' ? DukeArt.STARTALPHANUM + (ch - '!') : -1;
             Bitmap b = t >= 0 ? art.tile(t) : null;
             if (b != null) {
                 dst.set(vx(x), vy(top), vx(x + b.getWidth() * scale), vy(top + b.getHeight() * scale));
                 c.drawBitmap(b, null, dst, pixel);
-                if (i < mk.length && mk[i] != 0) drawMark(c, mk[i], x, b.getWidth() * scale, top, scale, false, pixel);
             }
             x += smallAdvance(ch) * scale;
         }
