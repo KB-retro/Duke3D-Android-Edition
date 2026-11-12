@@ -35,6 +35,7 @@
 #include "gameconfigfile.h"
 
 extern int paused;
+extern bool pausedWithKey;
 
 #define LOG_TAG "Raze"
 
@@ -91,7 +92,13 @@ std::string translate(const std::string &c)
 {
     int a = 0, b = 0;
     if (sscanf(c.c_str(), "pausegame %d", &a) == 1)
-        return (a != 0) != (paused != 0) ? "pause" : "";
+    {
+        // Pausa del menú rápido: se pone o se quita directamente (como hace la tecla Pausa),
+        // sin alternar: al abrir y cerrar rápido se descuadraba y el juego quedaba en pausa.
+        pausedWithKey = a != 0;
+        paused = a != 0 ? 2 : 0;
+        return "";
+    }
     if (sscanf(c.c_str(), "r_maxfps %d", &a) == 1)
         return "vid_maxfps " + std::to_string(a <= 0 ? 1000 : a);
     if (sscanf(c.c_str(), "vidmode %d %d", &a, &b) == 2)

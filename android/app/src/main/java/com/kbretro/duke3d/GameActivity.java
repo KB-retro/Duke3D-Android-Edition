@@ -808,8 +808,9 @@ public class GameActivity extends SDLActivity {
             case KeyEvent.KEYCODE_BUTTON_R2: return 5;     // disparar
             case KeyEvent.KEYCODE_BUTTON_THUMBL: return 7; // correr
             case KeyEvent.KEYCODE_BUTTON_THUMBR: return 41; // centrar vista
+            case KeyEvent.KEYCODE_BUTTON_SELECT: return 38; // mapa
             case KeyEvent.KEYCODE_DPAD_UP: return 35;      // botiquín
-            case KeyEvent.KEYCODE_DPAD_DOWN: return 38;    // mapa
+            case KeyEvent.KEYCODE_DPAD_DOWN: return 33;    // jetpack
             case KeyEvent.KEYCODE_DPAD_LEFT: return 30;    // objeto anterior
             case KeyEvent.KEYCODE_DPAD_RIGHT: return 31;   // objeto siguiente
             default: return -1;
@@ -826,7 +827,6 @@ public class GameActivity extends SDLActivity {
                 return key;
             case KeyEvent.KEYCODE_BUTTON_A:
             case KeyEvent.KEYCODE_DPAD_CENTER:
-            case KeyEvent.KEYCODE_BUTTON_START:
                 return KeyEvent.KEYCODE_ENTER;
             case KeyEvent.KEYCODE_BUTTON_B:
             case KeyEvent.KEYCODE_BUTTON_SELECT:
@@ -838,26 +838,24 @@ public class GameActivity extends SDLActivity {
 
     private boolean razePadKey(KeyEvent e) {
         int key = e.getKeyCode();
+        if (key == KeyEvent.KEYCODE_BACK) return false; // Atrás: el menú rápido (más abajo)
         boolean down = e.getAction() == KeyEvent.ACTION_DOWN;
+        boolean first = down && e.getRepeatCount() == 0;
+        if (key == KeyEvent.KEYCODE_BUTTON_START || key == KeyEvent.KEYCODE_MENU) {
+            // Start: abre y cierra el menú del propio juego (Escape), en partida y en el menú.
+            if (first) sendKey(KeyEvent.KEYCODE_ESCAPE);
+            return true;
+        }
         if (inGame()) {
-            if (key == KeyEvent.KEYCODE_BUTTON_START) {
-                // Start: el menú del propio juego (Escape); Select: nuestro menú rápido.
-                if (down && e.getRepeatCount() == 0) sendKey(KeyEvent.KEYCODE_ESCAPE);
-                return true;
-            }
-            if (key == KeyEvent.KEYCODE_BUTTON_SELECT) {
-                if (down && e.getRepeatCount() == 0 && art != null) openMenu();
-                return true;
-            }
             int f = razeDefault(key);
             if (f >= 0 && (e.getRepeatCount() == 0 || !down)) pressFunc(f, down);
-            return f >= 0;
+            return true; // ningún botón del mando llega a Raze por su cuenta (lo haría dos veces)
         }
         int k = razeMenuKey(key);
-        if (k < 0) return false;
-        long t = e.getEventTime();
-        super.dispatchKeyEvent(new KeyEvent(e.getDownTime(), t, e.getAction(), k, e.getRepeatCount(), 0, -1, 0, 0,
-                InputDevice.SOURCE_KEYBOARD));
+        if (k >= 0) {
+            super.dispatchKeyEvent(new KeyEvent(e.getDownTime(), e.getEventTime(), e.getAction(), k,
+                    e.getRepeatCount(), 0, -1, 0, 0, InputDevice.SOURCE_KEYBOARD));
+        }
         return true;
     }
 

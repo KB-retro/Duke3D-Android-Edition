@@ -632,6 +632,9 @@ final class GameData {
             // Sin sincronía vertical: el límite de FPS del lanzador (60/120...) manda.
             args.add("+vid_vsync");
             args.add("0");
+            // El mando lo gestiona la app (con «Configurar mando»): sin el de Raze, que duplicaba.
+            args.add("+use_joystick");
+            args.add("0");
             for (String cmd : GraphicsSettings.razeCommands(ctx)) {
                 int sp = cmd.indexOf(' ');
                 args.add("+" + cmd.substring(0, sp));
