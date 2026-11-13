@@ -45,10 +45,13 @@ final class GameData {
      * entera del juego de Steam ("Duke Nukem 3D").
      */
     static File findGameDir(File base) {
+        // Primero gameroot (la instalación completa de la Megaton, con addons/): si en la carpeta
+        // elegida había también un DUKE3D.GRP suelto (de una copia antigua), se cogía ese y las
+        // expansiones salían con las pantallas y mapas del juego original.
         File[] candidates = {
-                base,
                 new File(base, "gameroot"),
                 new File(base, "Duke Nukem 3D/gameroot"),
+                base,
         };
         for (File dir : candidates) {
             File d = resolve(base, dir);
