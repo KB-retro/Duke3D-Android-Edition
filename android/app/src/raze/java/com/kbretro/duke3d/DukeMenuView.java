@@ -64,6 +64,16 @@ final class DukeMenuView extends View {
         String title;
         String[] body;
         int selected;
+        /** La caja del juego elegido a la izquierda y la lista a la derecha. */
+        boolean coverLeft;
+        /**
+         * Menú principal en dos lados: el otro lado (se cambia con izquierda/derecha, L1/R1 o
+         * tocando las pestañas de arriba) y los nombres de las dos pestañas (izquierda, derecha).
+         */
+        Page otherSide;
+        String[] tabs;
+        /** Este lado es la pestaña de la derecha. */
+        boolean rightTab;
 
         Page add(String label, Bitmap icon, Runnable action) {
             entries.add(new Entry(label, icon, action, null));
@@ -201,6 +211,19 @@ final class DukeMenuView extends View {
         return stack.get(stack.size() - 1);
     }
 
+    /** En el menú principal con dos lados: pasa al otro. */
+    private boolean switchSide(int dir) {
+        if (stack.size() != 1) return false;
+        Page p = page();
+        if (p.otherSide == null || p.tabs == null) return false;
+        if (dir > 0 && p.rightTab || dir < 0 && !p.rightTab) return true; // ya está en ese lado
+        stack.set(0, p.otherSide);
+        invalidate();
+        return true;
+    }
+
+    private final RectF[] tabRects = {new RectF(), new RectF()};
+
     // ---- Dibujo ----
 
     @Override
@@ -254,8 +277,9 @@ final class DukeMenuView extends View {
         if (covers) {
             // La caja, centrada en la parte derecha; la lista, centrada en el hueco de la izquierda.
             float boxW = Math.min(span * 0.36f, 150), boxH = 150;
-            float boxLeft = leftEdge + span * 0.73f - boxW / 2f;
-            float listLeft = leftEdge + 8, listRight = boxLeft - 10;
+            float boxLeft = leftEdge + span * (p.coverLeft ? 0.27f : 0.73f) - boxW / 2f;
+            float listLeft = p.coverLeft ? boxLeft + boxW + 10 : leftEdge + 8;
+            float listRight = p.coverLeft ? leftEdge + span - 8 : boxLeft - 10;
             centerX = (listLeft + listRight) / 2f;
             maxW = Math.min(listRight - listLeft, 240);
             // Solo con un juego elegido (en Opciones o Salir no se ve ninguna caja).
@@ -357,8 +381,31 @@ final class DukeMenuView extends View {
                 drawTileCentered(c, tile, left - 4 - nw / 2f, cy, ns);
                 drawTileCentered(c, tileR, left + total + 4 + nw / 2f, cy, ns);
             }
-            hit.add(new RectF(0, vy(cy - step / 2f), covers ? vx(centerX + maxW / 2f + 12) : w, vy(cy + step / 2f)));
+            hit.add(new RectF(covers && p.coverLeft ? vx(centerX - maxW / 2f - 12) : 0, vy(cy - step / 2f),
+                    covers && !p.coverLeft ? vx(centerX + maxW / 2f + 12) : w, vy(cy + step / 2f)));
             hitIndex.add(i);
+        }
+
+        // Pestañas de los dos lados del menú principal, arriba: la de este lado iluminada.
+        tabRects[0].setEmpty();
+        tabRects[1].setEmpty();
+        if (p.tabs != null && stack.size() == 1) {
+            float ts = 0.6f;
+            float cxs[] = {leftEdge + span * 0.27f, leftEdge + span * 0.73f};
+            for (int t = 0; t < 2; t++) {
+                boolean cur = (t == 1) == p.rightTab;
+                int lvl = cur ? 205 + (int) (50 * Math.abs(Math.sin(now / 300.0))) : 110;
+                shade.setColorFilter(new LightingColorFilter(Color.rgb(lvl, lvl, lvl), 0));
+                float tw = bigWidth(p.tabs[t]) * ts;
+                float tx = cxs[t] - tw / 2f;
+                drawBig(c, p.tabs[t], tx, 12, ts, shade);
+                tabRects[t].set(vx(tx - 6), vy(2), vx(tx + tw + 6), vy(22));
+                if (cur) {
+                    frame.setColor(Color.rgb(255, 200, 40));
+                    c.drawRect(vx(tx), vy(19), vx(tx + tw), vy(19) + Math.max(2, sy * 0.8f), frame);
+                }
+            }
+            shade.setColorFilter(null);
         }
 
         // Pie: una línea de información si la hay (carpeta, pista que suena...).
@@ -631,11 +678,11 @@ final class DukeMenuView extends View {
                 return true;
             case KeyEvent.KEYCODE_BUTTON_L1:
             case KeyEvent.KEYCODE_PAGE_UP:
-                move(-MAX_VISIBLE);
+                if (!switchSide(-1)) move(-MAX_VISIBLE);
                 return true;
             case KeyEvent.KEYCODE_BUTTON_R1:
             case KeyEvent.KEYCODE_PAGE_DOWN:
-                move(MAX_VISIBLE);
+                if (!switchSide(1)) move(MAX_VISIBLE);
                 return true;
             case KeyEvent.KEYCODE_DPAD_LEFT:
             case KeyEvent.KEYCODE_DPAD_RIGHT: {
@@ -646,6 +693,8 @@ final class DukeMenuView extends View {
                     invalidate();
                 } else if (e != null && e.value != null) {
                     activate();
+                } else {
+                    switchSide(keyCode == KeyEvent.KEYCODE_DPAD_LEFT ? -1 : 1);
                 }
                 return true;
             }
@@ -708,6 +757,10 @@ final class DukeMenuView extends View {
                 return true;
             }
             case MotionEvent.ACTION_UP:
+                if (!dragged && idx < 0 && touched < 0) {
+                    if (tabRects[0].contains(ev.getX(), ev.getY())) switchSide(-1);
+                    else if (tabRects[1].contains(ev.getX(), ev.getY())) switchSide(1);
+                }
                 if (!dragged && idx < 0 && touched < 0 && coverRect.contains(ev.getX(), ev.getY())) {
                     Page p = page();
                     Entry e = p.entries.isEmpty() ? null : p.entries.get(p.selected);

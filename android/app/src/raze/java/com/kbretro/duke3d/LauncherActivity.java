@@ -280,9 +280,100 @@ public class LauncherActivity extends Activity {
         }
         root.add(I18n.t("mods"), null, () -> menuView.push(modsPage(gameDir)));
         root.add(I18n.t("options"), null, () -> menuView.push(optionsPage(gameDir)));
-        root.add(I18n.t("extras"), null, () -> menuView.push(extrasPage(gameDir)));
         root.add(I18n.t("quit"), null, this::finishAffinity);
-        return root;
+
+        // El otro lado: los clásicos y demás juegos (por orden de salida) y los extras, con la
+        // caja a la izquierda. Se pasa de un lado a otro con izquierda/derecha, L1/R1 o tocando
+        // las pestañas de arriba.
+        DukeMenuView.Page classics = classicsPage(gameDir);
+        String[] tabs = {"Duke Nukem 3D", I18n.t("dos_games")};
+        root.tabs = tabs;
+        classics.tabs = tabs;
+        classics.rightTab = true;
+        classics.coverLeft = true;
+        root.otherSide = classics;
+        classics.otherSide = root;
+        return showClassics ? classics : root;
+    }
+
+    /** El menú principal vuelve al lado en el que se lanzó el último juego. */
+    private boolean showClassics;
+
+    /** Lado de los clásicos: Duke Nukem (1991), Duke Nukem II (1993), Time to Kill (1998), Land of the Babes (2000). */
+    private DukeMenuView.Page classicsPage(File gameDir) {
+        DukeMenuView.Page p = new DukeMenuView.Page();
+        List<File> dirs = extrasDirs(gameDir);
+        String where = (dirs.isEmpty() ? extrasDir() : dirs.get(0)).getAbsolutePath();
+        String[] note = {null};
+        // Duke Nukem: un archivo por episodio; al elegirlo, sus tres episodios.
+        p.addGame("Duke Nukem", box(R.drawable.caja_duke1), () -> {
+            DukeMenuView.Page eps = new DukeMenuView.Page();
+            for (DosGame g : DOS_GAMES) {
+                if (!g.folder.equals("duke1")) continue;
+                String title = g.title.substring(g.title.indexOf(" - ") + 3);
+                eps.add(title, null, () -> {
+                    File exe = findDosExe(extrasDirs(gameDir), g);
+                    if (exe != null) launchDos(gameDir, g, exe);
+                });
+            }
+            eps.add(I18n.t("back"), null, () -> menuView.pop());
+            File any = null;
+            for (DosGame g : DOS_GAMES) if (g.folder.equals("duke1") && any == null) any = findDosExe(dirs, g);
+            boolean has = any != null;
+            eps.footer = () -> has ? "" : I18n.t("dos_missing") + where + "/duke1";
+            menuView.push(eps);
+        });
+        for (DosGame g : DOS_GAMES) {
+            if (!g.folder.equals("duke2")) continue;
+            p.addGame("Duke Nukem II", box(R.drawable.caja_duke2), () -> {
+                File exe = findDosExe(extrasDirs(gameDir), g);
+                if (exe != null) launchDos(gameDir, g, exe);
+                else note[0] = I18n.t("dos_missing") + where + "/duke2";
+            });
+        }
+        int[] psxBoxes = {R.drawable.caja_ttk, R.drawable.caja_lotb};
+        for (int i = 0; i < PSX_GAMES.length; i++) {
+            String[] pg = PSX_GAMES[i];
+            p.addGame(pg[0].replace("Duke Nukem: ", ""), box(psxBoxes[i]), () -> {
+                List<File> ds = extrasDirs(gameDir);
+                File disc = null;
+                for (File extras : ds) {
+                    disc = findPsxDisc(findIgnoreCase(extras, pg[1]), 2);
+                    if (disc != null) break;
+                }
+                if (disc == null) {
+                    note[0] = I18n.t("dos_missing") + where + "/" + pg[1];
+                    return;
+                }
+                File b = findPsxBios(disc.getParentFile(), ds);
+                if (b == null) {
+                    note[0] = I18n.t("psx_no_bios") + disc.getParentFile().getAbsolutePath();
+                    return;
+                }
+                launchPsx(gameDir, disc, b, pg[2]);
+            });
+        }
+        p.add(I18n.t("extras"), null, () -> menuView.push(extrasPage(gameDir)));
+        p.add(I18n.t("quit"), null, this::finishAffinity);
+        int[] lastSel = {-1};
+        p.footer = () -> {
+            if (lastSel[0] != p.selected) {
+                note[0] = null; // el aviso es del juego que se intentó lanzar
+                lastSel[0] = p.selected;
+            }
+            return note[0] != null ? note[0] : "";
+        };
+        return p;
+    }
+
+    /** El ejecutable de un juego de MS-DOS en las carpetas extras (o null). */
+    private static File findDosExe(List<File> dirs, DosGame g) {
+        for (File extras : dirs) {
+            File exe = findExe(findIgnoreCase(extras, g.folder), g.exe, 3);
+            if (exe == null) exe = findExe(extras, g.exe, 4);
+            if (exe != null) return exe;
+        }
+        return null;
     }
 
     private final Map<Integer, Bitmap> covers = new HashMap<>();
@@ -304,7 +395,6 @@ public class LauncherActivity extends Activity {
 
     private DukeMenuView.Page extrasPage(File gameDir) {
         DukeMenuView.Page p = new DukeMenuView.Page();
-        p.add(I18n.t("dos_games"), null, () -> menuView.push(dosPage(gameDir)));
         p.add(I18n.t("guide"), null, () -> menuView.push(guidePage()));
         p.add(I18n.t("music"), null, () -> menuView.push(musicPage(gameDir)));
         p.add(I18n.t("achievements"), null, () -> menuView.push(achievementsPage()));
@@ -602,6 +692,7 @@ public class LauncherActivity extends Activity {
     }
 
     private void launchPsx(File gameDir, File disc, File bios, String id) {
+        showClassics = true;
         // Beetle PSX busca la BIOS por el nombre de su región (scph5500/5501/5502): se copia
         // con los tres a una carpeta de la app, sea cual sea el nombre del archivo del usuario.
         File system = new File(getFilesDir(), "psx_bios");
@@ -635,6 +726,7 @@ public class LauncherActivity extends Activity {
     }
 
     private void launchDos(File gameDir, DosGame g, File exe) {
+        showClassics = true;
         File saves = new File(extrasDir(), "partidas");
         //noinspection ResultOfMethodCallIgnored
         saves.mkdirs();
@@ -1000,6 +1092,7 @@ public class LauncherActivity extends Activity {
     private boolean launchAlone;
 
     private void launch(File gameDir, GameData.Game game, String[] extraArgs) {
+        showClassics = false;
         if (launching) return;
         launching = true;
         music.stop();
