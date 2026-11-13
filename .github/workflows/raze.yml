@@ -161,6 +161,9 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew assembleRazeRelease --stacktrace
+          # Los Clásicos de MS-DOS necesitan libdos.so: sin ella, que falle aquí y no en la consola.
+          unzip -l app/build/outputs/apk/raze/release/app-raze-release.apk | grep "lib/" 
+          unzip -l app/build/outputs/apk/raze/release/app-raze-release.apk | grep -q "lib/arm64-v8a/libdos.so" || { grep -rh "DOS en la HD" app/.cxx 2>/dev/null | head; exit 1; }
           cp app/build/outputs/apk/raze/release/app-raze-release.apk "../salida/Duke3D-Raze-Edition-0.1.${VERSION_CODE}.apk"
 
       - uses: actions/upload-artifact@v4

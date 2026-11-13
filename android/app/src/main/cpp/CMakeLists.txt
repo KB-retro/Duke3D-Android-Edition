@@ -10,6 +10,7 @@ if(MOTOR_RAZE)
     # Los juegos de MS-DOS de los extras también van en la HD: con la libSDL2.so de Raze
     # (la que copia raze.yml en src/raze/jniLibs) y las cabeceras de android/SDL2.
     set(RAZE_SDL2 ${CMAKE_CURRENT_SOURCE_DIR}/../../raze/jniLibs/${ANDROID_ABI}/libSDL2.so)
+    message(STATUS "DOS en la HD: SDL2_DIR=${SDL2_DIR} RAZE_SDL2=${RAZE_SDL2} DOSBOX_DIR=${DOSBOX_DIR}")
     if(SDL2_DIR AND EXISTS ${RAZE_SDL2})
         add_library(SDL2 SHARED IMPORTED)
         set_target_properties(SDL2 PROPERTIES IMPORTED_LOCATION ${RAZE_SDL2}
