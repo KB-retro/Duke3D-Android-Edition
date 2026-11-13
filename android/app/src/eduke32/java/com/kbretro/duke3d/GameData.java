@@ -698,12 +698,18 @@ final class GameData {
         java.util.regex.Pattern lvl = java.util.regex.Pattern.compile(
                 "(?im)^[ \\t]*definelevelname[ \\t]+(\\d+)[ \\t]+\\d+[ \\t]+([^\\s]+)");
         java.util.regex.Pattern vol = java.util.regex.Pattern.compile(
-                "(?im)^[ \\t]*definevolumename[ \\t]+(\\d+)");
-        java.util.Set<Integer> vols = new java.util.TreeSet<>(), ownVols = new java.util.TreeSet<>();
+                "(?im)^[ \\t]*definevolumename[ \\t]+(\\d+)([^\\r\\n]*)");
+        java.util.Set<Integer> vols = new java.util.TreeSet<>(), ownVols = new java.util.TreeSet<>(),
+                dukematch = new java.util.TreeSet<>();
         for (byte[] b : cons.values()) {
             String text = new String(b, java.nio.charset.StandardCharsets.ISO_8859_1);
             java.util.regex.Matcher m = vol.matcher(text);
-            while (m.find()) vols.add(Integer.parseInt(m.group(1)));
+            while (m.find()) {
+                int v = Integer.parseInt(m.group(1));
+                vols.add(v);
+                // Los episodios de Dukematch (Vacation Dukematch) son mapas para multijugador.
+                if (m.group(2).toUpperCase(java.util.Locale.ROOT).contains("DUKEMATCH")) dukematch.add(v);
+            }
             m = lvl.matcher(text);
             while (m.find()) {
                 int v = Integer.parseInt(m.group(1));
@@ -713,7 +719,8 @@ final class GameData {
                 if (own.contains(map)) ownVols.add(v);
             }
         }
-        android.util.Log.i("Duke3D", "Episodios: " + vols + ", de la expansión: " + ownVols);
+        if (!dukematch.containsAll(ownVols)) ownVols.removeAll(dukematch);
+        android.util.Log.i("Duke3D", "Episodios: " + vols + ", de la expansión: " + ownVols + ", dukematch: " + dukematch);
         if (ownVols.isEmpty()) return "";
         StringBuilder sb = new StringBuilder("\n");
         for (int v : vols) if (!ownVols.contains(v)) sb.append("definevolumeflags ").append(v).append(" 1\n");
