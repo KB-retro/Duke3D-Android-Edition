@@ -223,6 +223,11 @@ final class DukeMenuView extends View {
     }
 
     private final RectF[] tabRects = {new RectF(), new RectF()};
+    private final Paint tabLine = new Paint();
+
+    {
+        tabLine.setColor(Color.rgb(255, 200, 40));
+    }
 
     // ---- Dibujo ----
 
@@ -400,10 +405,7 @@ final class DukeMenuView extends View {
                 float tx = cxs[t] - tw / 2f;
                 drawBig(c, p.tabs[t], tx, 12, ts, shade);
                 tabRects[t].set(vx(tx - 6), vy(2), vx(tx + tw + 6), vy(22));
-                if (cur) {
-                    frame.setColor(Color.rgb(255, 200, 40));
-                    c.drawRect(vx(tx), vy(19), vx(tx + tw), vy(19) + Math.max(2, sy * 0.8f), frame);
-                }
+                if (cur) c.drawRect(vx(tx), vy(19), vx(tx + tw), vy(19) + Math.max(2, sy * 0.8f), tabLine);
             }
             shade.setColorFilter(null);
         }
