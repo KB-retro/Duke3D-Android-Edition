@@ -616,28 +616,100 @@ final class GameData {
     /** @param def módulo .def extra (la traducción), relativo a la carpeta del juego, o null. */
     private static final String[] ADDON_CONS = {"DUKEDC.CON", "NWINTER.CON", "VACATION.CON"};
 
-    /** El .CON principal de una expansión (dentro de su GRP), o null si no es una expansión. */
-    static String addonCon(Game game) {
+    /**
+     * Prepara los .CON de una expansión en una carpeta propia (files/expansion) y devuelve el
+     * principal, o null si no es una expansión o no trae .CON. Se juntan los de dentro de su GRP
+     * y los sueltos de su carpeta (estos mandan), y esa carpeta se carga con -j, que tiene
+     * prioridad sobre los archivos sueltos de gameroot y de las demás carpetas. Así no se cuela
+     * el GAME.CON del juego original (salían las armas y enemigos de la expansión, pero con los
+     * mapas del Duke 3D).
+     */
+    static String addonCon(android.content.Context ctx, Game game, File prep) {
+        java.util.Map<String, byte[]> cons = new java.util.LinkedHashMap<>();
         try (GrpArchive g = new GrpArchive(game.grp)) {
-            for (String c : ADDON_CONS) if (g.has(c)) return c;
+            StringBuilder list = new StringBuilder();
+            for (String n : g.names()) {
+                if (n.endsWith(".CON")) {
+                    cons.put(n, g.read(n));
+                    list.append(n).append(" (").append(g.size(n)).append(") ");
+                }
+            }
+            android.util.Log.i("Duke3D", "CON dentro de " + game.grp.getName() + ": " + list);
         } catch (Exception e) {
             android.util.Log.w("Duke3D", "No se pudo mirar el GRP " + game.grp, e);
         }
-        // O suelto en la carpeta de la expansión.
         File[] files = game.grp.getParentFile() != null ? game.grp.getParentFile().listFiles() : null;
         if (files != null) {
-            for (String c : ADDON_CONS)
-                for (File f : files) if (f.isFile() && f.getName().equalsIgnoreCase(c)) return f.getName();
+            for (File f : files) {
+                String up = f.getName().toUpperCase(java.util.Locale.ROOT);
+                if (!f.isFile() || !up.endsWith(".CON")) continue;
+                try {
+                    cons.put(up, readAll(f));
+                    android.util.Log.i("Duke3D", "CON suelto de la expansión: " + f.getName() + " (" + f.length() + ")");
+                } catch (java.io.IOException e) {
+                    android.util.Log.w("Duke3D", "No se pudo leer " + f, e);
+                }
+            }
         }
-        return null;
+        String main = null;
+        for (String c : ADDON_CONS) if (cons.containsKey(c)) main = c;
+        if (main == null && cons.containsKey("GAME.CON")) main = "GAME.CON";
+        if (main == null) {
+            android.util.Log.w("Duke3D", "La expansión " + game.title + " no trae .CON propio");
+            return null;
+        }
+        deleteTree(prep);
+        //noinspection ResultOfMethodCallIgnored
+        prep.mkdirs();
+        // EDuke32 mira antes la carpeta actual (gameroot) que las de -j: un GAME.CON o USER.CON
+        // suelto ahí taparía los de la expansión. Por eso van con otro nombre (XP_...) y sus
+        // include apuntan a esos nombres.
+        java.util.regex.Pattern inc = java.util.regex.Pattern.compile("(?i)\\binclude(\\s+)([^\\s]+)");
+        for (java.util.Map.Entry<String, byte[]> e : cons.entrySet()) {
+            String text = new String(e.getValue(), java.nio.charset.StandardCharsets.ISO_8859_1);
+            java.util.regex.Matcher m = inc.matcher(text);
+            StringBuffer sb = new StringBuffer();
+            while (m.find()) {
+                String target = m.group(2).toUpperCase(java.util.Locale.ROOT);
+                String repl = cons.containsKey(target) ? "include" + m.group(1) + "XP_" + target : m.group();
+                m.appendReplacement(sb, java.util.regex.Matcher.quoteReplacement(repl));
+            }
+            m.appendTail(sb);
+            byte[] out = sb.toString().getBytes(java.nio.charset.StandardCharsets.ISO_8859_1);
+            writeBytes(new File(prep, "XP_" + e.getKey()), out);
+            writeBytes(new File(prep, ("XP_" + e.getKey()).toLowerCase(java.util.Locale.ROOT)), out);
+        }
+        android.util.Log.i("Duke3D", "Expansión " + game.title + ": " + main + " (XP_" + main + ") desde " + prep);
+        return "XP_" + main;
+    }
+
+    private static byte[] readAll(File f) throws java.io.IOException {
+        try (java.io.InputStream in = new java.io.FileInputStream(f)) {
+            java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+            byte[] buf = new byte[65536];
+            int n;
+            while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+            return out.toByteArray();
+        }
+    }
+
+    private static void writeBytes(File f, byte[] data) {
+        try (java.io.OutputStream out = new java.io.FileOutputStream(f)) {
+            out.write(data);
+        } catch (java.io.IOException e) {
+            android.util.Log.w("Duke3D", "No se pudo escribir " + f, e);
+        }
     }
 
     static String[] arguments(android.content.Context ctx, File gameDir, Game game, String def) {
         List<String> args = new ArrayList<>();
         if (!Motor.RAZE) args.add("-usecwd"); // configuración y partidas guardadas en la carpeta del juego
-        for (File d : addonDirs(gameDir)) {
+        // Solo la carpeta de la expansión elegida: con las tres a la vez, los archivos sueltos
+        // de una se colaban en las otras.
+        File grpDir = game.grp.getParentFile();
+        if (grpDir != null && !grpDir.equals(gameDir)) {
             args.add("-j");
-            args.add(d.getAbsolutePath());
+            args.add(grpDir.getAbsolutePath());
         }
         if (def != null && !Motor.RAZE) {
             args.add("-mh");
@@ -648,9 +720,12 @@ final class GameData {
         // Expansiones: su propio .CON (el que define sus episodios y mapas). EDuke32 solo lo pone
         // solo si reconoce el GRP por su CRC; con los de la Megaton a veces no, y entonces salían
         // sus armas y enemigos pero con los mapas del juego original.
-        if (!Motor.RAZE) {
-            String con = addonCon(game);
+        if (!Motor.RAZE && !game.grp.getName().equalsIgnoreCase("DUKE3D.GRP")) {
+            File prep = new File(ctx.getFilesDir(), "expansion");
+            String con = addonCon(ctx, game, prep);
             if (con != null) {
+                args.add("-j");
+                args.add(prep.getAbsolutePath());
                 args.add("-x");
                 args.add(con);
             }
