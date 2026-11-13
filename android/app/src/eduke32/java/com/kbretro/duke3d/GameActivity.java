@@ -351,6 +351,8 @@ public class GameActivity extends SDLActivity {
             boolean addon = false;
             String[] launchArgs = getIntent().getStringArrayExtra(EXTRA_ARGS);
             if (launchArgs != null) for (String arg : launchArgs) if (arg != null && arg.startsWith("XP_")) addon = true;
+            // Sensibilidad de los sticks guardada (el motor la aplica al configurar el mando).
+            Os.setenv("DUKE3D_PADSENS", ControlSettings.padSens(this, false) + " " + ControlSettings.padSens(this, true), true);
             if (addon) Os.setenv("DUKE3D_ADDON", "1", true);
             else Os.unsetenv("DUKE3D_ADDON");
             // Idioma del juego (el motor lo aplica tras cargar las traducciones).
@@ -396,7 +398,6 @@ public class GameActivity extends SDLActivity {
         startWatchdog();
         setupTouch();
         I18n.load(this);
-        command(ControlSettings.padSensCommand(this)); // la sensibilidad de los sticks guardada
         updateDpadRemapped();
         instance = this;
         gameId = Achievements.gameId(gameGrp(getArguments()));

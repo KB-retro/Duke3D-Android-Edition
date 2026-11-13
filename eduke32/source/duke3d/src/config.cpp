@@ -573,7 +573,18 @@ void CONFIG_SetupJoystick(void)
         JOYSTICK_SetDeadZone(i, ud.config.JoystickAnalogueDead[i], ud.config.JoystickAnalogueSaturate[i]);
     }
 
-    // La sensibilidad elegida en la app manda sobre la del archivo de configuración.
+    // La sensibilidad elegida en la app manda sobre la del archivo de configuración. Al arrancar
+    // llega en DUKE3D_PADSENS ("h v"): la orden de consola llegaba antes de que existiera.
+    if (g_androidPadSensH <= 0.f)
+    {
+        char const *env = getenv("DUKE3D_PADSENS");
+        float h = 0.f, v = 0.f;
+        if (env && sscanf(env, "%f %f", &h, &v) == 2 && h > 0.f && v > 0.f)
+        {
+            g_androidPadSensH = h;
+            g_androidPadSensV = v;
+        }
+    }
     if (g_androidPadSensH > 0.f)
         CONFIG_AndroidPadSens(g_androidPadSensH, g_androidPadSensV);
 }
