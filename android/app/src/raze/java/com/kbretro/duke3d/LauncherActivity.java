@@ -261,6 +261,14 @@ public class LauncherActivity extends Activity {
             if (cover != null) root.addGame(g.menuLabel(), cover, () -> launch(gameDir, g));
             else root.add(g.menuLabel(), assets.icons.get(g.title), () -> launch(gameDir, g));
         }
+        // Penthouse Paradise (DLC gratuito de 1997), si está en extras/; como las expansiones,
+        // no sale con una campaña activada.
+        File pent = campaign ? null : findPenthouse(gameDir);
+        if (pent != null) {
+            root.addGame("Penthouse", box(R.drawable.caja_penthouse), () -> launchPenthouse(gameDir, pent));
+            DukeMenuView.Entry e = root.entries.get(root.entries.size() - 1);
+            e.coverTap = () -> penthouseTap(e);
+        }
         root.add(I18n.t("mods"), null, () -> menuView.push(modsPage(gameDir)));
         root.add(I18n.t("options"), null, () -> menuView.push(optionsPage(gameDir)));
         root.add(I18n.t("extras"), null, () -> menuView.push(extrasPage(gameDir)));
@@ -287,10 +295,241 @@ public class LauncherActivity extends Activity {
 
     private DukeMenuView.Page extrasPage(File gameDir) {
         DukeMenuView.Page p = new DukeMenuView.Page();
+        p.add(I18n.t("dos_games"), null, () -> menuView.push(dosPage(gameDir)));
+        p.add(I18n.t("guide"), null, () -> menuView.push(guidePage()));
         p.add(I18n.t("music"), null, () -> menuView.push(musicPage(gameDir)));
         p.add(I18n.t("achievements"), null, () -> menuView.push(achievementsPage()));
         p.add(I18n.t("back"), null, () -> menuView.pop());
         return p;
+    }
+
+    // ---- Penthouse Paradise ----
+
+    // Huevo de pascua: 3 toques seguidos en su caja enseñan una portada de la revista de 1997
+    // al azar durante 10 segundos; luego vuelve la caja del juego.
+    private static final int[] PENT_EGGS = {
+            R.drawable.pent_egg_01, R.drawable.pent_egg_02, R.drawable.pent_egg_03, R.drawable.pent_egg_04,
+            R.drawable.pent_egg_05, R.drawable.pent_egg_06, R.drawable.pent_egg_07, R.drawable.pent_egg_08,
+            R.drawable.pent_egg_09, R.drawable.pent_egg_10,
+    };
+    private int pentTaps;
+    private long pentLastTap;
+    private int pentLastEgg = -1;
+    private final android.os.Handler eggHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+
+    private void penthouseTap(DukeMenuView.Entry e) {
+        long now = android.os.SystemClock.uptimeMillis();
+        pentTaps = now - pentLastTap < 700 ? pentTaps + 1 : 1;
+        pentLastTap = now;
+        if (pentTaps < 3) return;
+        pentTaps = 0;
+        int i;
+        do {
+            i = new java.util.Random().nextInt(PENT_EGGS.length);
+        } while (i == pentLastEgg && PENT_EGGS.length > 1);
+        pentLastEgg = i;
+        e.cover = box(PENT_EGGS[i]);
+        menuView.invalidate();
+        eggHandler.removeCallbacksAndMessages(null);
+        eggHandler.postDelayed(() -> {
+            e.cover = box(R.drawable.caja_penthouse);
+            if (menuView != null) menuView.invalidate();
+        }, 10000);
+    }
+
+    /** La carpeta con ppakpent.map (versión Atomic del DLC) dentro de extras/, o null. */
+    private File findPenthouse(File gameDir) {
+        for (File extras : extrasDirs(gameDir)) {
+            File map = findExe(extras, "ppakpent.map", 5);
+            if (map != null) return map.getParentFile();
+        }
+        return null;
+    }
+
+    /**
+     * El paquete es una instalación entera del Duke 3D de 1997: solo se usan los archivos del DLC
+     * para la versión Atomic (la de la Megaton), copiados a una carpeta aparte con los nombres
+     * que espera el juego (GAME.CON, DEFS.CON, USER.CON). Así no se mezcla con nada más.
+     */
+    private void launchPenthouse(File gameDir, File src) {
+        File prep = new File(getFilesDir(), "penthouse");
+        try {
+            File[] old = prep.listFiles();
+            if (old != null) for (File f : old) //noinspection ResultOfMethodCallIgnored
+                f.delete();
+            //noinspection ResultOfMethodCallIgnored
+            prep.mkdirs();
+            String[][] files = {
+                    {"ppakgame.con", "GAME.CON"}, {"ppakdefs.con", "DEFS.CON"}, {"ppakuser.con", "USER.CON"},
+                    {"ppakgame.con", null}, {"ppakdefs.con", null}, {"ppakuser.con", null},
+                    {"ppakpent.map", null}, {"needle.wav", null}, {"needle2.wav", null}, {"pob.mid", null},
+            };
+            // Además: sus texturas (TILES014.ART) y todos sus sonidos y músicas.
+            File[] all = src.listFiles();
+            if (all != null) {
+                for (File in : all) {
+                    String n = in.getName().toLowerCase(java.util.Locale.ROOT);
+                    if (!in.isFile() || !(n.endsWith(".art") || n.endsWith(".voc") || n.endsWith(".wav")
+                            || n.endsWith(".mid"))) continue;
+                    copyFile(in, new File(prep, n));
+                    copyFile(in, new File(prep, n.toUpperCase(java.util.Locale.ROOT)));
+                    copyFile(in, new File(prep, in.getName()));
+                }
+            }
+            for (String[] f : files) {
+                File in = findIgnoreCase(src, f[0]);
+                if (in == null) continue;
+                if (f[1] != null) {
+                    copyFile(in, new File(prep, f[1]));
+                } else {
+                    // Con el nombre en minúsculas y en mayúsculas (los .CON los nombran de las dos formas).
+                    copyFile(in, new File(prep, f[0].toLowerCase(java.util.Locale.ROOT)));
+                    copyFile(in, new File(prep, f[0].toUpperCase(java.util.Locale.ROOT)));
+                    copyFile(in, new File(prep, in.getName()));
+                }
+            }
+        } catch (java.io.IOException e) {
+            android.widget.Toast.makeText(this, "Penthouse Paradise: " + e, android.widget.Toast.LENGTH_LONG).show();
+            return;
+        }
+        List<GameData.Game> all = GameData.games(gameDir);
+        if (all.isEmpty()) return;
+        launchAlone = true;
+        launch(gameDir, all.get(0), new String[]{"-j", prep.getAbsolutePath(), "-x", "GAME.CON", "-map", "ppakpent.map"});
+    }
+
+    private static void copyFile(File in, File out) throws java.io.IOException {
+        if (out.exists()) return;
+        try (java.io.InputStream is = new java.io.FileInputStream(in);
+             java.io.OutputStream os = new java.io.FileOutputStream(out)) {
+            byte[] buf = new byte[65536];
+            int n;
+            while ((n = is.read(buf)) > 0) os.write(buf, 0, n);
+        }
+    }
+
+    // ---- Guía de uso ----
+
+    private DukeMenuView.Page guidePage() {
+        DukeMenuView.Page p = new DukeMenuView.Page();
+        for (int i = 0; i < Guide.TOPICS.length; i++) {
+            int n = i;
+            p.add(Guide.TOPICS[i].title(), null, () -> menuView.push(guideTopic(n)));
+        }
+        p.add(I18n.t("back"), null, () -> menuView.pop());
+        return p;
+    }
+
+    private DukeMenuView.Page guideTopic(int i) {
+        Guide.Topic t = Guide.TOPICS[i];
+        DukeMenuView.Page p = new DukeMenuView.Page();
+        p.title = t.title();
+        p.body = t.lines();
+        if (i + 1 < Guide.TOPICS.length) {
+            p.add(I18n.t("next"), null, () -> {
+                menuView.pop();
+                menuView.push(guideTopic(i + 1));
+            });
+        }
+        p.add(I18n.t("back"), null, () -> menuView.pop());
+        return p;
+    }
+
+    // ---- Juegos de MS-DOS (DosActivity) ----
+
+    /** Un juego de MS-DOS: su carpeta dentro de extras/ y el ejecutable que arranca. */
+    private static final class DosGame {
+        final String title, folder, exe, id;
+
+        DosGame(String title, String folder, String exe, String id) {
+            this.title = title;
+            this.folder = folder;
+            this.exe = exe;
+            this.id = id;
+        }
+    }
+
+    private static final DosGame[] DOS_GAMES = {
+            new DosGame("Duke Nukem - Shrapnel City", "duke1", "DN1.EXE", "duke1_ep1"),
+            new DosGame("Duke Nukem - Mission: Moonbase", "duke1", "DN2.EXE", "duke1_ep2"),
+            new DosGame("Duke Nukem - Trapped in the Future", "duke1", "DN3.EXE", "duke1_ep3"),
+            new DosGame("Duke Nukem II", "duke2", "NUKEM2.EXE", "duke2"),
+    };
+
+    /** Archivo o carpeta dentro de dir sin mirar mayúsculas (o null). */
+    private static File findIgnoreCase(File dir, String name) {
+        File[] list = dir != null ? dir.listFiles() : null;
+        if (list == null) return null;
+        for (File f : list) if (f.getName().equalsIgnoreCase(name)) return f;
+        return null;
+    }
+
+    /** El ejecutable en la carpeta o en sus subcarpetas (zips descomprimidos tal cual). */
+    private static File findExe(File dir, String name, int depth) {
+        File f = findIgnoreCase(dir, name);
+        if (f != null && f.isFile()) return f;
+        File[] list = depth > 0 && dir != null ? dir.listFiles() : null;
+        if (list == null) return null;
+        for (File d : list) {
+            if (!d.isDirectory()) continue;
+            f = findExe(d, name, depth - 1);
+            if (f != null) return f;
+        }
+        return null;
+    }
+
+    /** Carpetas "extras" posibles: en la carpeta elegida, junto al juego o encima de él. */
+    private List<File> extrasDirs(File gameDir) {
+        List<File> out = new ArrayList<>();
+        File[] bases = {baseDir(), gameDir, gameDir != null ? gameDir.getParentFile() : null};
+        for (File b : bases) {
+            File d = findIgnoreCase(b, "extras");
+            if (d != null && d.isDirectory() && !out.contains(d)) out.add(d);
+        }
+        return out;
+    }
+
+    private File extrasDir() {
+        File d = findIgnoreCase(baseDir(), "extras");
+        return d != null ? d : new File(baseDir(), "extras");
+    }
+
+    private DukeMenuView.Page dosPage(File gameDir) {
+        DukeMenuView.Page p = new DukeMenuView.Page();
+        List<File> dirs = extrasDirs(gameDir);
+        int found = 0;
+        for (DosGame g : DOS_GAMES) {
+            File exe = null;
+            for (File extras : dirs) {
+                // Primero en su carpeta (duke1 / duke2); si no, en cualquier sitio dentro de extras.
+                exe = findExe(findIgnoreCase(extras, g.folder), g.exe, 3);
+                if (exe == null) exe = findExe(extras, g.exe, 4);
+                if (exe != null) break;
+            }
+            if (exe == null) continue;
+            found++;
+            File f = exe;
+            p.add(g.title, null, () -> launchDos(gameDir, g, f));
+        }
+        p.add(I18n.t("back"), null, () -> menuView.pop());
+        String where = (dirs.isEmpty() ? extrasDir() : dirs.get(0)).getAbsolutePath();
+        android.util.Log.i("Duke3D", "Juegos de MS-DOS: " + found + " en " + dirs);
+        p.footer = found == 0 ? () -> I18n.t("dos_none") + where + "/duke1 - duke2" : () -> "";
+        return p;
+    }
+
+    private void launchDos(File gameDir, DosGame g, File exe) {
+        File saves = new File(extrasDir(), "partidas");
+        //noinspection ResultOfMethodCallIgnored
+        saves.mkdirs();
+        Intent intent = new Intent(this, DosActivity.class);
+        intent.putExtra(DosActivity.EXTRA_EXE, exe.getAbsolutePath());
+        intent.putExtra(DosActivity.EXTRA_SAVE_DIR, saves.getAbsolutePath());
+        intent.putExtra(DosActivity.EXTRA_STATE, new File(saves, g.id + ".estado").getAbsolutePath());
+        List<GameData.Game> all = GameData.games(gameDir);
+        if (!all.isEmpty()) intent.putExtra(DosActivity.EXTRA_BASE_GRP, all.get(0).grp.getAbsolutePath());
+        music.stop();
+        startActivity(intent);
     }
 
     /** Los 20 logros: los conseguidos en amarillo; abajo, qué hay que hacer para el elegido. */
@@ -641,14 +880,19 @@ public class LauncherActivity extends Activity {
         return p;
     }
 
+    /** El próximo lanzamiento va solo: sin mods ni traducción (Penthouse Paradise trae sus .CON). */
+    private boolean launchAlone;
+
     private void launch(File gameDir, GameData.Game game, String[] extraArgs) {
         if (launching) return;
         launching = true;
         music.stop();
-        boolean spanish = I18n.ES.equals(I18n.lang());
+        boolean alone = launchAlone;
+        launchAlone = false;
+        boolean spanish = I18n.ES.equals(I18n.lang()) && !alone;
         // Mientras se preparan (la primera vez se descomprimen y tarda), se enseña el progreso.
         DukeMenuView.Page wait = new DukeMenuView.Page();
-        if (!enabledMods().isEmpty()) {
+        if (!alone && !enabledMods().isEmpty()) {
             GameData.progress = "";
             GameData.progressValue = "";
             wait.addValue(I18n.t("mods_preparing"), () -> GameData.progressValue, null);
@@ -673,7 +917,7 @@ public class LauncherActivity extends Activity {
                 File camp = activeCampaign(gameDir);
                 java.util.Set<String> enabled = camp != null
                         ? java.util.Collections.singleton(camp.getName()) : enabledMods();
-                modArgs = GameData.modArguments(gameDir, enabled);
+                modArgs = alone ? new ArrayList<>() : GameData.modArguments(gameDir, enabled);
             } catch (Throwable t) {
                 android.util.Log.e("Duke3D", "No se pudieron preparar los mods", t);
                 runOnUiThread(() -> {

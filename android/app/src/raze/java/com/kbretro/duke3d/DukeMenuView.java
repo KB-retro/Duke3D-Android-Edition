@@ -38,6 +38,8 @@ final class DukeMenuView extends View {
         Bitmap cover;
         /** Si no es null, Start sobre la opción la restablece (p. ej. un botón del mando). */
         Runnable reset;
+        /** Si no es null, se llama al tocar su caja grande (la de la derecha). */
+        Runnable coverTap;
         /** Si devuelve true, la opción se pinta de otro color (p. ej. la pista que suena). */
         java.util.function.BooleanSupplier active;
 
@@ -56,6 +58,9 @@ final class DukeMenuView extends View {
         Supplier<String> footer;
         /** Se llama al salir de la página con B/Atrás. */
         Runnable onLeave;
+        /** Página de texto (la guía): título arriba y párrafos en letra pequeña; las opciones, abajo. */
+        String title;
+        String[] body;
         int selected;
 
         Page add(String label, Bitmap icon, Runnable action) {
@@ -229,6 +234,7 @@ final class DukeMenuView extends View {
             maxW = Math.min(listRight - listLeft, 240);
             // Solo con un juego elegido (en Opciones o Salir no se ve ninguna caja).
             Entry cur = n > 0 ? p.entries.get(p.selected) : null;
+            coverRect.setEmpty();
             if (cur != null && cur.cover != null) drawCover(c, cur.cover, boxLeft, 100 - boxH / 2f, boxW, boxH);
         }
         // Listas largas (las pistas de música): se ven unas cuantas y se desplazan con la elegida.
@@ -239,6 +245,11 @@ final class DukeMenuView extends View {
         // Lista centrada en vertical (en el lanzador y en el menú rápido, que ya no lleva logo).
         float block = Math.min(19f, 156f / Math.max(1, visible)) * visible;
         float top = 100 - block / 2f;
+        if (p.body != null) {
+            drawBody(c, p);
+            block = 13f * visible;
+            top = 186 - block;
+        }
         float bottom = top + block;
         float step = Math.min(19f, (bottom - top) / Math.max(1, visible));
         float textScale = step >= 17 ? 1f : step / 17f;
@@ -339,6 +350,9 @@ final class DukeMenuView extends View {
     }
 
     /** La caja entera dentro del rectángulo (x, y, w, h) del 320x200, con marco. */
+    /** Dónde está la caja grande en pantalla (para tocarla). */
+    private final RectF coverRect = new RectF();
+
     private void drawCover(Canvas c, Bitmap b, float x, float y, float bw, float bh) {
         // El 320x200 se ve estirado a 4:3: en píxeles de pantalla se mantiene la proporción real.
         float pw = bw * sx, ph = bh * sy;
@@ -349,6 +363,7 @@ final class DukeMenuView extends View {
         c.drawRect(l - 6, t - 6, l + dw + 6, t + dh + 6, frame);
         frame.setColor(Color.rgb(255, 200, 40));
         c.drawRect(l - 3, t - 3, l + dw + 3, t + dh + 3, frame);
+        coverRect.set(l, t, l + dw, t + dh);
         dst.set(l, t, l + dw, t + dh);
         c.drawBitmap(b, null, dst, smooth);
     }
@@ -473,6 +488,63 @@ final class DukeMenuView extends View {
             c.drawBitmap(b, null, dst, paint);
             x += b.getWidth() * scale;
         }
+    }
+
+    /** Texto de una página de la guía: título grande y párrafos ajustados al ancho. */
+    private void drawBody(Canvas c, Page p) {
+        float y0 = 8;
+        if (p.title != null) {
+            float ts = 0.8f, tw = bigWidth(p.title) * ts;
+            if (tw > 290) {
+                ts *= 290 / tw;
+                tw = 290;
+            }
+            drawBig(c, p.title, 160 - tw / 2f, 16, ts, pixel);
+            y0 = 30;
+        }
+        float glyphH = art.height(DukeArt.STARTALPHANUM) > 0 ? art.height(DukeArt.STARTALPHANUM) : 8;
+        float avail = (186 - 13f * p.entries.size() - 6) - y0;
+        float width = 296, left = 12;
+        float s = 0.75f;
+        java.util.List<String> lines = null;
+        // Letra lo más grande posible que quepa en el hueco.
+        for (int tries = 0; tries < 8; tries++) {
+            lines = wrap(p.body, width / s);
+            if (lines.size() * (glyphH + 3) * s <= avail) break;
+            s *= 0.9f;
+        }
+        float lh = (glyphH + 3) * s;
+        float y = y0 + lh / 2f;
+        for (String l : lines) {
+            if (!l.isEmpty()) drawSmall(c, l, left, y, s, false);
+            y += lh;
+        }
+    }
+
+    /** Parte los párrafos en líneas del ancho dado (en unidades de la letra pequeña). */
+    private java.util.List<String> wrap(String[] paras, float maxW) {
+        java.util.List<String> out = new ArrayList<>();
+        for (String para : paras) {
+            String indent = para.startsWith("- ") ? "  " : "";
+            StringBuilder line = new StringBuilder();
+            float lw = 0;
+            for (String word : para.split(" ")) {
+                float ww = 0;
+                for (char ch : clean(word).toCharArray()) ww += smallAdvance(ch);
+                float space = line.length() > 0 ? 5 : 0;
+                if (line.length() > 0 && lw + space + ww > maxW) {
+                    out.add(line.toString());
+                    line = new StringBuilder(indent);
+                    lw = indent.length() * 5;
+                    space = 0;
+                }
+                if (space > 0) line.append(' ');
+                line.append(word);
+                lw += space + ww;
+            }
+            if (line.length() > 0) out.add(line.toString());
+        }
+        return out;
     }
 
     /** Letra pequeña del juego (STARTALPHANUM). */
@@ -604,6 +676,11 @@ final class DukeMenuView extends View {
                 return true;
             }
             case MotionEvent.ACTION_UP:
+                if (!dragged && idx < 0 && touched < 0 && coverRect.contains(ev.getX(), ev.getY())) {
+                    Page p = page();
+                    Entry e = p.entries.isEmpty() ? null : p.entries.get(p.selected);
+                    if (e != null && e.coverTap != null) e.coverTap.run();
+                }
                 if (!dragged && idx >= 0 && idx == touched) activate();
                 touched = -1;
                 return true;

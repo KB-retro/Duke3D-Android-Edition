@@ -7,6 +7,15 @@ project(duke3d C CXX)
 # APK de Raze: el motor y SDL2 vienen ya compilados (src/raze/jniLibs, workflow raze.yml).
 if(MOTOR_RAZE)
     add_library(vacio SHARED ${CMAKE_CURRENT_SOURCE_DIR}/vacio.c)
+    # Los juegos de MS-DOS de los extras también van en la HD: con la libSDL2.so de Raze
+    # (la que copia raze.yml en src/raze/jniLibs) y las cabeceras de android/SDL2.
+    set(RAZE_SDL2 ${CMAKE_CURRENT_SOURCE_DIR}/../../raze/jniLibs/${ANDROID_ABI}/libSDL2.so)
+    if(SDL2_DIR AND EXISTS ${RAZE_SDL2})
+        add_library(SDL2 SHARED IMPORTED)
+        set_target_properties(SDL2 PROPERTIES IMPORTED_LOCATION ${RAZE_SDL2}
+            INTERFACE_INCLUDE_DIRECTORIES ${SDL2_DIR}/include)
+        include(${CMAKE_CURRENT_SOURCE_DIR}/dos/dos.cmake)
+    endif()
     return()
 endif()
 
@@ -89,21 +98,5 @@ set_target_properties(main PROPERTIES
 
 target_link_libraries(main PRIVATE SDL2 xmplite GLESv2 android log m dl)
 
-# ---- Juegos de MS-DOS (extras: Duke Nukem 1 y 2): DOSBox Pure + frontend propio (libdos.so) ----
-# Aparte del juego: va en su propia biblioteca y en su propio proceso (DosActivity). El código
-# de DOSBox Pure lo descarga el workflow en android/dosbox-pure.
-if(DOSBOX_DIR AND EXISTS ${DOSBOX_DIR}/dosbox_pure_libretro.cpp)
-    file(GLOB DBP_SRC ${DOSBOX_DIR}/*.cpp ${DOSBOX_DIR}/src/*.cpp ${DOSBOX_DIR}/src/*/*.cpp ${DOSBOX_DIR}/src/*/*/*.cpp)
-    add_library(dosbox_pure STATIC ${DBP_SRC})
-    target_include_directories(dosbox_pure PRIVATE ${DOSBOX_DIR}/include)
-    target_compile_definitions(dosbox_pure PRIVATE NDEBUG __LIBRETRO__)
-    target_compile_options(dosbox_pure PRIVATE -O2 -fomit-frame-pointer -fexceptions -frtti -pthread
-        -ffunction-sections -fdata-sections -w)
-    set_target_properties(dosbox_pure PROPERTIES CXX_STANDARD 11 POSITION_INDEPENDENT_CODE ON)
-
-    add_library(dos SHARED dos/dos_main.cpp postfx.c)
-    target_include_directories(dos PRIVATE ${DOSBOX_DIR}/libretro-common/include)
-    target_compile_definitions(dos PRIVATE POSTFX_DOS)
-    set_target_properties(dos PROPERTIES C_STANDARD 11 CXX_STANDARD 14)
-    target_link_libraries(dos PRIVATE dosbox_pure SDL2 GLESv2 android log m dl)
-endif()
+# ---- Juegos de MS-DOS (extras): ver dos/dos.cmake ----
+include(${CMAKE_CURRENT_SOURCE_DIR}/dos/dos.cmake)

@@ -614,6 +614,24 @@ final class GameData {
     }
 
     /** @param def módulo .def extra (la traducción), relativo a la carpeta del juego, o null. */
+    private static final String[] ADDON_CONS = {"DUKEDC.CON", "NWINTER.CON", "VACATION.CON"};
+
+    /** El .CON principal de una expansión (dentro de su GRP), o null si no es una expansión. */
+    static String addonCon(Game game) {
+        try (GrpArchive g = new GrpArchive(game.grp)) {
+            for (String c : ADDON_CONS) if (g.has(c)) return c;
+        } catch (Exception e) {
+            android.util.Log.w("Duke3D", "No se pudo mirar el GRP " + game.grp, e);
+        }
+        // O suelto en la carpeta de la expansión.
+        File[] files = game.grp.getParentFile() != null ? game.grp.getParentFile().listFiles() : null;
+        if (files != null) {
+            for (String c : ADDON_CONS)
+                for (File f : files) if (f.isFile() && f.getName().equalsIgnoreCase(c)) return f.getName();
+        }
+        return null;
+    }
+
     static String[] arguments(android.content.Context ctx, File gameDir, Game game, String def) {
         List<String> args = new ArrayList<>();
         if (!Motor.RAZE) args.add("-usecwd"); // configuración y partidas guardadas en la carpeta del juego
@@ -627,6 +645,16 @@ final class GameData {
         }
         args.add("-gamegrp");
         args.add(game.grpName);
+        // Expansiones: su propio .CON (el que define sus episodios y mapas). EDuke32 solo lo pone
+        // solo si reconoce el GRP por su CRC; con los de la Megaton a veces no, y entonces salían
+        // sus armas y enemigos pero con los mapas del juego original.
+        if (!Motor.RAZE) {
+            String con = addonCon(game);
+            if (con != null) {
+                args.add("-x");
+                args.add(con);
+            }
+        }
         if (Motor.RAZE) {
             args.add("-nosetup"); // sin la ventana de elegir juego de Raze
             // Sin sincronía vertical: el límite de FPS del lanzador (60/120...) manda.

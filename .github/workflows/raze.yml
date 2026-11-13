@@ -10,6 +10,7 @@ env:
   SDL_VERSION: "2.30.9"
   NDK_VERSION: "27.2.12479018"
   API: "26"
+  DOSBOX_PURE_TAG: "1.0-preview6"
 
 jobs:
   nativo:
@@ -119,6 +120,8 @@ jobs:
       - name: Bibliotecas y datos en el proyecto
         run: |
           cp -r sdl2 android/SDL2
+          # DOSBox Pure: los juegos de MS-DOS de los extras (libdos.so, como en la Classic).
+          git clone -q --depth 1 --branch "$DOSBOX_PURE_TAG" https://github.com/schellingb/dosbox-pure.git android/dosbox-pure
           J=android/app/src/raze/jniLibs/arm64-v8a
           D=android/app/src/raze/assets/raze
           mkdir -p $J $D

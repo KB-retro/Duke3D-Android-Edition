@@ -135,6 +135,33 @@ final class I18n {
         put("mods_note", "vóxeles y mapas sí; texturas y modelos HD no", "voxels and maps work; HD textures and models do not");
         put("achievement_unlocked", "LOGRO DESBLOQUEADO", "ACHIEVEMENT UNLOCKED");
         put("unlocked_short", "OK", "OK");
+        put("dos_keys", "Teclas", "Keys");
+        put("guide", "Guia", "Guide");
+        put("next", "Siguiente", "Next");
+        put("dos_act_jump", "Saltar (Ctrl)", "Jump (Ctrl)");
+        put("dos_act_fire", "Disparar (Alt)", "Fire (Alt)");
+        put("dos_act_use", "Usar / Arriba", "Use / Up");
+        put("dos_act_down", "Abajo", "Down");
+        put("dos_act_none", "Nada", "Nothing");
+        put("dos_jump", "SALTAR", "JUMP");
+        put("dos_fire", "DISPARAR", "FIRE");
+        put("dos_use", "USAR", "USE");
+        put("dos_enter", "INTRO", "ENTER");
+        put("dos_space", "Espacio", "Space");
+        put("dos_yes_key", "Y (sí)", "Y (yes)");
+        put("dos_no_key", "N (no)", "N (no)");
+        put("dos_saving", "Guardando...", "Saving...");
+        put("dos_loading", "Cargando...", "Loading...");
+        put("dos_saved", "Partida guardada", "Game saved");
+        put("dos_loaded", "Partida cargada", "Game loaded");
+        put("dos_no_save", "No hay ninguna partida guardada", "No saved game");
+        put("dos_save_error", "No se pudo guardar", "Could not save");
+        put("dos_load_error", "No se pudo cargar", "Could not load");
+        put("dos_pad_help", "A: cambiar - la cruceta y el stick son siempre las flechas",
+                "A: change - D-pad and stick are always the arrows");
+        put("dos_games", "Clásicos", "Classics");
+        put("dos_missing", "Copia el juego en ", "Copy the game to ");
+        put("dos_none", "No hay juegos: copia los archivos en ", "No games: copy the files to ");
     }
 
     static void load(Context c) {
