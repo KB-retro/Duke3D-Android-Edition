@@ -109,7 +109,16 @@ public class LauncherActivity extends Activity {
         }
         if (getPreferences(MODE_PRIVATE).getBoolean("jugando", false)) {
             getPreferences(MODE_PRIVATE).edit().putBoolean("jugando", false).apply();
-            lastLog = saveLog();
+            // El registro entero tarda (logcat): en otro hilo, para no congelar el lanzador al
+            // volver del juego. Si hubo un fallo, se enseña cuando está listo.
+            new Thread(() -> {
+                List<String> log = saveLog();
+                runOnUiThread(() -> {
+                    if (isFinishing() || isDestroyed()) return;
+                    lastLog = log;
+                    if (hasCrash()) refresh();
+                });
+            }, "Registro").start();
         }
         refresh();
     }
