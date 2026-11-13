@@ -136,6 +136,10 @@ static void set_default_options(void)
         {"beetle_psx_use_mednafen_memcard0_method", "mednafen"},  // el núcleo guarda la tarjeta (.mcr)
         {"beetle_psx_enable_memcard1", "disabled"},
         {"beetle_psx_analog_toggle", "enabled-analog"},  // DualShock en modo analógico
+        // El cambio a digital con L1+R1+Select (lo de serie) saltaba jugando y el stick izquierdo
+        // dejaba de responder: solo con los seis botones a la vez durante 5 segundos.
+        {"beetle_psx_analog_toggle_combo", "l1+l2+r1+r2+start+select"},
+        {"beetle_psx_analog_toggle_hold", "5"},
         {"beetle_psx_frame_duping", "enabled"},
         {"beetle_psx_widescreen_hack", "disabled"},
         {"beetle_psx_widescreen_hack_aspect_ratio", "16:9"},
@@ -572,27 +576,30 @@ extern "C" int SDL_main(int argc, char *argv[])
 
         core.run();
 
-        // Ritmo: el del sonido (unos 60 ms en cola, con tope); sin sonido, el del reloj.
+        // Ritmo: el reloj de la consola (unos 60 o 50 fotogramas por segundo), no el de la
+        // pantalla ni la cola de sonido. El sonido solo corrige un poco: con mucho en cola se
+        // espera algo más y, si se queda corto, no se espera. (Solo con la cola de sonido, si el
+        // núcleo no la llenaba a tiempo el juego corría sin freno y rascaba.)
         double fps = g_av.timing.fps > 1 ? g_av.timing.fps : 60.0;
+        Uint64 period = (Uint64)(freq / fps);
+        next += period;
         if (g_audio)
         {
-            Uint32 limit = (Uint32)(g_audio_rate * 4 * 0.06);
-            if (SDL_GetQueuedAudioSize(g_audio) > limit * 4) SDL_ClearQueuedAudio(g_audio);  // muy atrasado
-            Uint32 waited = 0;
-            while (!g_quit && SDL_GetQueuedAudioSize(g_audio) > limit && waited < 100)
-            {
-                SDL_Delay(1);
-                waited++;
-            }
-            if (waited >= 100) SDL_ClearQueuedAudio(g_audio);
+            Uint32 bytes_per_ms = (Uint32)(g_audio_rate * 4 / 1000);
+            Uint32 queued = SDL_GetQueuedAudioSize(g_audio);
+            if (queued > bytes_per_ms * 250) SDL_ClearQueuedAudio(g_audio);   // muy atrasado
+            else if (queued > bytes_per_ms * 90) next += period / 8;           // demasiado en cola
+            else if (queued < bytes_per_ms * 25) next -= period / 8;           // a punto de quedarse sin sonido
         }
-        else
+        Uint64 now = SDL_GetPerformanceCounter();
+        if (next > now)
         {
-            next += (Uint64)(freq / fps);
-            Uint64 now = SDL_GetPerformanceCounter();
-            if (next > now) SDL_Delay((Uint32)((next - now) * 1000 / freq));
-            else next = now;
+            Uint64 wait_ms = (next - now) * 1000 / freq;
+            if (wait_ms > 0) SDL_Delay((Uint32)wait_ms);
+            while (SDL_GetPerformanceCounter() < next) {}  // el último trocito, exacto
         }
+        else if (now - next > freq / 4)
+            next = now;  // muy retrasado (pausa, segundo plano): se vuelve a empezar
     }
 
     LOGI("Saliendo");
