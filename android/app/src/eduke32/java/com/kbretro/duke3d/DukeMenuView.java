@@ -350,42 +350,21 @@ final class DukeMenuView extends View {
     }
 
     /** La caja entera dentro del rectángulo (x, y, w, h) del 320x200, con marco. */
-    private final Paint coverDim = new Paint(Paint.FILTER_BITMAP_FLAG);
     /** Dónde está la caja grande en pantalla (para tocarla). */
     private final RectF coverRect = new RectF();
 
     private void drawCover(Canvas c, Bitmap b, float x, float y, float bw, float bh) {
         // El 320x200 se ve estirado a 4:3: en píxeles de pantalla se mantiene la proporción real.
         float pw = bw * sx, ph = bh * sy;
-        // Todas las cajas con el mismo marco (3:4, como una caja de juego). La imagen se ve entera
-        // y sin deformar; si es más estrecha o más baja, el hueco se rellena con ella misma
-        // ampliada y oscurecida (sin franjas negras ni recortar el texto de la carátula).
-        final float aspect = 3f / 4f;
-        float fh = Math.min(ph, pw / aspect), fw = fh * aspect;
-        float l = vx(x) + (pw - fw) / 2f, t = vy(y) + (ph - fh) / 2f;
+        float k = Math.min(pw / b.getWidth(), ph / b.getHeight());
+        float dw = b.getWidth() * k, dh = b.getHeight() * k;
+        float l = vx(x) + (pw - dw) / 2f, t = vy(y) + (ph - dh) / 2f;
         frame.setColor(Color.argb(200, 0, 0, 0));
-        c.drawRect(l - 6, t - 6, l + fw + 6, t + fh + 6, frame);
+        c.drawRect(l - 6, t - 6, l + dw + 6, t + dh + 6, frame);
         frame.setColor(Color.rgb(255, 200, 40));
-        c.drawRect(l - 3, t - 3, l + fw + 3, t + fh + 3, frame);
-        coverRect.set(l, t, l + fw, t + fh);
-        float iw = b.getWidth(), ih = b.getHeight();
-        // Fondo: la imagen llenando el marco (recortada) y oscurecida.
-        android.graphics.Rect src;
-        if (iw / ih > aspect) {
-            int cw = Math.round(ih * aspect), cx = Math.round((iw - cw) / 2f);
-            src = new android.graphics.Rect(cx, 0, cx + cw, (int) ih);
-        } else {
-            int ch = Math.round(iw / aspect), cy = Math.round((ih - ch) / 2f);
-            src = new android.graphics.Rect(0, cy, (int) iw, cy + ch);
-        }
-        coverDim.setColorFilter(new LightingColorFilter(Color.rgb(70, 70, 70), 0));
-        dst.set(l, t, l + fw, t + fh);
-        c.drawBitmap(b, src, dst, coverDim);
-        // Encima, la imagen entera.
-        float k = Math.min(fw / iw, fh / ih);
-        float dw = iw * k, dh = ih * k;
-        float il = l + (fw - dw) / 2f, it = t + (fh - dh) / 2f;
-        dst.set(il, it, il + dw, it + dh);
+        c.drawRect(l - 3, t - 3, l + dw + 3, t + dh + 3, frame);
+        coverRect.set(l, t, l + dw, t + dh);
+        dst.set(l, t, l + dw, t + dh);
         c.drawBitmap(b, null, dst, smooth);
     }
 
