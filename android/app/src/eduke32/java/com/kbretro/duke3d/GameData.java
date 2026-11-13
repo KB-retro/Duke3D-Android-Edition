@@ -626,8 +626,10 @@ final class GameData {
      */
     static String addonCon(android.content.Context ctx, Game game, File prep) {
         java.util.Map<String, byte[]> cons = new java.util.LinkedHashMap<>();
+        java.util.Set<String> own = new java.util.HashSet<>(); // archivos de la expansión, en mayúsculas
         try (GrpArchive g = new GrpArchive(game.grp)) {
             StringBuilder list = new StringBuilder();
+            own.addAll(g.names());
             for (String n : g.names()) {
                 if (n.endsWith(".CON")) {
                     cons.put(n, g.read(n));
@@ -642,6 +644,7 @@ final class GameData {
         if (files != null) {
             for (File f : files) {
                 String up = f.getName().toUpperCase(java.util.Locale.ROOT);
+                if (f.isFile()) own.add(up);
                 if (!f.isFile() || !up.endsWith(".CON")) continue;
                 try {
                     cons.put(up, readAll(f));
@@ -664,6 +667,7 @@ final class GameData {
         // EDuke32 mira antes la carpeta actual (gameroot) que las de -j: un GAME.CON o USER.CON
         // suelto ahí taparía los de la expansión. Por eso van con otro nombre (XP_...) y sus
         // include apuntan a esos nombres.
+        String hide = hiddenVolumes(cons, own);
         java.util.regex.Pattern inc = java.util.regex.Pattern.compile("(?i)\\binclude(\\s+)([^\\s]+)");
         for (java.util.Map.Entry<String, byte[]> e : cons.entrySet()) {
             String text = new String(e.getValue(), java.nio.charset.StandardCharsets.ISO_8859_1);
@@ -675,12 +679,45 @@ final class GameData {
                 m.appendReplacement(sb, java.util.regex.Matcher.quoteReplacement(repl));
             }
             m.appendTail(sb);
+            if (e.getKey().equals(main)) sb.append(hide);
             byte[] out = sb.toString().getBytes(java.nio.charset.StandardCharsets.ISO_8859_1);
             writeBytes(new File(prep, "XP_" + e.getKey()), out);
             writeBytes(new File(prep, ("XP_" + e.getKey()).toLowerCase(java.util.Locale.ROOT)), out);
         }
         android.util.Log.i("Duke3D", "Expansión " + game.title + ": " + main + " (XP_" + main + ") desde " + prep);
         return "XP_" + main;
+    }
+
+    /**
+     * Los guiones de las expansiones de la Megaton traen también los episodios del juego base,
+     * que con los gráficos de la expansión salen con fallos. Se ocultan del menú (con
+     * definevolumeflags) los episodios sin ningún mapa propio de la expansión. Si no se reconoce
+     * ninguno como suyo, no se oculta nada.
+     */
+    private static String hiddenVolumes(java.util.Map<String, byte[]> cons, java.util.Set<String> own) {
+        java.util.regex.Pattern lvl = java.util.regex.Pattern.compile(
+                "(?im)^[ \\t]*definelevelname[ \\t]+(\\d+)[ \\t]+\\d+[ \\t]+([^\\s]+)");
+        java.util.regex.Pattern vol = java.util.regex.Pattern.compile(
+                "(?im)^[ \\t]*definevolumename[ \\t]+(\\d+)");
+        java.util.Set<Integer> vols = new java.util.TreeSet<>(), ownVols = new java.util.TreeSet<>();
+        for (byte[] b : cons.values()) {
+            String text = new String(b, java.nio.charset.StandardCharsets.ISO_8859_1);
+            java.util.regex.Matcher m = vol.matcher(text);
+            while (m.find()) vols.add(Integer.parseInt(m.group(1)));
+            m = lvl.matcher(text);
+            while (m.find()) {
+                int v = Integer.parseInt(m.group(1));
+                vols.add(v);
+                String map = m.group(2).replace('\\', '/');
+                map = map.substring(map.lastIndexOf('/') + 1).toUpperCase(java.util.Locale.ROOT);
+                if (own.contains(map)) ownVols.add(v);
+            }
+        }
+        android.util.Log.i("Duke3D", "Episodios: " + vols + ", de la expansión: " + ownVols);
+        if (ownVols.isEmpty()) return "";
+        StringBuilder sb = new StringBuilder("\n");
+        for (int v : vols) if (!ownVols.contains(v)) sb.append("definevolumeflags ").append(v).append(" 1\n");
+        return sb.toString();
     }
 
     private static byte[] readAll(File f) throws java.io.IOException {

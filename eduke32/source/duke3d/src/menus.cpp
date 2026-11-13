@@ -2117,6 +2117,10 @@ void Menu_Init(void)
     if (g_maxDefinedSkill == 0)
         MEO_EPISODE.linkID = MENU_NULL;
     M_EPISODE.currentEntry = ud.default_volume;
+    // Con episodios ocultos (definevolumeflags), empezar en el primero que se vea.
+    if ((unsigned)M_EPISODE.currentEntry >= (unsigned)M_EPISODE.numEntries || MEL_EPISODE[M_EPISODE.currentEntry] == NULL)
+        for (i = 0; i < M_EPISODE.numEntries; ++i)
+            if (MEL_EPISODE[i] != NULL) { M_EPISODE.currentEntry = i; break; }
 
     // prepare new game custom :O
     if (g_MenuGameplayEntries[0].isValid())
