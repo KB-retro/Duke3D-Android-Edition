@@ -307,9 +307,9 @@ sub("source/core/cheats.cpp",
     "void genericCheat(int player, TArrayView<uint8_t>& stream, bool skip)\n{\n    int cheat = ReadInt8(stream);\n    if (skip) return;\n"
     "#ifdef __ANDROID__\n\tif (player == myconnectindex) android_raze_event(5, cheat, 0, 0);\n#endif")
 
-# 25. El menú del juego de Raze se queda, pero sin «Opciones» ni «Salir del juego» (repetido):
-#     la configuración y la salida van en el menú rápido de la app. Se quita la entrada del menú principal y del de partida (y
-#     las de debajo suben), y tampoco se puede abrir por otro camino.
+# 25. El menú del juego de Raze se queda, con sus Opciones (hay ajustes de gráficos y sonido que
+#     solo están ahí), pero sin «Salir del juego» (repetido: la salida va en el menú rápido de la
+#     app). Se quita la entrada del menú principal y del de partida (y las de debajo suben).
 sub("source/core/menu/razemenu.cpp",
     "void BuildGameMenus()\n{\n\tBuildEpisodeMenu();",
     "#ifdef __ANDROID__\nstatic void android_hide_options(FName name)\n{\n"
@@ -323,7 +323,7 @@ sub("source/core/menu/razemenu.cpp",
     "\t\tif (ld->mItems[i]->mAction == FName(\"EndgameMenu\"))\n\t\t{\n"
     "\t\t\tld->mItems[i]->StringVar(FName(\"mText\")) = es ? \"Terminar partida\" : \"End Game\";\n"
     "\t\t\tcontinue;\n\t\t}\n"
-    "\t\tif (ld->mItems[i]->mAction != FName(\"OptionsMenu\") && ld->mItems[i]->mAction != FName(\"QuitMenu\")) continue;\n"
+    "\t\tif (ld->mItems[i]->mAction != FName(\"QuitMenu\")) continue;\n"
     "\t\tfor (unsigned j = i + 1; j < ld->mItems.Size(); j++) ld->mItems[j]->mYpos -= ld->mLinespacing;\n"
     "\t\tld->mItems.Delete(i);\n"
     "\t\tif (ld->mSelectedItem > (int)i) ld->mSelectedItem--;\n"
@@ -335,10 +335,6 @@ sub("source/core/menu/razemenu.cpp",
     "}\n#endif\n\n"
     "void BuildGameMenus()\n{\n#ifdef __ANDROID__\n\tandroid_hide_options(NAME_Mainmenu);\n"
     "\tandroid_hide_options(NAME_IngameMenu);\n#endif\n\tBuildEpisodeMenu();")
-sub("source/core/menu/razemenu.cpp",
-    "bool M_SetSpecialMenu(FName& menu, int param)\n{",
-    "bool M_SetSpecialMenu(FName& menu, int param)\n{\n"
-    "#ifdef __ANDROID__\n\tif (menu == FName(\"OptionsMenu\")) return false;\n#endif")
 
 # 26. Sin consola en Android: no se puede usar sin teclado y, fuera de partida, dejaba la
 #     pantalla sin el menú ni su fondo. Donde Raze pondría la consola a pantalla completa (al

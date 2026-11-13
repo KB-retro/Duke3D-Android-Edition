@@ -561,6 +561,27 @@ public class GameActivity extends SDLActivity {
         }
     }
 
+    /** Pausa o reanuda el sonido de Raze (OpenAL), que Android no para solo. */
+    static native void nativeAudioPause(boolean pause);
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        try {
+            nativeAudioPause(true);
+        } catch (UnsatisfiedLinkError ignored) {
+        }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        try {
+            nativeAudioPause(false);
+        } catch (UnsatisfiedLinkError ignored) {
+        }
+    }
+
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);

@@ -35,6 +35,7 @@
 #include "gameconfigfile.h"
 #include "texturemanager.h"
 #include "menu.h"
+#include "gamecontrol.h"
 #include "keydef.h"
 #include "tarray.h"
 #include "zstring.h"
@@ -174,7 +175,10 @@ void android_raze_tick()
     }
     // Fuera de partida (título), el menú principal de Raze siempre abierto: si algo lo cierra se
     // quedaba la pantalla vacía o la consola.
-    if ((gamestate == GS_MENUSCREEN || gamestate == GS_FULLCONSOLE) && menuactive == MENU_Off)
+    // Solo si no hay nada en camino: al empezar partida el menú se cierra un momento antes de que
+    // cargue el nivel, y volver a abrirlo aquí dejaba el menú principal encima de la partida.
+    if ((gamestate == GS_MENUSCREEN || gamestate == GS_FULLCONSOLE) && menuactive == MENU_Off
+        && gameaction == ga_nothing)
     {
         if (gamestate == GS_FULLCONSOLE) gamestate = GS_MENUSCREEN;
         AddCommandString("menu_main");
@@ -334,6 +338,31 @@ JNIEXPORT void JNICALL Java_com_kbretro_duke3d_GameActivity_nativeButton(JNIEnv 
     {
         queue(c);
     }
+}
+
+// Sonido al salir de la app (pantalla apagada, Inicio): Raze suena con OpenAL, que Android no
+// pausa solo (SDL solo pausa su propio audio), y la música seguía sonando en segundo plano.
+// Se pausa el dispositivo de OpenAL entero (ALC_SOFT_pause_device), desde cualquier hilo.
+JNIEXPORT void JNICALL Java_com_kbretro_duke3d_GameActivity_nativeAudioPause(JNIEnv *, jclass, jboolean pause)
+{
+    typedef void *(*ctx_fn)(void);
+    typedef void *(*dev_fn)(void *);
+    typedef void *(*proc_fn)(void *, const char *);
+    typedef void (*pause_fn)(void *);
+    void *lib = dlopen("libopenal.so", RTLD_NOW | RTLD_NOLOAD);
+    if (!lib) return;
+    ctx_fn getCtx = (ctx_fn)dlsym(lib, "alcGetCurrentContext");
+    dev_fn getDev = (dev_fn)dlsym(lib, "alcGetContextsDevice");
+    proc_fn getProc = (proc_fn)dlsym(lib, "alcGetProcAddress");
+    void *ctx = getCtx ? getCtx() : nullptr;
+    void *dev = ctx && getDev ? getDev(ctx) : nullptr;
+    if (dev && getProc)
+    {
+        pause_fn f = (pause_fn)getProc(dev, pause ? "alcDevicePauseSOFT" : "alcDeviceResumeSOFT");
+        if (f) f(dev);
+        __android_log_print(ANDROID_LOG_INFO, "Duke3D", "Sonido %s", pause ? "en pausa" : "reanudado");
+    }
+    dlclose(lib);
 }
 
 } // extern "C"
