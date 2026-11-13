@@ -203,6 +203,8 @@ public class PsxActivity extends SDLActivity {
         if (wide != null) o.add(new String[]{"beetle_psx_widescreen_hack_aspect_ratio", wide});
         o.add(new String[]{"beetle_psx_internal_resolution", RES_VALUES[gfx("resolucion", 1, RES_VALUES.length)]});
         o.add(new String[]{"beetle_psx_pgxp_mode", gfx("pgxp", 1, 2) == 1 ? "memory only" : "disabled"});
+        // Versiones PAL (europeas, a 50 Hz) a 60 Hz, como la americana. Solo afecta a discos PAL.
+        o.add(new String[]{"beetle_psx_pal_video_timing_override", gfx("pal60", 1, 2) == 1 ? "enabled" : "disabled"});
         return o;
     }
 
@@ -288,6 +290,7 @@ public class PsxActivity extends SDLActivity {
 
     private DukeMenuView.Page graphicsPage() {
         DukeMenuView.Page p = new DukeMenuView.Page();
+        status = null;
         p.addValue(I18n.t("psx_screen"), this::screenLabel, () -> {
             cycleGfx("pantalla", 0, SCREEN_KEYS.length);
             applyCoreOptions();
@@ -300,6 +303,11 @@ public class PsxActivity extends SDLActivity {
             cycleGfx("pgxp", 1, 2);
             applyCoreOptions();
         });
+        p.addValue(I18n.t("psx_pal60"), () -> I18n.t(gfx("pal60", 1, 2) == 1 ? "yes" : "no"), () -> {
+            cycleGfx("pal60", 1, 2);
+            applyCoreOptions();
+            status = I18n.t("psx_restart");
+        });
         p.addValue(I18n.t("gfx_scaler"), () -> I18n.t(SCALER_KEYS[gfx("escalado", 1, SCALER_KEYS.length)]),
                 () -> cycleGfx("escalado", 1, SCALER_KEYS.length));
         p.addValue(I18n.t("gfx_sharpness"), () -> I18n.t(SHARP_KEYS[gfx("nitidez", 0, SHARP_KEYS.length)]),
@@ -311,6 +319,7 @@ public class PsxActivity extends SDLActivity {
         p.addValue(I18n.t("gfx_effect"), () -> I18n.t(CRT_KEYS[gfx("crt", 0, CRT_KEYS.length)]),
                 () -> cycleGfx("crt", 0, CRT_KEYS.length));
         p.add(I18n.t("back"), null, () -> quickMenu.pop());
+        p.footer = () -> status != null ? status : "";
         return p;
     }
 
