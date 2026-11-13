@@ -927,6 +927,24 @@ public class LauncherActivity extends Activity {
                 });
                 return;
             }
+            // También aquí, fuera del hilo de la interfaz: con una expansión se leen sus .CON del GRP.
+            List<String> args = new ArrayList<>();
+            List<GameData.Game> all;
+            try {
+                args.addAll(Arrays.asList(GameData.arguments(this, gameDir, game, defFile)));
+                args.addAll(Arrays.asList(extraArgs));
+                args.addAll(modArgs);
+                all = GameData.games(gameDir);
+            } catch (Throwable t) {
+                // Sin esto, launching se quedaba a true y ya no se podía lanzar nada.
+                android.util.Log.e("Duke3D", "No se pudo preparar el juego", t);
+                runOnUiThread(() -> {
+                    launching = false;
+                    if (menuView.top() == wait) menuView.pop();
+                    android.widget.Toast.makeText(this, String.valueOf(t), android.widget.Toast.LENGTH_LONG).show();
+                });
+                return;
+            }
             runOnUiThread(() -> {
                 launching = false;
                 if (menuView.top() == wait) menuView.pop();
@@ -934,12 +952,8 @@ public class LauncherActivity extends Activity {
                 getPreferences(MODE_PRIVATE).edit().putBoolean("jugando", true).apply();
                 Intent intent = new Intent(this, GameActivity.class);
                 intent.putExtra(GameActivity.EXTRA_DIR, gameDir.getAbsolutePath());
-                List<String> args = new ArrayList<>(Arrays.asList(GameData.arguments(this, gameDir, game, defFile)));
-                args.addAll(Arrays.asList(extraArgs));
-                args.addAll(modArgs);
                 intent.putExtra(GameActivity.EXTRA_ARGS, args.toArray(new String[0]));
                 intent.putExtra(GameActivity.EXTRA_LANG, defFile != null ? "es" : "en");
-                List<GameData.Game> all = GameData.games(gameDir);
                 if (!all.isEmpty()) intent.putExtra(GameActivity.EXTRA_BASE_GRP, all.get(0).grp.getAbsolutePath());
                 startActivity(intent);
             });

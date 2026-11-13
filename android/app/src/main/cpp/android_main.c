@@ -230,6 +230,11 @@ static void *game_thread(void *p)
     ss.ss_flags = 0;
     if (ss.ss_sp) sigaltstack(&ss, NULL);
     ga->rc = main(ga->argc, ga->argv);
+    // Si este hilo se enganchó a Java (vibración, logros), soltarlo antes de terminar: un hilo
+    // que acaba enganchado hace que Android cierre la app como si fuera un fallo.
+    JNIEnv *env = NULL;
+    if (java_vm && (*java_vm)->GetEnv(java_vm, (void **)&env, JNI_VERSION_1_6) == JNI_OK)
+        (*java_vm)->DetachCurrentThread(java_vm);
     return NULL;
 }
 

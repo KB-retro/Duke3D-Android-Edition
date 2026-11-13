@@ -203,7 +203,7 @@ static void video_refresh(const void *data, unsigned w, unsigned h, size_t pitch
 static void audio_sample(int16_t l, int16_t r)
 {
     int16_t s[2] = { l, r };
-    if (g_audio) SDL_QueueAudio(g_audio, s, sizeof(s));
+    if (g_audio && !g_paused) SDL_QueueAudio(g_audio, s, sizeof(s));
 }
 
 static size_t audio_batch(const int16_t *data, size_t frames)
@@ -467,7 +467,15 @@ extern "C" int SDL_main(int argc, char *argv[])
         {
             Uint32 limit = (Uint32)(g_audio_rate * 4 * 0.06);
             if (SDL_GetQueuedAudioSize(g_audio) > limit * 4) SDL_ClearQueuedAudio(g_audio);  // muy atrasado
-            while (!g_quit && SDL_GetQueuedAudioSize(g_audio) > limit) SDL_Delay(1);
+            // Con un tope: si el sonido del sistema se atasca (auriculares que se desconectan,
+            // cambio de salida), la cola no baja y el juego se quedaba aquí sin atender el menú.
+            Uint32 waited = 0;
+            while (!g_quit && SDL_GetQueuedAudioSize(g_audio) > limit && waited < 100)
+            {
+                SDL_Delay(1);
+                waited++;
+            }
+            if (waited >= 100) SDL_ClearQueuedAudio(g_audio);
         }
         else
         {

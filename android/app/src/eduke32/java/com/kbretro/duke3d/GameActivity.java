@@ -397,6 +397,7 @@ public class GameActivity extends SDLActivity {
         setupTouch();
         I18n.load(this);
         command(ControlSettings.padSensCommand(this)); // la sensibilidad de los sticks guardada
+        updateDpadRemapped();
         instance = this;
         gameId = Achievements.gameId(gameGrp(getArguments()));
         vibrationOn = vibrationPref();
@@ -597,6 +598,7 @@ public class GameActivity extends SDLActivity {
 
     private void closeMenu() {
         if (quickMenu != null) quickMenu.setVisibility(View.GONE);
+        updateDpadRemapped();
         // El foco vuelve al juego (si no, el mando dejaba de llegarle tras usar el menú).
         if (mSurface != null) mSurface.requestFocus();
         hideSystemBars();
@@ -769,6 +771,33 @@ public class GameActivity extends SDLActivity {
     }
 
     private long lastAxisMove;
+    /** Hay alguna dirección de la cruceta reasignada (se mira al abrir y cerrar el menú). */
+    private boolean dpadRemapped;
+
+    private void updateDpadRemapped() {
+        dpadRemapped = false;
+        for (int k : new int[]{KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN,
+                KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT})
+            if (ControlSettings.remap(this, k) != ControlSettings.DEFAULT) dpadRemapped = true;
+    }
+
+    /** Copia del evento del mando con la cruceta (HAT) a cero. */
+    private static MotionEvent withoutHat(MotionEvent e) {
+        int n = e.getPointerCount();
+        MotionEvent.PointerProperties[] pp = new MotionEvent.PointerProperties[n];
+        MotionEvent.PointerCoords[] pc = new MotionEvent.PointerCoords[n];
+        for (int i = 0; i < n; i++) {
+            pp[i] = new MotionEvent.PointerProperties();
+            pc[i] = new MotionEvent.PointerCoords();
+            e.getPointerProperties(i, pp[i]);
+            e.getPointerCoords(i, pc[i]);
+            pc[i].setAxisValue(MotionEvent.AXIS_HAT_X, 0f);
+            pc[i].setAxisValue(MotionEvent.AXIS_HAT_Y, 0f);
+        }
+        return MotionEvent.obtain(e.getDownTime(), e.getEventTime(), e.getAction(), n, pp, pc, e.getMetaState(),
+                e.getButtonState(), e.getXPrecision(), e.getYPrecision(), e.getDeviceId(), e.getEdgeFlags(),
+                e.getSource(), e.getFlags());
+    }
 
     @Override
     public boolean dispatchGenericMotionEvent(MotionEvent e) {
@@ -776,6 +805,19 @@ public class GameActivity extends SDLActivity {
         if (Motor.RAZE && !menuOpen() && (e.getSource() & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK) {
             razePadMotion(e);
             return true;
+        }
+        if (!Motor.RAZE && !menuOpen() && dpadRemapped
+                && (e.getSource() & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK) {
+            // Cruceta como ejes (mando de Xbox...) con algo reasignado en «Configurar mando»: en
+            // plena partida la lleva la app (como los botones) y al juego le llega sin ella.
+            if (inGame()) {
+                razeHat(e.getAxisValue(MotionEvent.AXIS_HAT_X), e.getAxisValue(MotionEvent.AXIS_HAT_Y), true);
+                MotionEvent m = withoutHat(e);
+                boolean r = super.dispatchGenericMotionEvent(m);
+                m.recycle();
+                return r;
+            }
+            if (hatKey >= 0) razeHat(0, 0, true); // se suelta al salir de la partida
         }
         if (!menuOpen()) return super.dispatchGenericMotionEvent(e);
         // Crucetas que llegan como ejes (HAT) y el stick izquierdo mueven el menú (las 4 direcciones).
