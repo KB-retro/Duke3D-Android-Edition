@@ -171,6 +171,14 @@ static void Menu_DrawCursorRight(int32_t x, int32_t y, int32_t z)
     if (FURY) return;
     Menu_DrawCursorCommon(x, y, z, VM_OnEventWithReturn(EVENT_MENUCURSORRIGHT, -1, myconnectindex, SPINNINGNUKEICON+6-((6+(timer120()>>3))%7)));
 }
+// Distancia al centro de los símbolos nucleares de una opción centrada: la de siempre, o más
+// si el texto es más ancho (las traducciones), para que no lo pisen.
+static int32_t Menu_CursorCenterPos(MenuFont_t const *font, int32_t textwidth)
+{
+    int32_t const half = tilesiz[SPINNINGNUKEICON].x > 0 ? mulscale16((tilesiz[SPINNINGNUKEICON].x << 16) >> 1, font->cursorScale) : (8 << 16);
+    int32_t const need = (textwidth >> 1) + half + (3 << 16);
+    return min<int32_t>(max<int32_t>(font->cursorCenterPosition, need), 158 << 16);
+}
 static void Menu_DrawCursorTextTile(int32_t x, int32_t y, int32_t h, int32_t picnum, vec2_16_t const & siz, int32_t ydim_upper = 0, int32_t ydim_lower = ydim-1)
 {
     vec2_t const adjsiz = { (siz.x>>1)<<16, siz.y<<16 };
@@ -5907,8 +5915,9 @@ static int32_t M_RunMenu_Menu(Menu_t *cm, MenuMenu_t *menu, MenuEntry_t *current
             {
                 if (status & MT_XCenter)
                 {
-                    Menu_DrawCursorLeft(origin.x + (MENU_MARGIN_CENTER<<16) + entry->font->cursorCenterPosition, y_internal, entry->font->cursorScale);
-                    Menu_DrawCursorRight(origin.x + (MENU_MARGIN_CENTER<<16) - entry->font->cursorCenterPosition, y_internal, entry->font->cursorScale);
+                    int32_t const cpos = Menu_CursorCenterPos(entry->font, textsize.x);
+                    Menu_DrawCursorLeft(origin.x + (MENU_MARGIN_CENTER<<16) + cpos, y_internal, entry->font->cursorScale);
+                    Menu_DrawCursorRight(origin.x + (MENU_MARGIN_CENTER<<16) - cpos, y_internal, entry->font->cursorScale);
                 }
                 else
                     Menu_DrawCursorLeft(origin.x + x + indent - entry->font->cursorLeftPosition, y_internal, entry->font->cursorScale);
@@ -6537,8 +6546,9 @@ static void Menu_RunOptionList(Menu_t *cm, MenuEntry_t *entry, MenuOption_t *obj
         {
             if (status & MT_XCenter)
             {
-                Menu_DrawCursorLeft(origin.x + (MENU_MARGIN_CENTER<<16) + object->options->font->cursorCenterPosition, y_internal, object->options->font->cursorScale);
-                Menu_DrawCursorRight(origin.x + (MENU_MARGIN_CENTER<<16) - object->options->font->cursorCenterPosition, y_internal, object->options->font->cursorScale);
+                int32_t const cpos = Menu_CursorCenterPos(object->options->font, textsize.x);
+                Menu_DrawCursorLeft(origin.x + (MENU_MARGIN_CENTER<<16) + cpos, y_internal, object->options->font->cursorScale);
+                Menu_DrawCursorRight(origin.x + (MENU_MARGIN_CENTER<<16) - cpos, y_internal, object->options->font->cursorScale);
             }
             else
                 Menu_DrawCursorLeft(origin.x + x - object->options->font->cursorLeftPosition, y_internal, object->options->font->cursorScale);
