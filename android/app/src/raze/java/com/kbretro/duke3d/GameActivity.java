@@ -388,8 +388,7 @@ public class GameActivity extends SDLActivity {
             });
         }
         startWatchdog();
-        stickLookSens = ControlSettings.stickLook(this);
-        stickMoveSens = ControlSettings.stickMove(this);
+        loadStickSens();
         setupTouch();
         I18n.load(this);
         instance = this;
@@ -660,19 +659,32 @@ public class GameActivity extends SDLActivity {
     private DukeMenuView.Page gamepadPage() {
         DukeMenuView.Page p = new DukeMenuView.Page();
         status = null;
-        p.addValue(I18n.t("stick_look"), () -> ControlSettings.stickLookLabel(this), () -> {
-            ControlSettings.cycleStickLook(this);
-            stickLookSens = ControlSettings.stickLook(this);
-        });
+        // Sensibilidad del stick derecho (1-10): izquierda/derecha bajan y suben.
+        for (boolean vertical : new boolean[]{false, true}) {
+            p.addValue(I18n.t(vertical ? "pad_sens_v" : "pad_sens_h"),
+                    () -> ControlSettings.padSensLabel(this, vertical), () -> {
+                        ControlSettings.stepPadSens(this, vertical, 0);
+                        loadStickSens();
+                    });
+            p.entries.get(p.entries.size() - 1).step = d -> {
+                ControlSettings.stepPadSens(this, vertical, d);
+                loadStickSens();
+            };
+        }
         p.addValue(I18n.t("stick_move"), () -> ControlSettings.stickMoveLabel(this), () -> {
             ControlSettings.cycleStickMove(this);
-            stickMoveSens = ControlSettings.stickMove(this);
+            loadStickSens();
         });
+        p.entries.get(p.entries.size() - 1).step = d -> {
+            ControlSettings.stepStickMove(this, d);
+            loadStickSens();
+        };
         for (int i = 0; i < ControlSettings.KEYS.length; i++) {
             int key = ControlSettings.KEYS[i];
             String name = ControlSettings.keyName(i);
             p.addValue(name, () -> ControlSettings.actionName(ControlSettings.remap(this, key)),
                     () -> ControlSettings.cycleRemap(this, key));
+            p.entries.get(p.entries.size() - 1).step = d -> ControlSettings.cycleRemap(this, key, d);
             p.entries.get(p.entries.size() - 1).reset = () -> {
                 ControlSettings.resetRemap(this, key);
                 status = name + ": " + ControlSettings.actionName(ControlSettings.DEFAULT);
@@ -890,7 +902,13 @@ public class GameActivity extends SDLActivity {
     }
 
     private boolean triggerL, triggerR;
-    private float stickLookSens = 1f, stickMoveSens = 1f;
+    private float stickH = 1f, stickV = 1f, stickMoveSens = 1f;
+
+    private void loadStickSens() {
+        stickH = ControlSettings.padSensFactor(this, false);
+        stickV = ControlSettings.padSensFactor(this, true);
+        stickMoveSens = ControlSettings.stickMove(this);
+    }
 
     private static float clampAxis(float v) {
         return Math.max(-1f, Math.min(1f, v));
@@ -910,7 +928,7 @@ public class GameActivity extends SDLActivity {
         if (inGame()) {
             try {
                 nativeTouchMove(clampAxis(lx * stickMoveSens), clampAxis(ly * stickMoveSens));
-                nativeStickLook(rx * stickLookSens, ry * stickLookSens);
+                nativeStickLook(rx * stickH, ry * stickV);
             } catch (UnsatisfiedLinkError ignored) {
             }
             boolean l = lt > 0.5f, r = rt > 0.5f;

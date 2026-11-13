@@ -122,6 +122,34 @@ final class ControlSettings {
         prefs(c).edit().putInt("stick_andar", (stickIndex(c, "stick_andar", 1, MOVE.length) + 1) % MOVE.length).apply();
     }
 
+    static void stepStickMove(Context c, int dir) {
+        int i = stickIndex(c, "stick_andar", 1, MOVE.length);
+        prefs(c).edit().putInt("stick_andar", Math.max(0, Math.min(MOVE.length - 1, i + dir))).apply();
+    }
+
+    // ---- Sensibilidad H y V del stick derecho (1-10; 5 = la de siempre) ----
+
+    static int padSens(Context c, boolean vertical) {
+        int v = prefs(c).getInt(vertical ? "mando_sens_v" : "mando_sens_h", 5);
+        return v >= 1 && v <= 10 ? v : 5;
+    }
+
+    /** Multiplicador del giro (H) o de la mirada arriba/abajo (V): 5 = 1. */
+    static float padSensFactor(Context c, boolean vertical) {
+        return padSens(c, vertical) / 5f;
+    }
+
+    static String padSensLabel(Context c, boolean vertical) {
+        return padSens(c, vertical) + "/10";
+    }
+
+    /** Suma delta (izquierda/derecha, sin pasar de 1 ni de 10) o, con delta 0, da la vuelta (A). */
+    static void stepPadSens(Context c, boolean vertical, int delta) {
+        int v = padSens(c, vertical);
+        v = delta == 0 ? (v % 10) + 1 : Math.max(1, Math.min(10, v + delta));
+        prefs(c).edit().putInt(vertical ? "mando_sens_v" : "mando_sens_h", v).apply();
+    }
+
     /** La acción puesta en un botón del mando (DEFAULT si no se ha cambiado). */
     static int remap(Context c, int keyCode) {
         return prefs(c).getInt("boton_" + keyCode, DEFAULT);
@@ -135,9 +163,14 @@ final class ControlSettings {
     }
 
     static void cycleRemap(Context c, int keyCode) {
+        cycleRemap(c, keyCode, 1);
+    }
+
+    /** Pasa a la acción siguiente (dir 1) o a la anterior (dir -1). */
+    static void cycleRemap(Context c, int keyCode, int dir) {
         int cur = remap(c, keyCode), i = 0;
         for (int k = 0; k < ACTIONS.length; k++) if (ACTIONS[k] == cur) i = k;
-        int next = ACTIONS[(i + 1) % ACTIONS.length];
+        int next = ACTIONS[((i + dir) % ACTIONS.length + ACTIONS.length) % ACTIONS.length];
         if (next == DEFAULT) prefs(c).edit().remove("boton_" + keyCode).apply();
         else prefs(c).edit().putInt("boton_" + keyCode, next).apply();
     }

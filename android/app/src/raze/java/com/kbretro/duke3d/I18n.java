@@ -91,10 +91,12 @@ final class I18n {
         put("touch_controls", "Controles táctiles", "Touch controls");
         put("touch_auto", "Auto", "Auto");
         put("touch_sens", "Sensibilidad táctil", "Touch sensitivity");
+        put("pad_sens_h", "Sensibilidad H", "Sensitivity H");
+        put("pad_sens_v", "Sensibilidad V", "Sensitivity V");
         put("controls_reset", "Restablecer botones", "Reset buttons");
         put("controls_reset_done", "Botones como al principio", "Buttons reset");
-        put("controls_hint", "A: cambiar la acción   Start: dejar ese botón por defecto",
-                "A: change the action   Start: reset that button");
+        put("controls_hint", "Izq/dcha: cambiar   Start: por defecto",
+                "Left/right: change   Start: default");
         put("gamepad_config", "Configurar mando", "Gamepad setup");
         put("mods", "Mods", "Mods");
         put("mods_empty", "Pon los mods (.zip, .pk3, .grp o carpetas) en ", "Put mods (.zip, .pk3, .grp or folders) in ");
@@ -111,7 +113,7 @@ final class I18n {
         put("gfx_colors", "Colores", "Colors");
         put("gfx_truecolor", "Color real", "True color");
         put("stick_look", "Sensibilidad de giro (stick dcho.)", "Look sensitivity (right stick)");
-        put("stick_move", "Sensibilidad de movimiento (stick izq.)", "Move sensitivity (left stick)");
+        put("stick_move", "Sensibilidad andar", "Move sensitivity");
         put("new_game", "Nueva partida", "New game");
         put("save_game", "Guardar partida", "Save game");
         put("load_game", "Cargar partida", "Load game");
