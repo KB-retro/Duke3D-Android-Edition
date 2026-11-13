@@ -40,6 +40,8 @@ final class DukeMenuView extends View {
         Runnable reset;
         /** Si no es null, se llama al tocar su caja grande (la de la derecha). */
         Runnable coverTap;
+        /** Si no es null, izquierda/derecha llaman a esto con -1/+1 en vez de a action (p. ej. un nivel 1-10). */
+        java.util.function.IntConsumer step;
         /** Si devuelve true, la opción se pinta de otro color (p. ej. la pista que suena). */
         java.util.function.BooleanSupplier active;
 
@@ -137,6 +139,30 @@ final class DukeMenuView extends View {
     /** Para el mando: mover la selección desde fuera (crucetas que llegan como ejes). */
     void moveSelection(int d) {
         move(d);
+    }
+
+    private int axisKey = -1;
+    private long axisTime;
+
+    /**
+     * Cruceta que llega como ejes (HAT, p. ej. la del mando de Xbox) y stick izquierdo: como las
+     * flechas, las cuatro direcciones (izquierda/derecha cambian valores). Mantenido, repite.
+     */
+    void onAxis(android.view.MotionEvent e) {
+        float x = e.getAxisValue(android.view.MotionEvent.AXIS_HAT_X), y = e.getAxisValue(android.view.MotionEvent.AXIS_HAT_Y);
+        if (Math.abs(x) < 0.5f && Math.abs(y) < 0.5f) {
+            x = e.getAxisValue(android.view.MotionEvent.AXIS_X);
+            y = e.getAxisValue(android.view.MotionEvent.AXIS_Y);
+        }
+        int k = -1;
+        if (Math.abs(y) >= 0.5f && Math.abs(y) >= Math.abs(x)) k = y > 0 ? KeyEvent.KEYCODE_DPAD_DOWN : KeyEvent.KEYCODE_DPAD_UP;
+        else if (Math.abs(x) >= 0.5f) k = x > 0 ? KeyEvent.KEYCODE_DPAD_RIGHT : KeyEvent.KEYCODE_DPAD_LEFT;
+        long now = android.os.SystemClock.uptimeMillis();
+        if (k >= 0 && (k != axisKey || now - axisTime > 180)) {
+            onKeyDown(k, new KeyEvent(KeyEvent.ACTION_DOWN, k));
+            axisTime = k != axisKey ? now + 220 : now; // primera repetición algo más tarde
+        }
+        axisKey = k;
     }
 
     void setBackground(Bitmap b) {
@@ -614,7 +640,13 @@ final class DukeMenuView extends View {
             case KeyEvent.KEYCODE_DPAD_LEFT:
             case KeyEvent.KEYCODE_DPAD_RIGHT: {
                 Page p = page();
-                if (!p.entries.isEmpty() && p.entries.get(p.selected).value != null) activate();
+                Entry e = p.entries.isEmpty() ? null : p.entries.get(p.selected);
+                if (e != null && e.step != null) {
+                    e.step.accept(keyCode == KeyEvent.KEYCODE_DPAD_LEFT ? -1 : 1);
+                    invalidate();
+                } else if (e != null && e.value != null) {
+                    activate();
+                }
                 return true;
             }
             case KeyEvent.KEYCODE_DPAD_CENTER:

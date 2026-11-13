@@ -141,6 +141,30 @@ final class DukeMenuView extends View {
         move(d);
     }
 
+    private int axisKey = -1;
+    private long axisTime;
+
+    /**
+     * Cruceta que llega como ejes (HAT, p. ej. la del mando de Xbox) y stick izquierdo: como las
+     * flechas, las cuatro direcciones (izquierda/derecha cambian valores). Mantenido, repite.
+     */
+    void onAxis(android.view.MotionEvent e) {
+        float x = e.getAxisValue(android.view.MotionEvent.AXIS_HAT_X), y = e.getAxisValue(android.view.MotionEvent.AXIS_HAT_Y);
+        if (Math.abs(x) < 0.5f && Math.abs(y) < 0.5f) {
+            x = e.getAxisValue(android.view.MotionEvent.AXIS_X);
+            y = e.getAxisValue(android.view.MotionEvent.AXIS_Y);
+        }
+        int k = -1;
+        if (Math.abs(y) >= 0.5f && Math.abs(y) >= Math.abs(x)) k = y > 0 ? KeyEvent.KEYCODE_DPAD_DOWN : KeyEvent.KEYCODE_DPAD_UP;
+        else if (Math.abs(x) >= 0.5f) k = x > 0 ? KeyEvent.KEYCODE_DPAD_RIGHT : KeyEvent.KEYCODE_DPAD_LEFT;
+        long now = android.os.SystemClock.uptimeMillis();
+        if (k >= 0 && (k != axisKey || now - axisTime > 180)) {
+            onKeyDown(k, new KeyEvent(KeyEvent.ACTION_DOWN, k));
+            axisTime = k != axisKey ? now + 220 : now; // primera repetición algo más tarde
+        }
+        axisKey = k;
+    }
+
     void setBackground(Bitmap b) {
         background = b;
         invalidate();

@@ -778,16 +778,8 @@ public class GameActivity extends SDLActivity {
             return true;
         }
         if (!menuOpen()) return super.dispatchGenericMotionEvent(e);
-        // Crucetas que llegan como ejes (HAT) y el stick izquierdo mueven el menú.
-        float y = e.getAxisValue(MotionEvent.AXIS_HAT_Y);
-        if (Math.abs(y) < 0.5f) y = e.getAxisValue(MotionEvent.AXIS_Y);
-        long now = android.os.SystemClock.uptimeMillis();
-        if (Math.abs(y) >= 0.5f && now - lastAxisMove > 180) {
-            quickMenu.moveSelection(y > 0 ? 1 : -1);
-            lastAxisMove = now;
-        } else if (Math.abs(y) < 0.3f) {
-            lastAxisMove = 0;
-        }
+        // Crucetas que llegan como ejes (HAT) y el stick izquierdo mueven el menú (las 4 direcciones).
+        quickMenu.onAxis(e);
         return true;
     }
 

@@ -476,13 +476,7 @@ public class DosActivity extends SDLActivity {
         if (Math.abs(x) < 0.5f) x = e.getAxisValue(MotionEvent.AXIS_X);
         if (Math.abs(y) < 0.5f) y = e.getAxisValue(MotionEvent.AXIS_Y);
         if (menuOpen()) {
-            long now = android.os.SystemClock.uptimeMillis();
-            if (Math.abs(y) >= 0.5f && now - lastAxisMove > 180) {
-                quickMenu.moveSelection(y > 0 ? 1 : -1);
-                lastAxisMove = now;
-            } else if (Math.abs(y) < 0.3f) {
-                lastAxisMove = 0;
-            }
+            quickMenu.onAxis(e);
             return true;
         }
         if (!padUsed) {
