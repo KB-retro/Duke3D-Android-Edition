@@ -91,6 +91,8 @@ final class I18n {
         put("touch_controls", "Controles táctiles", "Touch controls");
         put("touch_auto", "Auto", "Auto");
         put("touch_sens", "Sensibilidad táctil", "Touch sensitivity");
+        put("pad_sens_h", "Sensibilidad horizontal (stick)", "Horizontal sensitivity (stick)");
+        put("pad_sens_v", "Sensibilidad vertical (stick)", "Vertical sensitivity (stick)");
         put("controls_reset", "Restablecer botones", "Reset buttons");
         put("controls_reset_done", "Botones como al principio", "Buttons reset");
         put("controls_hint", "A: cambiar la acción   Start: dejar ese botón por defecto",

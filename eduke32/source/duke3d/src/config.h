@@ -35,6 +35,7 @@ void CONFIG_SetDefaultKeys(const char (*keyptr)[MAXGAMEFUNCLEN], bool lazy=false
 
 void CONFIG_SetGameControllerDefaults(void);
 void CONFIG_SetGameControllerDefaultsClear(void);
+void CONFIG_AndroidPadSens(float h, float v);
 
 int32_t CONFIG_GetMapBestTime(char const *mapname, uint8_t const *mapmd4);
 int     CONFIG_SetMapBestTime(uint8_t const *mapmd4, int32_t tm);

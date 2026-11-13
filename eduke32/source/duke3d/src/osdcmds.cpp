@@ -1619,8 +1619,17 @@ static int osdcmd_locale(osdcmdptr_t parm)
 
 #define CVAR_BOOL_OPTSTR ":\n 0: disabled\n 1: enabled"
 
+static int osdcmd_android_padsens(osdcmdptr_t parm)
+{
+    if (parm->numparms != 2)
+        return OSDCMD_SHOWHELP;
+    CONFIG_AndroidPadSens(Batof(parm->parms[0]), Batof(parm->parms[1]));
+    return OSDCMD_OK;
+}
+
 int32_t registerosdcommands(void)
 {
+    OSD_RegisterFunction("android_padsens", "android_padsens <h> <v>: sensibilidad de los sticks (1-10)", osdcmd_android_padsens);
     FX_InitCvars();
 
     static osdcvardata_t cvars_game[] =

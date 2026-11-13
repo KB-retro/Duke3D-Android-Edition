@@ -84,6 +84,29 @@ final class ControlSettings {
         prefs(c).edit().putInt("tactil_sens", (sensIndex(c) + 1) % SENS.length).apply();
     }
 
+    // ---- Sensibilidad de los sticks del mando (1-10, la de EDuke32; 5 de serie) ----
+
+    static int padSens(Context c, boolean vertical) {
+        int v = prefs(c).getInt(vertical ? "mando_sens_v" : "mando_sens_h", 5);
+        return v >= 1 && v <= 10 ? v : 5;
+    }
+
+    static String padSensLabel(Context c, boolean vertical) {
+        return padSens(c, vertical) + "/10";
+    }
+
+    /** Suma delta (izquierda/derecha, sin pasar de 1 ni de 10) o, con delta 0, da la vuelta (A). */
+    static void stepPadSens(Context c, boolean vertical, int delta) {
+        int v = padSens(c, vertical);
+        v = delta == 0 ? (v % 10) + 1 : Math.max(1, Math.min(10, v + delta));
+        prefs(c).edit().putInt(vertical ? "mando_sens_v" : "mando_sens_h", v).apply();
+    }
+
+    /** La orden para el motor con la sensibilidad guardada. */
+    static String padSensCommand(Context c) {
+        return "android_padsens " + padSens(c, false) + " " + padSens(c, true);
+    }
+
     /** La acción puesta en un botón del mando (DEFAULT si no se ha cambiado). */
     static int remap(Context c, int keyCode) {
         return prefs(c).getInt("boton_" + keyCode, DEFAULT);

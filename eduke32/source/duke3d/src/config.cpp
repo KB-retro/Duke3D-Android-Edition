@@ -482,6 +482,8 @@ void CONFIG_SetupMouse(void)
 static int g_androidPadLayoutDone;
 #endif
 
+static float g_androidPadSensH, g_androidPadSensV;  // 0 = sin elegir en la app
+
 void CONFIG_SetupJoystick(void)
 {
     int32_t i;
@@ -570,6 +572,10 @@ void CONFIG_SetupJoystick(void)
         CONTROL_SetAnalogAxisInvert(i, ud.config.JoystickAnalogueInvert[i]);
         JOYSTICK_SetDeadZone(i, ud.config.JoystickAnalogueDead[i], ud.config.JoystickAnalogueSaturate[i]);
     }
+
+    // La sensibilidad elegida en la app manda sobre la del archivo de configuración.
+    if (g_androidPadSensH > 0.f)
+        CONFIG_AndroidPadSens(g_androidPadSensH, g_androidPadSensV);
 }
 
 struct GameControllerButtonSetting
@@ -722,6 +728,24 @@ void CONFIG_SetGameControllerDefaults()
     ud.config.JoystickAimWeight     = 4;
     ud.config.JoystickViewCentering = 4;
     ud.config.controllerRumble = 1;
+}
+
+// Android: sensibilidad del stick que gira (horizontal) y del que mira arriba/abajo
+// (vertical), de 1 a 10, desde el menú rápido de la app (orden android_padsens).
+void CONFIG_AndroidPadSens(float h, float v)
+{
+    g_androidPadSensH = h;
+    g_androidPadSensV = v;
+    int turn = -1, look = -1;
+    for (int i = 0; i < MAXJOYAXES; i++)
+    {
+        if (turn < 0 && ud.config.JoystickAnalogueAxes[i] == analog_turning) turn = i;
+        if (look < 0 && ud.config.JoystickAnalogueAxes[i] == analog_lookingupanddown) look = i;
+    }
+    if (turn < 0) turn = CONTROLLER_AXIS_RIGHTX;
+    if (look < 0) look = CONTROLLER_AXIS_RIGHTY;
+    CONFIG_SetJoystickAnalogAxisSensitivity(turn, fclamp(h, 1.f, 10.f));
+    CONFIG_SetJoystickAnalogAxisSensitivity(look, fclamp(v, 1.f, 10.f));
 }
 
 void CONFIG_SetGameControllerDefaultsClear()

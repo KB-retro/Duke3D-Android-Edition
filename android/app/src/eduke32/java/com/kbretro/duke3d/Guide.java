@@ -74,6 +74,7 @@ final class Guide {
                     "- L3 correr, R3 centrar la vista, Select mapa, Start menu del juego.",
                     "- Cruceta: arriba botiquin, abajo jetpack, izquierda y derecha cambiar de objeto.",
                     "- Cambia cualquier boton en el menu rapido > Controles > Configurar mando.",
+                    "- Sensibilidad horizontal y vertical de los sticks (1 a 10) en el menu rapido > Controles.",
                     "- Tactiles en automatico: salen si no hay mando o al tocar la pantalla y se ocultan al usar el mando. Tambien siempre o nunca, y su sensibilidad, en Opciones o en el menu rapido.",
             }, new String[]{
                     "- A jump, B crouch, X open, Y use item.",
@@ -81,6 +82,7 @@ final class Guide {
                     "- L3 run, R3 center view, Select map, Start game menu.",
                     "- D-pad: up medkit, down jetpack, left and right change item.",
                     "- Change any button in the quick menu > Controls > Gamepad setup.",
+                    "- Horizontal and vertical stick sensitivity (1 to 10) in the quick menu > Controls.",
                     "- Touch controls on automatic: shown with no gamepad or when touching the screen, hidden when using the gamepad. Also always or never, and their sensitivity, in Options or the quick menu.",
             }),
             new Topic("Graficos", "Graphics", new String[]{

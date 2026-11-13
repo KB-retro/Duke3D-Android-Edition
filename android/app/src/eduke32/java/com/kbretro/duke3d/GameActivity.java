@@ -390,6 +390,7 @@ public class GameActivity extends SDLActivity {
         startWatchdog();
         setupTouch();
         I18n.load(this);
+        command(ControlSettings.padSensCommand(this)); // la sensibilidad de los sticks guardada
         instance = this;
         gameId = Achievements.gameId(gameGrp(getArguments()));
         vibrationOn = vibrationPref();
@@ -649,6 +650,17 @@ public class GameActivity extends SDLActivity {
             ControlSettings.cycleSens(this);
             updateTouch();
         });
+        for (boolean vertical : new boolean[]{false, true}) {
+            p.addValue(I18n.t(vertical ? "pad_sens_v" : "pad_sens_h"),
+                    () -> ControlSettings.padSensLabel(this, vertical), () -> {
+                        ControlSettings.stepPadSens(this, vertical, 0);
+                        command(ControlSettings.padSensCommand(this));
+                    });
+            p.entries.get(p.entries.size() - 1).step = d -> {
+                ControlSettings.stepPadSens(this, vertical, d);
+                command(ControlSettings.padSensCommand(this));
+            };
+        }
         p.add(I18n.t("gamepad_config"), null, () -> quickMenu.push(gamepadPage()));
         p.add(I18n.t("back"), null, () -> quickMenu.pop());
         return p;

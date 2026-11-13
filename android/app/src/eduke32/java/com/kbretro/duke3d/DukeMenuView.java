@@ -40,6 +40,8 @@ final class DukeMenuView extends View {
         Runnable reset;
         /** Si no es null, se llama al tocar su caja grande (la de la derecha). */
         Runnable coverTap;
+        /** Si no es null, izquierda/derecha llaman a esto con -1/+1 en vez de a action (p. ej. un nivel 1-10). */
+        java.util.function.IntConsumer step;
         /** Si devuelve true, la opción se pinta de otro color (p. ej. la pista que suena). */
         java.util.function.BooleanSupplier active;
 
@@ -614,7 +616,13 @@ final class DukeMenuView extends View {
             case KeyEvent.KEYCODE_DPAD_LEFT:
             case KeyEvent.KEYCODE_DPAD_RIGHT: {
                 Page p = page();
-                if (!p.entries.isEmpty() && p.entries.get(p.selected).value != null) activate();
+                Entry e = p.entries.isEmpty() ? null : p.entries.get(p.selected);
+                if (e != null && e.step != null) {
+                    e.step.accept(keyCode == KeyEvent.KEYCODE_DPAD_LEFT ? -1 : 1);
+                    invalidate();
+                } else if (e != null && e.value != null) {
+                    activate();
+                }
                 return true;
             }
             case KeyEvent.KEYCODE_DPAD_CENTER:
