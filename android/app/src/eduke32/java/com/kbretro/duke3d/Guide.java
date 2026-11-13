@@ -113,9 +113,9 @@ final class Guide {
                     "- In the list, unlocked ones are yellow. Pick one to see below what to do.",
             }),
             new Topic("Si algo falla", "If something fails", new String[]{
-                    "- Opciones > Hacer registro guarda el archivo registro.txt en la carpeta del juego. Mandalo para ver que ha pasado.",
+                    "- Opciones > Generar registro guarda el archivo registro.txt en la carpeta que elegiste (la que contiene la del juego); abajo sale la ruta exacta. Mandalo para ver que ha pasado.",
             }, new String[]{
-                    "- Options > Make log saves registro.txt in the game folder. Send it to see what happened.",
+                    "- Options > Save log saves registro.txt in the folder you picked (the one containing the game folder); the exact path shows below. Send it to see what happened.",
             }),
     };
 
