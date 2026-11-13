@@ -701,6 +701,7 @@ final class GameData {
                 "(?im)^[ \\t]*definevolumename[ \\t]+(\\d+)([^\\r\\n]*)");
         java.util.Set<Integer> vols = new java.util.TreeSet<>(), ownVols = new java.util.TreeSet<>(),
                 dukematch = new java.util.TreeSet<>();
+        java.util.Map<Integer, int[]> count = new java.util.TreeMap<>(); // episodio -> {suyos, total}
         for (byte[] b : cons.values()) {
             String text = new String(b, java.nio.charset.StandardCharsets.ISO_8859_1);
             java.util.regex.Matcher m = vol.matcher(text);
@@ -716,9 +717,20 @@ final class GameData {
                 vols.add(v);
                 String map = m.group(2).replace('\\', '/');
                 map = map.substring(map.lastIndexOf('/') + 1).toUpperCase(java.util.Locale.ROOT);
-                if (own.contains(map)) ownVols.add(v);
+                int[] n = count.computeIfAbsent(v, k -> new int[2]);
+                n[1]++;
+                if (own.contains(map)) n[0]++;
             }
         }
+        // De la expansión: los que tienen al menos la mitad de sus mapas en ella (alguno suelto
+        // con el nombre de un mapa del juego base no cuenta).
+        StringBuilder detail = new StringBuilder();
+        for (java.util.Map.Entry<Integer, int[]> c : count.entrySet()) {
+            int[] n = c.getValue();
+            detail.append(c.getKey()).append('=').append(n[0]).append('/').append(n[1]).append(' ');
+            if (n[0] > 0 && n[0] * 2 >= n[1]) ownVols.add(c.getKey());
+        }
+        android.util.Log.i("Duke3D", "Mapas de la expansión por episodio: " + detail);
         if (!dukematch.containsAll(ownVols)) ownVols.removeAll(dukematch);
         android.util.Log.i("Duke3D", "Episodios: " + vols + ", de la expansión: " + ownVols + ", dukematch: " + dukematch);
         if (ownVols.isEmpty()) return "";

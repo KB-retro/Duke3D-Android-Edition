@@ -347,6 +347,12 @@ public class GameActivity extends SDLActivity {
         String dir = getIntent().getStringExtra(EXTRA_DIR);
         try {
             if (dir != null) Os.setenv("DUKE3D_DIR", dir, true);
+            // Expansión (DLC): el lanzador le pone sus .CON con prefijo XP_. Sin «Mapas» en el menú.
+            boolean addon = false;
+            String[] launchArgs = getIntent().getStringArrayExtra(EXTRA_ARGS);
+            if (launchArgs != null) for (String arg : launchArgs) if (arg != null && arg.startsWith("XP_")) addon = true;
+            if (addon) Os.setenv("DUKE3D_ADDON", "1", true);
+            else Os.unsetenv("DUKE3D_ADDON");
             // Idioma del juego (el motor lo aplica tras cargar las traducciones).
             String lang = getIntent().getStringExtra(EXTRA_LANG);
             Os.setenv("DUKE3D_LANG", lang != null ? lang : "en", true);
