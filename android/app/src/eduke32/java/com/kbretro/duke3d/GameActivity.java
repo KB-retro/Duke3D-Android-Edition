@@ -656,6 +656,16 @@ public class GameActivity extends SDLActivity {
             ControlSettings.cycleSens(this);
             updateTouch();
         });
+        p.add(I18n.t("gamepad_config"), null, () -> quickMenu.push(gamepadPage()));
+        p.add(I18n.t("back"), null, () -> quickMenu.pop());
+        return p;
+    }
+
+    /** Configurar mando: la acción de cada botón (A: cambiar, Start: por defecto). */
+    private DukeMenuView.Page gamepadPage() {
+        DukeMenuView.Page p = new DukeMenuView.Page();
+        status = null;
+        // Sensibilidad de los sticks (1-10): izquierda/derecha bajan y suben.
         for (boolean vertical : new boolean[]{false, true}) {
             p.addValue(I18n.t(vertical ? "pad_sens_v" : "pad_sens_h"),
                     () -> ControlSettings.padSensLabel(this, vertical), () -> {
@@ -667,20 +677,12 @@ public class GameActivity extends SDLActivity {
                 command(ControlSettings.padSensCommand(this));
             };
         }
-        p.add(I18n.t("gamepad_config"), null, () -> quickMenu.push(gamepadPage()));
-        p.add(I18n.t("back"), null, () -> quickMenu.pop());
-        return p;
-    }
-
-    /** Configurar mando: la acción de cada botón (A: cambiar, Start: por defecto). */
-    private DukeMenuView.Page gamepadPage() {
-        DukeMenuView.Page p = new DukeMenuView.Page();
-        status = null;
         for (int i = 0; i < ControlSettings.KEYS.length; i++) {
             int key = ControlSettings.KEYS[i];
             String name = ControlSettings.keyName(i);
             p.addValue(name, () -> ControlSettings.actionName(ControlSettings.remap(this, key)),
                     () -> ControlSettings.cycleRemap(this, key));
+            p.entries.get(p.entries.size() - 1).step = d -> ControlSettings.cycleRemap(this, key, d);
             p.entries.get(p.entries.size() - 1).reset = () -> {
                 ControlSettings.resetRemap(this, key);
                 status = name + ": " + ControlSettings.actionName(ControlSettings.DEFAULT);

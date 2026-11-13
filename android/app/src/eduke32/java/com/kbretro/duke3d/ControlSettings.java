@@ -120,9 +120,14 @@ final class ControlSettings {
     }
 
     static void cycleRemap(Context c, int keyCode) {
+        cycleRemap(c, keyCode, 1);
+    }
+
+    /** Pasa a la acción siguiente (dir 1) o a la anterior (dir -1). */
+    static void cycleRemap(Context c, int keyCode, int dir) {
         int cur = remap(c, keyCode), i = 0;
         for (int k = 0; k < ACTIONS.length; k++) if (ACTIONS[k] == cur) i = k;
-        int next = ACTIONS[(i + 1) % ACTIONS.length];
+        int next = ACTIONS[((i + dir) % ACTIONS.length + ACTIONS.length) % ACTIONS.length];
         if (next == DEFAULT) prefs(c).edit().remove("boton_" + keyCode).apply();
         else prefs(c).edit().putInt("boton_" + keyCode, next).apply();
     }
