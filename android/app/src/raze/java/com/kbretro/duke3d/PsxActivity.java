@@ -204,7 +204,7 @@ public class PsxActivity extends SDLActivity {
         o.add(new String[]{"beetle_psx_internal_resolution", RES_VALUES[gfx("resolucion", 1, RES_VALUES.length)]});
         o.add(new String[]{"beetle_psx_pgxp_mode", gfx("pgxp", 1, 2) == 1 ? "memory only" : "disabled"});
         // Versiones PAL (europeas, a 50 Hz) a 60 Hz, como la americana. Solo afecta a discos PAL.
-        o.add(new String[]{"beetle_psx_pal_video_timing_override", gfx("pal60", 1, 2) == 1 ? "enabled" : "disabled"});
+        o.add(new String[]{"beetle_psx_pal_video_timing_override", gfx("pal60", 0, 2) == 1 ? "enabled" : "disabled"});
         return o;
     }
 
@@ -303,8 +303,8 @@ public class PsxActivity extends SDLActivity {
             cycleGfx("pgxp", 1, 2);
             applyCoreOptions();
         });
-        p.addValue(I18n.t("psx_pal60"), () -> I18n.t(gfx("pal60", 1, 2) == 1 ? "yes" : "no"), () -> {
-            cycleGfx("pal60", 1, 2);
+        p.addValue(I18n.t("psx_pal60"), () -> I18n.t(gfx("pal60", 0, 2) == 1 ? "yes" : "no"), () -> {
+            cycleGfx("pal60", 0, 2);
             applyCoreOptions();
             status = I18n.t("psx_restart");
         });
