@@ -161,6 +161,19 @@ final class I18n {
         put("dos_load_error", "No se pudo cargar", "Could not load");
         put("dos_pad_help", "A: cambiar - la cruceta y el stick son siempre las flechas",
                 "A: change - D-pad and stick are always the arrows");
+        put("psx_screen", "Pantalla", "Screen");
+        put("psx_auto", "Automática", "Automatic");
+        put("psx_wide", "Panorámica", "Widescreen");
+        put("psx_res", "Resolución", "Resolution");
+        put("psx_pgxp", "Polígonos estables", "Stable polygons");
+        put("psx_cross", "Cruz", "Cross");
+        put("psx_circle", "Círculo", "Circle");
+        put("psx_square", "Cuadrado", "Square");
+        put("psx_triangle", "Triángulo", "Triangle");
+        put("psx_pad_help", "Izq/dcha: cambiar - la cruceta y los sticks van siempre igual",
+                "Left/right: change - D-pad and sticks are always the same");
+        put("psx_no_bios", "Falta la BIOS de PlayStation (scph1001.bin, scph5501.bin...) en ",
+                "Missing the PlayStation BIOS (scph1001.bin, scph5501.bin...) in ");
         put("dos_games", "Clásicos", "Classics");
         put("dos_missing", "Copia el juego en ", "Copy the game to ");
         put("dos_none", "No hay juegos: copia los archivos en ", "No games: copy the files to ");

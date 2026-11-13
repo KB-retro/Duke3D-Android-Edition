@@ -31,8 +31,19 @@ static volatile int pfx_sharp = 0;   // 0 no, 1 baja, 2 media, 3 alta
 static volatile int pfx_crt = 0;     // 0 no, 1 líneas, 2 CRT, 3 LCD
 static volatile int pfx_color = 0;   // 0 normal, 1 vivo, 2 cálido, 3 frío, 4 cine
 static volatile int pfx_bloom = 0;   // 0 no, 1 suave, 2 fuerte
+// Proporción en la que se enseña la imagen (0 = la de sus píxeles). La pone el emulador (PS1:
+// 4:3 o panorámica, según el juego y el ajuste).
+static volatile float pfx_aspect = 0.f;
 
-#ifdef POSTFX_DOS
+void android_postfx_set_aspect(float aspect)
+{
+    pfx_aspect = aspect;
+}
+
+#if defined(POSTFX_PSX)
+// Juegos de PlayStation (psx/psx_main.cpp): los ajustes llegan desde PsxActivity.
+#define POSTFX_JNI Java_com_kbretro_duke3d_PsxActivity_nativePostFx
+#elif defined(POSTFX_DOS)
 // Juegos de MS-DOS (dos/dos_main.cpp): los ajustes llegan desde DosActivity.
 #define POSTFX_JNI Java_com_kbretro_duke3d_DosActivity_nativePostFx
 #else
@@ -556,13 +567,15 @@ void android_postfx_present(const void *pixels, int w, int h, int pitch)
     SDL_GL_GetDrawableSize(pfx_window, &ww, &wh);
     if (ww <= 0 || wh <= 0)
         return;
-#ifdef POSTFX_DOS
-    // Los juegos de MS-DOS (320x200 y similares) se veían en monitores 4:3.
-    int vw = ww, vh = ww * 3 / 4;
+#if defined(POSTFX_DOS) || defined(POSTFX_PSX)
+    // MS-DOS (320x200 y similares) en monitores 4:3; PlayStation, la proporción que diga el
+    // emulador (4:3, o panorámica con el truco de pantalla ancha).
+    float aspect = pfx_aspect > 0.f ? pfx_aspect : 4.f / 3.f;
+    int vw = ww, vh = (int)(ww / aspect);
     if (vh > wh)
     {
         vh = wh;
-        vw = wh * 4 / 3;
+        vw = (int)(wh * aspect);
     }
 #else
     int vw = ww, vh = (int)((long long)ww * h / w);

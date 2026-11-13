@@ -16,6 +16,15 @@ if(MOTOR_RAZE)
         set_target_properties(SDL2 PROPERTIES IMPORTED_LOCATION ${RAZE_SDL2}
             INTERFACE_INCLUDE_DIRECTORIES ${SDL2_DIR}/include)
         include(${CMAKE_CURRENT_SOURCE_DIR}/dos/dos.cmake)
+        # Juegos de PlayStation (Time to Kill): frontend propio (libpsx.so); el núcleo Beetle PSX
+        # (libpsxcore.so) lo compila raze.yml con su Android.mk y lo abre con dlopen.
+        if(BEETLE_DIR AND EXISTS ${BEETLE_DIR}/libretro-common/include/libretro.h)
+            add_library(psx SHARED psx/psx_main.cpp postfx.c)
+            target_include_directories(psx PRIVATE ${BEETLE_DIR}/libretro-common/include)
+            target_compile_definitions(psx PRIVATE POSTFX_PSX)
+            set_target_properties(psx PROPERTIES C_STANDARD 11 CXX_STANDARD 14)
+            target_link_libraries(psx PRIVATE SDL2 GLESv2 android log m dl)
+        endif()
     endif()
     return()
 endif()

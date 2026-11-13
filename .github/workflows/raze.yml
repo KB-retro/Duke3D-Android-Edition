@@ -11,6 +11,8 @@ env:
   NDK_VERSION: "27.2.12479018"
   API: "26"
   DOSBOX_PURE_TAG: "1.0-preview6"
+  # Beetle PSX (Mednafen): los juegos de PlayStation de los extras (Time to Kill).
+  BEETLE_PSX_COMMIT: "dd7e2aee57d1e590e45b7e642ba76bf1a4cdbc61"
 
 jobs:
   nativo:
@@ -122,12 +124,18 @@ jobs:
           cp -r sdl2 android/SDL2
           # DOSBox Pure: los juegos de MS-DOS de los extras (libdos.so, como en la Classic).
           git clone -q --depth 1 --branch "$DOSBOX_PURE_TAG" https://github.com/schellingb/dosbox-pure.git android/dosbox-pure
+          # Beetle PSX: su núcleo (libpsxcore.so) con su Android.mk, sin render por hardware.
+          git init -q android/beetle-psx
+          git -C android/beetle-psx fetch -q --depth 1 https://github.com/libretro/beetle-psx-libretro.git "$BEETLE_PSX_COMMIT"
+          git -C android/beetle-psx checkout -q FETCH_HEAD
+          $NDK/ndk-build -s -C android/beetle-psx/jni APP_ABI=arm64-v8a APP_PLATFORM=android-26 HAVE_HW=0 -j"$(nproc)"
           J=android/app/src/raze/jniLibs/arm64-v8a
           D=android/app/src/raze/assets/raze
           mkdir -p $J $D
           cp $(find raze-a -name libmain.so | head -1) $J/
           cp prefijo/lib/libSDL2.so prefijo/lib/libopenal.so prefijo/lib/libzmusic.so $J/
           cp $NDK/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/libc++_shared.so $J/
+          cp "$(find android/beetle-psx/libs/arm64-v8a -name '*.so' | head -1)" $J/libpsxcore.so
           find raze-a -name '*.pk3' -exec cp {} $D/ \;
           mkdir -p $D/soundfonts
           cp raze-src/soundfont/*.sf2 $D/soundfonts/
@@ -164,6 +172,10 @@ jobs:
           # Los Clásicos de MS-DOS necesitan libdos.so: sin ella, que falle aquí y no en la consola.
           unzip -l app/build/outputs/apk/raze/release/app-raze-release.apk | grep "lib/" 
           unzip -l app/build/outputs/apk/raze/release/app-raze-release.apk | grep -q "lib/arm64-v8a/libdos.so" || { grep -rh "DOS en la HD" app/.cxx 2>/dev/null | head; exit 1; }
+          # Y los de PlayStation, su frontend y el núcleo.
+          for L in libpsx.so libpsxcore.so; do
+            unzip -l app/build/outputs/apk/raze/release/app-raze-release.apk | grep -q "lib/arm64-v8a/$L" || { echo "Falta $L"; exit 1; }
+          done
           cp app/build/outputs/apk/raze/release/app-raze-release.apk "../salida/Duke3D-Raze-Edition-0.1.${VERSION_CODE}.apk"
 
       - uses: actions/upload-artifact@v4

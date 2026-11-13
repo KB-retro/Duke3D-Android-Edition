@@ -520,11 +520,109 @@ public class LauncherActivity extends Activity {
             File f = exe;
             p.add(g.title, null, () -> launchDos(gameDir, g, f));
         }
+        // Duke Nukem: Time to Kill (PlayStation), en extras/timetokill.
+        File disc = null;
+        for (File extras : dirs) {
+            disc = findPsxDisc(findIgnoreCase(extras, "timetokill"), 2);
+            if (disc != null) break;
+        }
+        String[] psxNote = {null};
+        if (disc != null) {
+            found++;
+            File d = disc;
+            File bios = findPsxBios(d.getParentFile(), dirs);
+            if (bios == null) psxNote[0] = I18n.t("psx_no_bios") + d.getParentFile().getAbsolutePath();
+            p.add("Duke Nukem: Time to Kill", null, () -> {
+                File b = findPsxBios(d.getParentFile(), extrasDirs(gameDir));
+                if (b == null) {
+                    psxNote[0] = I18n.t("psx_no_bios") + d.getParentFile().getAbsolutePath();
+                    menuView.invalidate();
+                    return;
+                }
+                launchPsx(gameDir, d, b);
+            });
+        }
         p.add(I18n.t("back"), null, () -> menuView.pop());
         String where = (dirs.isEmpty() ? extrasDir() : dirs.get(0)).getAbsolutePath();
-        android.util.Log.i("Duke3D", "Juegos de MS-DOS: " + found + " en " + dirs);
-        p.footer = found == 0 ? () -> I18n.t("dos_none") + where + "/duke1 - duke2" : () -> "";
+        android.util.Log.i("Duke3D", "Juegos de MS-DOS y PlayStation: " + found + " en " + dirs + ", disco PS1: " + disc);
+        int total = found;
+        p.footer = () -> psxNote[0] != null ? psxNote[0]
+                : total == 0 ? I18n.t("dos_none") + where + "/duke1 - duke2 - timetokill" : "";
         return p;
+    }
+
+    // ---- Juegos de PlayStation (PsxActivity) ----
+
+    private static final String[] PSX_DISC_EXT = {".m3u", ".cue", ".chd", ".pbp", ".iso"};
+
+    /** El disco del juego en la carpeta o en sus subcarpetas (.m3u, .cue, .chd, .pbp o .iso). */
+    private static File findPsxDisc(File dir, int depth) {
+        File[] list = dir != null ? dir.listFiles() : null;
+        if (list == null) return null;
+        for (String ext : PSX_DISC_EXT)
+            for (File f : list)
+                if (f.isFile() && f.getName().toLowerCase(java.util.Locale.ROOT).endsWith(ext)) return f;
+        if (depth <= 0) return null;
+        for (File d : list) {
+            if (!d.isDirectory()) continue;
+            File f = findPsxDisc(d, depth - 1);
+            if (f != null) return f;
+        }
+        return null;
+    }
+
+    /** La BIOS de PlayStation (un archivo de 512 KB): junto al disco, en extras/bios o en extras. */
+    private static File findPsxBios(File discDir, List<File> extras) {
+        List<File> where = new ArrayList<>();
+        where.add(discDir);
+        if (discDir != null) where.add(discDir.getParentFile());
+        for (File e : extras) {
+            where.add(findIgnoreCase(e, "bios"));
+            where.add(e);
+        }
+        for (File d : where) {
+            File[] list = d != null ? d.listFiles() : null;
+            if (list == null) continue;
+            for (File f : list) {
+                String n = f.getName().toLowerCase(java.util.Locale.ROOT);
+                if (f.isFile() && f.length() == 524288 && (n.endsWith(".bin") || n.endsWith(".rom")))
+                    return f;
+            }
+        }
+        return null;
+    }
+
+    private void launchPsx(File gameDir, File disc, File bios) {
+        // Beetle PSX busca la BIOS por el nombre de su región (scph5500/5501/5502): se copia
+        // con los tres a una carpeta de la app, sea cual sea el nombre del archivo del usuario.
+        File system = new File(getFilesDir(), "psx_bios");
+        //noinspection ResultOfMethodCallIgnored
+        system.mkdirs();
+        try {
+            for (String n : new String[]{"scph5500.bin", "scph5501.bin", "scph5502.bin"}) {
+                File out = new File(system, n);
+                if (out.length() == bios.length() && out.lastModified() >= bios.lastModified()) continue;
+                //noinspection ResultOfMethodCallIgnored
+                out.delete();
+                copyFile(bios, out);
+            }
+        } catch (java.io.IOException e) {
+            android.widget.Toast.makeText(this, "BIOS: " + e, android.widget.Toast.LENGTH_LONG).show();
+            return;
+        }
+        File saves = new File(extrasDir(), "partidas");
+        //noinspection ResultOfMethodCallIgnored
+        saves.mkdirs();
+        Intent intent = new Intent(this, PsxActivity.class);
+        intent.putExtra(PsxActivity.EXTRA_DISC, disc.getAbsolutePath());
+        intent.putExtra(PsxActivity.EXTRA_SYSTEM_DIR, system.getAbsolutePath());
+        intent.putExtra(PsxActivity.EXTRA_SAVE_DIR, saves.getAbsolutePath());
+        intent.putExtra(PsxActivity.EXTRA_STATE, new File(saves, "timetokill.estado").getAbsolutePath());
+        List<GameData.Game> all = GameData.games(gameDir);
+        if (!all.isEmpty()) intent.putExtra(PsxActivity.EXTRA_BASE_GRP, all.get(0).grp.getAbsolutePath());
+        android.util.Log.i("Duke3D", "Time to Kill: disco " + disc + ", BIOS " + bios);
+        music.stop();
+        startActivity(intent);
     }
 
     private void launchDos(File gameDir, DosGame g, File exe) {
