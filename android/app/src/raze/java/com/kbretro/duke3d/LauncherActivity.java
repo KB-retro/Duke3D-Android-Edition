@@ -287,6 +287,7 @@ public class LauncherActivity extends Activity {
         // (Duke Nukem 1 y 2, MS-DOS) y Legacy (los de PlayStation). Todas con la caja a la derecha.
         DukeMenuView.Page classic = classicPage(gameDir);
         DukeMenuView.Page legacy = legacyPage(gameDir);
+        root.background = box(R.drawable.fondo_legend);
         classic.background = box(R.drawable.fondo_classic);
         legacy.background = box(R.drawable.fondo_legacy);
         root.otherSide = classic;
