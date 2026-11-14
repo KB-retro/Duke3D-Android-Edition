@@ -151,7 +151,8 @@ public class PsxActivity extends SDLActivity {
     private static final String[] COLOR_KEYS = {"gfx_normal", "gfx_vivid", "gfx_warm", "gfx_cold", "gfx_cinema"};
     private static final String[] BLOOM_KEYS = {"no", "gfx_soft", "gfx_strong"};
     /** Pantalla: automática (según la de la consola), 4:3 o panorámica. */
-    private static final String[] SCREEN_KEYS = {"psx_auto", "4:3", "psx_wide"};
+    /** Pantalla: automática, 4:3, panorámica (truco de pantalla ancha) o estirada (4:3 a pantalla completa). */
+    private static final String[] SCREEN_KEYS = {"psx_auto", "4:3", "psx_wide", "psx_stretch"};
     // Resolución interna (con la GPU): de 1x a 6x.
     private static final String[] RES_LABELS = {"1x", "2x", "3x", "4x", "5x", "6x"};
     private static final String[] RES_VALUES = {"1", "2", "3", "4", "5", "6"};
@@ -183,11 +184,25 @@ public class PsxActivity extends SDLActivity {
      */
     private String screenWide() {
         int mode = gfx("pantalla", 0, SCREEN_KEYS.length);
-        if (mode == 1) return null;
+        if (mode == 1 || mode == 3) return null;
         android.util.DisplayMetrics m = new android.util.DisplayMetrics();
         getWindowManager().getDefaultDisplay().getRealMetrics(m);
         float r = (float) Math.max(m.widthPixels, m.heightPixels) / Math.max(1, Math.min(m.widthPixels, m.heightPixels));
         if (mode == 0 && r < 1.45f) return null; // pantalla 4:3 (o casi): sin panorámico
+        String[] names = {"16:9", "19:9", "20:9"};
+        float[] ratios = {16f / 9f, 19f / 9f, 20f / 9f};
+        int best = 0;
+        for (int i = 0; i < ratios.length; i++)
+            if (Math.abs(ratios[i] - r) < Math.abs(ratios[best] - r)) best = i;
+        return names[best];
+    }
+
+    /** La proporción de SwanStation más cercana a la de la pantalla (para estirar). */
+    private String screenRatioName() {
+        android.util.DisplayMetrics m = new android.util.DisplayMetrics();
+        getWindowManager().getDefaultDisplay().getRealMetrics(m);
+        float r = (float) Math.max(m.widthPixels, m.heightPixels) / Math.max(1, Math.min(m.widthPixels, m.heightPixels));
+        if (r < 1.45f) return "4:3";
         String[] names = {"16:9", "19:9", "20:9"};
         float[] ratios = {16f / 9f, 19f / 9f, 20f / 9f};
         int best = 0;
@@ -201,7 +216,10 @@ public class PsxActivity extends SDLActivity {
         List<String[]> o = new ArrayList<>();
         String wide = screenWide();
         o.add(new String[]{"swanstation_GPU_WidescreenHack", wide != null ? "true" : "false"});
-        o.add(new String[]{"swanstation_Display_AspectRatio", wide != null ? wide : "4:3"});
+        // Estirada: sin el truco (el juego dibuja como siempre) y la imagen a la proporción de la pantalla.
+        String aspect = wide != null ? wide : "4:3";
+        if (gfx("pantalla", 0, SCREEN_KEYS.length) == 3) aspect = screenRatioName();
+        o.add(new String[]{"swanstation_Display_AspectRatio", aspect});
         o.add(new String[]{"swanstation_GPU_ResolutionScale", RES_VALUES[gfx("resolucion3", 2, RES_VALUES.length)]});
         o.add(new String[]{"swanstation_GPU_PGXPEnable", gfx("pgxp2", 0, 2) == 1 ? "true" : "false"});
         // Dibujado: con la gráfica (OpenGL ES) o con el procesador (como la consola, a 1x).

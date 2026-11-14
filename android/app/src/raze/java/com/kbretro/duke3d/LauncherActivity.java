@@ -428,14 +428,14 @@ public class LauncherActivity extends Activity {
         return p;
     }
 
-    private static final String[] PSX_SCREEN_KEYS = {"psx_auto", "4:3", "psx_wide"};
+    private static final String[] PSX_SCREEN_KEYS = {"psx_auto", "4:3", "psx_wide", "psx_stretch"};
     private static final String[] PSX_RES_LABELS = {"1x", "2x", "3x", "4x", "5x", "6x"};
 
     /** Opciones de Legacy (PlayStation): pantalla, resolución, PGXP, PAL a 60 Hz y sus filtros. */
     private DukeMenuView.Page psxOptionsPage() {
         DukeMenuView.Page p = new DukeMenuView.Page();
-        p.addValue(I18n.t("psx_screen"), () -> I18n.t(PSX_SCREEN_KEYS[secPref("psx_", "pantalla", 0, 3)]),
-                () -> cycleSecPref("psx_", "pantalla", 0, 3));
+        p.addValue(I18n.t("psx_screen"), () -> I18n.t(PSX_SCREEN_KEYS[secPref("psx_", "pantalla", 0, 4)]),
+                () -> cycleSecPref("psx_", "pantalla", 0, 4));
         p.addValue(I18n.t("psx_res"), () -> PSX_RES_LABELS[secPref("psx_", "resolucion3", 2, PSX_RES_LABELS.length)],
                 () -> cycleSecPref("psx_", "resolucion3", 2, PSX_RES_LABELS.length));
         p.addValue(I18n.t("psx_render"), () -> I18n.t(secPref("psx_", "render", 0, 2) == 1 ? "psx_render_cpu" : "psx_render_gpu"),

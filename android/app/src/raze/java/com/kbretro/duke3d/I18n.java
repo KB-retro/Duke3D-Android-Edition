@@ -165,6 +165,7 @@ final class I18n {
         put("psx_screen", "Pantalla", "Screen");
         put("psx_auto", "Automática", "Automatic");
         put("psx_wide", "Panorámica", "Widescreen");
+        put("psx_stretch", "Estirada", "Stretched");
         put("psx_res", "Resolución", "Resolution");
         put("psx_pgxp", "Polígonos estables", "Stable polygons");
         put("psx_pal60", "PAL a 60 Hz", "PAL at 60 Hz");
