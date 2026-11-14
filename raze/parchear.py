@@ -567,3 +567,92 @@ sub("source/common/textures/texturemanager.cpp",
     "\t\t\tsize_t tl = tfn ? strlen(tfn) : 0;\n"
     "\t\t\tif (tl > 4 && (!stricmp(tfn + tl - 4, \".def\") || !stricmp(tfn + tl - 4, \".con\"))) continue;\n"
     "\t\t\tParseTextureDef(texLump, build);")
+
+# 30. Las expansiones que traen sus propios TILES*.ART (el Caribe) reutilizan números de tile del
+#     juego base con otros dibujos. Los packs HD (HRP) están hechos para los del juego base: en
+#     el Caribe salía el cielo de Los Ángeles. Al cargar un ART que no es el del juego, se compara
+#     tile a tile con el del GRP base y los que han cambiado no reciben reemplazos HD (texturas,
+#     skyboxes ni modelos 3D). Los iguales (la mayoría) los siguen recibiendo.
+sub("source/core/textures/tiletexture.cpp",
+    "static void AddArtFile(const FString& filename)\n{\n\tFileReader fr = fileSystem.OpenFileReader(filename.GetChars());",
+    r'''static uint8_t gArtChanged[MAXUSERTILES];
+bool tileArtChanged(int tile) { return (unsigned)tile < MAXUSERTILES && gArtChanged[tile]; }
+
+// Tabla de un ART (sin la cabecera BUILDART): tile -> (ancho, alto, posición de los píxeles).
+static bool ArtTable(const TArray<uint8_t>& d, TMap<int, std::pair<uint32_t, uint32_t>>& out, TMap<int, uint32_t>& sizes)
+{
+	if (d.Size() < 16) return false;
+	const uint32_t* h = (const uint32_t*)d.Data();
+	if (LittleLong(h[0]) != 1) return false;
+	unsigned ts = LittleLong(h[2]), te = LittleLong(h[3]);
+	if (te < ts || te >= MAXUSERTILES) return false;
+	unsigned n = te - ts + 1;
+	size_t hdr = 16 + n * 2 + n * 2 + n * 4;
+	if (d.Size() < hdr) return false;
+	const uint16_t* sx = (const uint16_t*)(d.Data() + 16);
+	const uint16_t* sy = sx + n;
+	size_t pos = hdr;
+	for (unsigned i = 0; i < n; i++)
+	{
+		uint32_t w = LittleShort(sx[i]), hh = LittleShort(sy[i]);
+		uint32_t sz = (w > 0 && hh > 0) ? w * hh : 0;
+		if (pos + sz > d.Size()) return false;
+		out.Insert(ts + i, { (uint32_t)pos, sz });
+		sizes.Insert(ts + i, (w << 16) | hh);
+		pos += sz;
+	}
+	return true;
+}
+
+static void MarkChangedArt(const FString& filename, const TArray<uint8_t>& artdata)
+{
+	int lump = fileSystem.FindFile(filename.GetChars());
+	if (lump < 0 || fileSystem.GetFileContainer(lump) <= fileSystem.GetMaxIwadNum()) return;
+	int base = -1, last = 0, l;
+	while ((l = fileSystem.FindLumpFullName(filename.GetChars(), &last)) >= 0)
+		if (fileSystem.GetFileContainer(l) <= fileSystem.GetMaxIwadNum()) base = l;
+	TMap<int, std::pair<uint32_t, uint32_t>> nt, bt;
+	TMap<int, uint32_t> ns, bs;
+	if (!ArtTable(artdata, nt, ns)) return;
+	TArray<uint8_t> based;
+	if (base >= 0)
+	{
+		FileReader br = fileSystem.OpenFileReader(base);
+		based.Resize((unsigned)br.GetLength());
+		br.Read(based.Data(), based.Size());
+		if (based.Size() > 8 && memcmp(based.Data(), "BUILDART", 8) == 0) based.Delete(0, 8);
+		ArtTable(based, bt, bs);
+	}
+	int changed = 0;
+	TMap<int, std::pair<uint32_t, uint32_t>>::Iterator it(nt);
+	TMap<int, std::pair<uint32_t, uint32_t>>::Pair* p;
+	while (it.NextPair(p))
+	{
+		int t = p->Key;
+		auto b = bt.CheckKey(t);
+		bool same = b && *bs.CheckKey(t) == *ns.CheckKey(t) && b->second == p->Value.second
+			&& (p->Value.second == 0 || memcmp(based.Data() + b->first, artdata.Data() + p->Value.first, p->Value.second) == 0);
+		if (!same && p->Value.second > 0) { gArtChanged[t] = 1; changed++; }
+	}
+	if (changed) Printf("%s: %d tiles distintos de los del juego base (sin reemplazos HD)\n", filename.GetChars(), changed);
+}
+
+static void AddArtFile(const FString& filename)
+{
+	FileReader fr = fileSystem.OpenFileReader(filename.GetChars());''')
+sub("source/core/textures/tiletexture.cpp",
+    "\t\t\t// Only load the data if the header is present\n\t\t\tif (CountTiles(filename.GetChars(), artdata.Data()) > 0)\n\t\t\t{",
+    "\t\t\t// Only load the data if the header is present\n\t\t\tif (CountTiles(filename.GetChars(), artdata.Data()) > 0)\n\t\t\t{\n\t\t\t\tMarkChangedArt(filename, artdata);")
+sub("source/core/textures/hightile.cpp",
+    "int tileSetHightileReplacement(int tilenum, int palnum, FTextureID texid, float alphacut, float xscale, float yscale, float specpower, float specfactor, bool indexed)\n{",
+    "bool tileArtChanged(int tile);\n"
+    "int tileSetHightileReplacement(int tilenum, int palnum, FTextureID texid, float alphacut, float xscale, float yscale, float specpower, float specfactor, bool indexed)\n{\n"
+    "\tif (tileArtChanged(tilenum)) return 0;")
+sub("source/core/textures/hightile.cpp",
+    "int tileSetSkybox(int tilenum, int palnum, FString* facenames, bool indexed)\n{",
+    "int tileSetSkybox(int tilenum, int palnum, FString* facenames, bool indexed)\n{\n"
+    "\tif (tileArtChanged(tilenum)) return 0;")
+sub("source/core/models/modeldata.cpp",
+    "    if (pal < 0 || pal >= MAXPALOOKUPS) pal = 0;\n    auto key = FrameMapKey(tilenum, pal);",
+    "    if (pal < 0 || pal >= MAXPALOOKUPS) pal = 0;\n    extern bool tileArtChanged(int tile);\n"
+    "    if (tileArtChanged(tilenum)) return 0;\n    auto key = FrameMapKey(tilenum, pal);")
