@@ -393,7 +393,7 @@ sub("source/core/rendering/scene/hw_drawinfo.cpp",
     "\t\t\t\tHWSprite hwsprite;\n\t\t\t\tif (hwsprite.ProcessModel(this, pt, tspr, tspr->sectp)) continue;")
 sub("source/core/rendering/scene/hw_drawstructs.h",
     "\tvoxmodel_t* voxel;\n\n\tint index;",
-    "\tvoxmodel_t* voxel;\n\tclass FModel* mdl;\n\tstruct ModelDescriptor* mddesc;\n\tint mdframe, mdskinnum;\n\n\tint index;")
+    "\tvoxmodel_t* voxel;\n\tclass FModel* mdl;\n\tstruct ModelDescriptor* mddesc;\n\tint mdframe, mdframe2, mdskinnum;\n\tfloat mdinter;\n\n\tint index;")
 sub("source/core/rendering/scene/hw_drawstructs.h",
     "\tbool ProcessVoxel(HWDrawInfo* di, voxmodel_t* voxel, tspritetype* tspr, sectortype* sector, bool rotate);",
     "\tbool ProcessVoxel(HWDrawInfo* di, voxmodel_t* voxel, tspritetype* tspr, sectortype* sector, bool rotate);\n"
@@ -418,13 +418,73 @@ sub("source/core/rendering/scene/hw_sprites.cpp",
     "\t\t\tmr.BeginDrawModel(RenderStyle, 0, rotmat, false);\n"
     "\t\t\tstate.SetCulling(Cull_None);\n"
     "\t\t\tTArray<VSMatrix> a;\n"
-    "\t\t\tmdl->RenderFrame(&mr, single, mdframe, mdframe, 0.f, NO_TRANSLATION, (single || !any) ? nullptr : skins, a, 0);\n"
+    "\t\t\tmdl->RenderFrame(&mr, single, mdframe, mdframe2, mdinter, NO_TRANSLATION, (single || !any) ? nullptr : skins, a, 0);\n"
     "\t\t\tmr.EndDrawModel(RenderStyle, 0);\n"
     "\t\t\tstate.SetDepthFunc(DF_Less);\n"
     "\t\t}")
 sub("source/core/rendering/scene/hw_sprites.cpp",
     "bool HWSprite::ProcessVoxel(HWDrawInfo* di, voxmodel_t* vox, tspritetype* spr, sectortype* sector, bool rotate)\n{",
-    r'''bool HWSprite::ProcessModel(HWDrawInfo* di, ModelTileFrame* pt, tspritetype* spr, sectortype* sector)
+    r'''// Animaciones de los modelos, como updateanimation de EDuke32: si el frame del tile es el
+// primero de un «anim», se reproduce con el tiempo (en bucle, o una vez y se queda en el último
+// si es ONESHOT, como al morir); al cambiar de pose se funde con la anterior (smoothduration).
+// El estado va en los campos que Raze ya reserva por actor (sprext.mdanim*, spsmooth).
+static void ModelAnimate(DCoreActor* act, ModelDescriptor* desc, ModelTileFrame* pt, double tms, int& f1, int& f2, float& inter)
+{
+	int base = pt->framenum;
+	const ModelAnimation* anim = nullptr;
+	for (auto& a : desc->anims) if (a.startframe == base) { anim = &a; break; }
+	auto& ext = act->sprext;
+	auto& sm = act->spsmooth;
+	uint32_t now = (uint32_t)max(tms, 0.);
+	int target = anim ? anim->startframe : base;
+	if (ext.mdanimcur != target + 1)
+	{
+		bool first = ext.mdanimcur == 0;
+		ext.mdanimcur = (int16_t)(target + 1);
+		ext.mdanimtims = now;
+		sm.mdsmooth = (!first && pt->smoothduration > 0) ? 1 : 0;
+		sm.smoothduration = pt->smoothduration;
+	}
+	int d = (int)(now - ext.mdanimtims);
+	if (d < 0) { ext.mdanimtims = now; d = 0; }
+	float elapsed = d / 1000.f;
+	if (sm.mdsmooth)
+	{
+		float k = elapsed / max(sm.smoothduration, 0.001f);
+		if (k < 1.f)
+		{
+			f1 = sm.mdoldframe;
+			f2 = target;
+			inter = k;
+			return;
+		}
+		sm.mdsmooth = 0;
+		ext.mdanimtims = now;
+		elapsed = 0;
+	}
+	if (anim && anim->fpssc > 0)
+	{
+		float fps = anim->fpssc / 65.536f;
+		int n = max(1, anim->endframe + 1 - anim->startframe);
+		float pos = elapsed * fps;
+		bool oneshot = (anim->flags & 1) != 0;
+		if (oneshot) { if (pos > n - 1) pos = (float)(n - 1); }
+		else pos = fmodf(pos, (float)n);
+		int fi = (int)pos;
+		f1 = anim->startframe + fi;
+		f2 = f1 + 1;
+		if (f2 > anim->endframe) f2 = oneshot ? anim->endframe : anim->startframe;
+		inter = pos - fi;
+	}
+	else
+	{
+		f1 = f2 = base;
+		inter = 0;
+	}
+	sm.mdoldframe = (int16_t)f1;
+}
+
+bool HWSprite::ProcessModel(HWDrawInfo* di, ModelTileFrame* pt, tspritetype* spr, sectortype* sector)
 {
 	if (!pt || (unsigned)pt->modelid >= modelManager.modelDescs.Size() || pt->framenum < 0) return false;
 	auto desc = &modelManager.modelDescs[pt->modelid];
@@ -440,7 +500,7 @@ sub("source/core/rendering/scene/hw_sprites.cpp",
 	modelframe = 1;
 	mdl = Models[desc->modelID];
 	mddesc = desc;
-	mdframe = pt->framenum;
+	ModelAnimate(ownerActor, desc, pt, ((double)PlayClock + 4. * di->Viewpoint.TicFrac) * (1000. / 120.), mdframe, mdframe2, mdinter);
 	mdskinnum = pt->skinnum;
 	dynlightindex = -1;
 	shade = clamp(spr->shade + desc->shadeoff, -128, 127);
