@@ -43,6 +43,8 @@ public class DosActivity extends SDLActivity {
     static final int K_BACKSPACE = 8, K_TAB = 9, K_ENTER = 13, K_ESC = 27, K_SPACE = 32;
     static final int K_UP = 273, K_DOWN = 274, K_RIGHT = 275, K_LEFT = 276;
     static final int K_F1 = 282, K_SHIFT = 304, K_CTRL = 306, K_ALT = 308;
+    /** No es una tecla: abre la barra de teclas en pantalla (con el menú de ayuda F1). */
+    static final int K_KEYBAR = -2;
 
     private final Handler ui = new Handler(Looper.getMainLooper());
     private DukeMenuView quickMenu;
@@ -100,6 +102,11 @@ public class DosActivity extends SDLActivity {
                 ViewGroup.LayoutParams.MATCH_PARENT));
         updateTouch(false);
 
+        keyBar = new DosKeyBar(this, DosActivity::tap);
+        keyBar.setVisibility(View.GONE);
+        addContentView(keyBar, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT));
+
         // Gráficos del Duke 3D (letras) para el menú rápido.
         String grp = getIntent().getStringExtra(EXTRA_BASE_GRP);
         if (grp != null) {
@@ -110,6 +117,33 @@ public class DosActivity extends SDLActivity {
                     Log.w("Duke3D", "Menú rápido sin gráficos del juego", e);
                 }
             }, "ArteMenuRapido").start();
+        }
+    }
+
+    private DosKeyBar keyBar;
+    private static final Handler TAP = new Handler(Looper.getMainLooper());
+
+    /** Pulsa y suelta una tecla (el juego la ve durante unos fotogramas). */
+    private static void tap(int k) {
+        key(k, true);
+        TAP.postDelayed(() -> key(k, false), 90);
+    }
+
+    private boolean keyBarOpen() {
+        return keyBar != null && keyBar.getVisibility() == View.VISIBLE;
+    }
+
+    /** Abre o cierra la barra de teclas; al abrirla también abre el menú de ayuda del juego (F1). */
+    private void toggleKeyBar() {
+        if (keyBarOpen()) {
+            keyBar.setVisibility(View.GONE);
+        } else {
+            if (stickH >= 0) key(stickH, false);
+            if (stickV >= 0) key(stickV, false);
+            stickH = stickV = -1;
+            tap(K_F1);
+            keyBar.setVisibility(View.VISIBLE);
+            keyBar.invalidate();
         }
     }
 
@@ -283,9 +317,9 @@ public class DosActivity extends SDLActivity {
 
     /** Lo que puede hacer un botón: tecla del juego y su nombre (clave de I18n o texto). */
     private static final int[] ACTION_KEYS = {K_CTRL, K_ALT, K_UP, K_DOWN, K_ENTER, K_ESC, K_SPACE,
-            'y', 'n', 'p', K_F1, K_F1 + 1, K_F1 + 2, K_F1 + 9, K_SHIFT, K_TAB, -1};
+            'y', 'n', 'p', K_KEYBAR, K_F1, K_F1 + 1, K_F1 + 2, K_F1 + 9, K_SHIFT, K_TAB, -1};
     private static final String[] ACTION_NAMES = {"dos_act_jump", "dos_act_fire", "dos_act_use", "dos_act_down",
-            "Intro", "Esc", "dos_space", "Y", "N", "dos_act_pause", "F1", "F2", "F3", "F10", "Shift", "Tab", "dos_act_none"};
+            "Intro", "Esc", "dos_space", "Y", "N", "dos_act_pause", "dos_act_keybar", "F1", "F2", "F3", "F10", "Shift", "Tab", "dos_act_none"};
 
     private static String actionName(int key) {
         for (int i = 0; i < ACTION_KEYS.length; i++)
@@ -402,7 +436,7 @@ public class DosActivity extends SDLActivity {
             case KeyEvent.KEYCODE_BUTTON_L2: return K_CTRL;   // saltar
             case KeyEvent.KEYCODE_BUTTON_R2: return K_ALT;    // disparar
             case KeyEvent.KEYCODE_BUTTON_L1: return 'p';      // pausa
-            case KeyEvent.KEYCODE_BUTTON_R1: return K_F1;     // ayuda / guardar y cargar
+            case KeyEvent.KEYCODE_BUTTON_R1: return K_KEYBAR; // ayuda (F1) + barra de teclas
             case KeyEvent.KEYCODE_BUTTON_START: return K_ENTER; // aceptar en los menus
             case KeyEvent.KEYCODE_BUTTON_SELECT: return K_ESC;  // menu / volver
             case KeyEvent.KEYCODE_DPAD_CENTER: return K_ENTER;
@@ -457,7 +491,30 @@ public class DosActivity extends SDLActivity {
             padUsed = true;
             updateTouch(false);
         }
+        if (keyBarOpen() && pad) {
+            if (down && e.getRepeatCount() == 0) {
+                switch (code) {
+                    case KeyEvent.KEYCODE_DPAD_LEFT: keyBar.move(-1); break;
+                    case KeyEvent.KEYCODE_DPAD_RIGHT: keyBar.move(1); break;
+                    case KeyEvent.KEYCODE_DPAD_UP: keyBar.move(-11); break;
+                    case KeyEvent.KEYCODE_DPAD_DOWN: keyBar.move(11); break;
+                    case KeyEvent.KEYCODE_BUTTON_A: case KeyEvent.KEYCODE_DPAD_CENTER: tap(keyBar.selectedKey()); break;
+                    case KeyEvent.KEYCODE_BUTTON_B: tap(K_ESC); toggleKeyBar(); break;
+                    default: if (padAction(code) == K_KEYBAR) toggleKeyBar();
+                }
+            } else if (down && (code == KeyEvent.KEYCODE_DPAD_LEFT || code == KeyEvent.KEYCODE_DPAD_RIGHT)) {
+                keyBar.move(code == KeyEvent.KEYCODE_DPAD_LEFT ? -1 : 1);
+            } else if (!down) {
+                int k = padAction(code); // suelta lo que estuviera pulsado al abrir la barra
+                if (k >= 0) key(k, false);
+            }
+            return true;
+        }
         int k = pad ? padAction(code) : keyboardKey(code);
+        if (k == K_KEYBAR) {
+            if (down && e.getRepeatCount() == 0) toggleKeyBar();
+            return true;
+        }
         if (k < 0) return true;
         if (e.getRepeatCount() == 0 || !down) key(k, down);
         return true;
@@ -466,6 +523,7 @@ public class DosActivity extends SDLActivity {
     // Stick izquierdo, cruceta como ejes y gatillos analógicos.
     private int stickH = -1, stickV = -1;
     private boolean trigL, trigR;
+    private int barStick;
     private long lastAxisMove;
 
     @Override
@@ -482,6 +540,12 @@ public class DosActivity extends SDLActivity {
         if (!padUsed) {
             padUsed = true;
             updateTouch(false);
+        }
+        if (keyBarOpen()) {
+            int hx = x < -0.5f ? -1 : x > 0.5f ? 1 : 0;
+            if (hx != barStick && hx != 0) keyBar.move(hx);
+            barStick = hx;
+            return true;
         }
         int h = x < -0.5f ? K_LEFT : x > 0.5f ? K_RIGHT : -1;
         int v = y < -0.5f ? K_UP : y > 0.5f ? K_DOWN : -1;
@@ -500,12 +564,12 @@ public class DosActivity extends SDLActivity {
         if (l != trigL) {
             trigL = l;
             int k = padAction(KeyEvent.KEYCODE_BUTTON_L2);
-            if (k >= 0) key(k, l);
+            if (k == K_KEYBAR) { if (l) toggleKeyBar(); } else if (k >= 0) key(k, l);
         }
         if (r != trigR) {
             trigR = r;
             int k = padAction(KeyEvent.KEYCODE_BUTTON_R2);
-            if (k >= 0) key(k, r);
+            if (k == K_KEYBAR) { if (r) toggleKeyBar(); } else if (k >= 0) key(k, r);
         }
         return true;
     }
