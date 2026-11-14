@@ -153,6 +153,9 @@ public class PsxActivity extends SDLActivity {
     /** Pantalla: automática (según la de la consola), 4:3 o panorámica. */
     /** Pantalla: automática, 4:3, panorámica (truco de pantalla ancha) o estirada (4:3 a pantalla completa). */
     private static final String[] SCREEN_KEYS = {"psx_auto", "4:3", "psx_wide", "psx_stretch"};
+    static final String[] OC_VALUES = {"100", "200", "300", "400"};
+    static final String[] OC_LABELS = {"psx_oc_normal", "x2", "x3", "x4"};
+
     // Resolución interna (con la GPU): de 1x a 6x.
     private static final String[] RES_LABELS = {"1x", "2x", "3x", "4x", "5x", "6x"};
     private static final String[] RES_VALUES = {"1", "2", "3", "4", "5", "6"};
@@ -222,6 +225,8 @@ public class PsxActivity extends SDLActivity {
         o.add(new String[]{"swanstation_Display_AspectRatio", aspect});
         o.add(new String[]{"swanstation_GPU_ResolutionScale", RES_VALUES[gfx("resolucion3", 2, RES_VALUES.length)]});
         o.add(new String[]{"swanstation_GPU_PGXPEnable", gfx("pgxp2", 0, 2) == 1 ? "true" : "false"});
+        // CPU de la consola más rápida: en juegos que iban justos (Time to Kill) sube la fluidez.
+        o.add(new String[]{"swanstation_CPU_Overclock", OC_VALUES[gfx("oc", 0, OC_VALUES.length)]});
         // Dibujado: con la gráfica (OpenGL ES) o con el procesador (como la consola, a 1x).
         o.add(new String[]{"swanstation_GPU_Renderer", gfx("render", 0, 2) == 1 ? "Software" : "OpenGL"});
         // Versiones PAL (europeas, a 50 Hz) a 60 Hz, como la americana. Solo afecta a discos PAL.
@@ -318,6 +323,10 @@ public class PsxActivity extends SDLActivity {
         });
         p.addValue(I18n.t("psx_res"), () -> RES_LABELS[gfx("resolucion3", 2, RES_VALUES.length)], () -> {
             cycleGfx("resolucion3", 2, RES_VALUES.length);
+            applyCoreOptions();
+        });
+        p.addValue(I18n.t("psx_oc"), () -> I18n.t(OC_LABELS[gfx("oc", 0, OC_VALUES.length)]), () -> {
+            cycleGfx("oc", 0, OC_VALUES.length);
             applyCoreOptions();
         });
         p.addValue(I18n.t("psx_render"), () -> I18n.t(gfx("render", 0, 2) == 1 ? "psx_render_cpu" : "psx_render_gpu"), () -> {
