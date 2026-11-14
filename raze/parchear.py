@@ -352,18 +352,34 @@ sub("source/common/console/c_console.cpp",
 #     hw_drawinfo.cpp estaba comentado y HWSprite::ProcessModel no existía. Se coloca el modelo
 #     con las mismas cuentas que polymost_md3draw de EDuke32 (escala 0.01 * scale del .def,
 #     zadd/yoffset, giro del sprite, volteos), en unidades de Raze.
+# Los .def se leen al montar el juego de tiles, antes de que exista la tabla tile -> textura
+# (firstarttile), así que tileGetTextureID daba lo mismo para todos los tiles y ningún sprite
+# encontraba su modelo. El mapa se guarda por número de tile y se busca con legacyTileNum.
 sub("source/core/models/modeldata.h",
-    "\t\treturn tilenum.GetIndex() + (palette < 20);",
-    "\t\treturn tilenum.GetIndex() + (palette << 20);")
+    "\tunsigned FrameMapKey(FTextureID tilenum, unsigned palette)\n\t{\n\t\treturn tilenum.GetIndex() + (palette < 20);\n\t}",
+    "\tunsigned FrameMapKey(int tile, unsigned palette)\n\t{\n\t\treturn unsigned(tile) + (palette << 20);\n\t}")
 sub("source/core/models/modeldata.h",
     "\t\treturn frameMap.CheckKey(FrameMapKey(tilenum, pal)) != nullptr;",
     "\t\treturn GetModel(tilenum, pal) != nullptr;")
 sub("source/core/models/modeldata.h",
-    "\t\treturn frameMap.CheckKey(FrameMapKey(tilenum, pal));",
+    "\tModelTileFrame* GetModel(FTextureID tilenum, int pal)\n\t{\n\t\treturn frameMap.CheckKey(FrameMapKey(tilenum, pal));\n\t}",
+    "\tModelTileFrame* GetModel(FTextureID tilenum, int pal);")
+sub("source/core/models/modeldata.cpp",
+    "    auto key = FrameMapKey(tileGetTextureID(tilenum), pal);",
+    "    auto key = FrameMapKey(tilenum, pal);")
+sub("source/core/models/modeldata.cpp",
+    "        frameMap.Remove(FrameMapKey(tileGetTextureID(tile), i));",
+    "        frameMap.Remove(FrameMapKey(tile, i));")
+sub("source/core/models/modeldata.cpp",
+    "int ModelManager::LoadModel(const char* fn)",
     # Como EDuke32: si no hay modelo para esa paleta, el de la paleta 0.
-    "\t\tauto f = frameMap.CheckKey(FrameMapKey(tilenum, pal));\n"
-    "\t\tif (!f && pal != 0) f = frameMap.CheckKey(FrameMapKey(tilenum, 0));\n"
-    "\t\treturn f;")
+    "ModelTileFrame* ModelManager::GetModel(FTextureID tilenum, int pal)\n{\n"
+    "\tif (!tilenum.isValid() || frameMap.CountUsed() == 0) return nullptr;\n"
+    "\tint tile = legacyTileNum(tilenum);\n"
+    "\tauto f = frameMap.CheckKey(FrameMapKey(tile, pal));\n"
+    "\tif (!f && pal != 0) f = frameMap.CheckKey(FrameMapKey(tile, 0));\n"
+    "\treturn f;\n}\n\n"
+    "int ModelManager::LoadModel(const char* fn)")
 sub("source/core/textures/texinfo.cpp",
     "\t/*\n\tif (hw_models)\n\t{\n\t\treturn modelManager.CheckModel(tilenume, pal);\t// we have no models yet.\n\t}\n\t*/",
     "\tif (hw_models && modelManager.CheckModel(texid, pal)) return true;")
@@ -469,3 +485,12 @@ sub("source/core/rendering/scene/hw_sprites.cpp",
 
 bool HWSprite::ProcessVoxel(HWDrawInfo* di, voxmodel_t* vox, tspritetype* spr, sectortype* sector, bool rotate)
 {''')
+
+# 28. En el registro: cuántos modelos 3D y fotogramas se han leído de los .def.
+sub("source/core/textures/tilesetbuilder.cpp",
+    "\tfileSystem.InitHashChains(); // make sure that any resources that got added can be found again.\n}",
+    "\tfileSystem.InitHashChains(); // make sure that any resources that got added can be found again.\n"
+    "\tPrintf(\"Modelos 3D: %u, sprites con modelo: %u\\n\", modelManager.modelDescs.Size(), modelManager.frameMap.CountUsed());\n}")
+sub("source/core/textures/tilesetbuilder.cpp",
+    '#include "tilesetbuilder.h"',
+    '#include "tilesetbuilder.h"\n#include "models/modeldata.h"')
