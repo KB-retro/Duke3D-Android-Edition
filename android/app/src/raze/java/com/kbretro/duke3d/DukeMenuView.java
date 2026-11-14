@@ -233,8 +233,51 @@ final class DukeMenuView extends View {
     }
 
     private final RectF footerRect = new RectF();
-    /** El centro del icono de cambiar de sección (círculo con «Y/X»). */
-    private Bitmap sectionHub;
+    private final Paint iconFill = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final android.graphics.Path iconPath = new android.graphics.Path();
+    private final RectF iconOval = new RectF();
+
+    /** El símbolo nuclear con Y/X en el centro, de radio r píxeles, girado angle grados. */
+    private void drawSectionIcon(Canvas c, float cx, float cy, float r, float angle) {
+        iconFill.setStyle(Paint.Style.FILL);
+        iconFill.setShader(null);
+        // Sombra y aro metálico.
+        iconFill.setColor(Color.argb(150, 0, 0, 0));
+        c.drawCircle(cx + r * 0.06f, cy + r * 0.08f, r * 1.02f, iconFill);
+        iconFill.setShader(new android.graphics.LinearGradient(cx, cy - r, cx, cy + r,
+                Color.rgb(225, 225, 230), Color.rgb(95, 95, 105), android.graphics.Shader.TileMode.CLAMP));
+        c.drawCircle(cx, cy, r, iconFill);
+        iconFill.setShader(null);
+        // Disco blanco.
+        float rd = r * 0.86f;
+        iconFill.setColor(Color.rgb(240, 236, 226));
+        c.drawCircle(cx, cy, rd, iconFill);
+        // Tres aspas rojas, girando.
+        iconFill.setColor(Color.rgb(205, 30, 25));
+        float ri = r * 0.30f, ro = r * 0.80f;
+        for (int k = 0; k < 3; k++) {
+            float a0 = angle + k * 120 - 30;
+            iconPath.reset();
+            iconOval.set(cx - ro, cy - ro, cx + ro, cy + ro);
+            iconPath.arcTo(iconOval, a0, 60, true);
+            iconOval.set(cx - ri, cy - ri, cx + ri, cy + ri);
+            iconPath.arcTo(iconOval, a0 + 60, -60, false);
+            iconPath.close();
+            c.drawPath(iconPath, iconFill);
+        }
+        // Eje: círculo negro con borde blanco y Y/X en amarillo.
+        float rh = r * 0.47f;
+        iconFill.setColor(Color.rgb(240, 236, 226));
+        c.drawCircle(cx, cy, rh, iconFill);
+        iconFill.setColor(Color.rgb(14, 14, 14));
+        c.drawCircle(cx, cy, rh * 0.88f, iconFill);
+        iconFill.setColor(Color.rgb(255, 200, 40));
+        iconFill.setTypeface(android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD));
+        iconFill.setTextAlign(Paint.Align.CENTER);
+        iconFill.setTextSize(rh * 0.78f);
+        Paint.FontMetrics fm = iconFill.getFontMetrics();
+        c.drawText("Y/X", cx, cy - (fm.ascent + fm.descent) / 2f, iconFill);
+    }
     private final RectF[] tabRects = {new RectF(), new RectF()};
     private final Paint tabLine = new Paint();
 
@@ -428,28 +471,12 @@ final class DukeMenuView extends View {
         // Pie: una línea de información si la hay (carpeta, pista que suena...).
         String ft = p.footer != null ? p.footer.get() : "";
         if (!ft.isEmpty()) drawSmall(c, ft, 160, 191, 0.6f, true);
-        // Menú principal con secciones: abajo en el centro, el símbolo nuclear del propio juego
-        // girando sobre sí mismo y, en su centro, el botón para cambiar de sección (Y/X: el de
-        // arriba en mandos tipo Xbox y Nintendo). Tocarlo también cambia. Si hay un aviso, el aviso.
-        if (stack.size() == 1 && p.otherSide != null && ft.isEmpty()) {
-            Bitmap nuke = art.has(DukeArt.SPINNINGNUKEICON) ? art.tile(DukeArt.SPINNINGNUKEICON) : null;
-            if (sectionHub == null)
-                sectionHub = android.graphics.BitmapFactory.decodeResource(getResources(), R.drawable.icono_centro);
-            float hpx = 26 * sy, cx = vx(160), cy = vy(186);
-            if (nuke != null) {
-                c.save();
-                c.rotate((now % 3000) * 360f / 3000f, cx, cy);
-                float wpx = hpx * nuke.getWidth() / (float) Math.max(1, nuke.getHeight());
-                dst.set(cx - wpx / 2f, cy - hpx / 2f, cx + wpx / 2f, cy + hpx / 2f);
-                c.drawBitmap(nuke, null, dst, smooth);
-                c.restore();
-            }
-            if (sectionHub != null) {
-                float hub = hpx * 0.5f;
-                dst.set(cx - hub / 2f, cy - hub / 2f, cx + hub / 2f, cy + hub / 2f);
-                c.drawBitmap(sectionHub, null, dst, smooth);
-            }
-        }
+        // Menú principal con secciones: abajo en el centro, el símbolo nuclear (como el del
+        // juego: aspas rojas sobre blanco, aro gris) girando y, en su eje, el botón para cambiar de
+        // sección (Y/X: el de arriba en mandos tipo Xbox y Nintendo). Dibujado con vectores: nítido
+        // y redondo a cualquier resolución. Tocarlo también cambia. Si hay un aviso, el aviso.
+        if (stack.size() == 1 && p.otherSide != null && ft.isEmpty())
+            drawSectionIcon(c, vx(160), vy(186), 13 * sy, (now % 3000) * 360f / 3000f);
         footerRect.set(0, vy(183), w, h);
 
         // Versión de la app, pequeña, con las letras del juego, arriba a la derecha (lanzador).
