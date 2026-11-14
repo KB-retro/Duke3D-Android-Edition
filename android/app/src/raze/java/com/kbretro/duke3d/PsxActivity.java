@@ -152,9 +152,9 @@ public class PsxActivity extends SDLActivity {
     private static final String[] BLOOM_KEYS = {"no", "gfx_soft", "gfx_strong"};
     /** Pantalla: automática (según la de la consola), 4:3 o panorámica. */
     private static final String[] SCREEN_KEYS = {"psx_auto", "4:3", "psx_wide"};
-    // Con la GPU: hasta 16x.
-    private static final String[] RES_LABELS = {"1x", "2x", "4x", "8x", "16x"};
-    private static final String[] RES_VALUES = {"1x(native)", "2x", "4x", "8x", "16x"};
+    // Beetle PSX solo admite potencias de dos (1x, 2x, 4x...): hasta 4x, que es lo que tiene sentido.
+    private static final String[] RES_LABELS = {"1x", "2x", "4x"};
+    private static final String[] RES_VALUES = {"1x(native)", "2x", "4x"};
 
     /** Ajuste propio de los juegos de PlayStation. */
     private int gfx(String key, int def, int n) {
