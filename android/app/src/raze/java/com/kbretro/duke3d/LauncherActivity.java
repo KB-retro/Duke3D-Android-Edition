@@ -438,8 +438,8 @@ public class LauncherActivity extends Activity {
                 () -> cycleSecPref("psx_", "pantalla", 0, 3));
         p.addValue(I18n.t("psx_res"), () -> PSX_RES_LABELS[secPref("psx_", "resolucion3", 2, PSX_RES_LABELS.length)],
                 () -> cycleSecPref("psx_", "resolucion3", 2, PSX_RES_LABELS.length));
-        p.addValue(I18n.t("psx_pgxp"), () -> I18n.t(secPref("psx_", "pgxp", 1, 2) == 1 ? "yes" : "no"),
-                () -> cycleSecPref("psx_", "pgxp", 1, 2));
+        p.addValue(I18n.t("psx_pgxp"), () -> I18n.t(secPref("psx_", "pgxp2", 0, 2) == 1 ? "yes" : "no"),
+                () -> cycleSecPref("psx_", "pgxp2", 0, 2));
         p.addValue(I18n.t("psx_pal60"), () -> I18n.t(secPref("psx_", "pal60", 0, 2) == 1 ? "yes" : "no"),
                 () -> cycleSecPref("psx_", "pal60", 0, 2));
         addFilters(p, "psx_");

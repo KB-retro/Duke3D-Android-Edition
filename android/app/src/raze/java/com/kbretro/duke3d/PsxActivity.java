@@ -203,7 +203,7 @@ public class PsxActivity extends SDLActivity {
         o.add(new String[]{"swanstation_GPU_WidescreenHack", wide != null ? "true" : "false"});
         o.add(new String[]{"swanstation_Display_AspectRatio", wide != null ? wide : "4:3"});
         o.add(new String[]{"swanstation_GPU_ResolutionScale", RES_VALUES[gfx("resolucion3", 2, RES_VALUES.length)]});
-        o.add(new String[]{"swanstation_GPU_PGXPEnable", gfx("pgxp", 1, 2) == 1 ? "true" : "false"});
+        o.add(new String[]{"swanstation_GPU_PGXPEnable", gfx("pgxp2", 0, 2) == 1 ? "true" : "false"});
         // Versiones PAL (europeas, a 50 Hz) a 60 Hz, como la americana. Solo afecta a discos PAL.
         o.add(new String[]{"swanstation_GPU_ForceNTSCTimings", gfx("pal60", 0, 2) == 1 ? "true" : "false"});
         return o;
@@ -300,8 +300,8 @@ public class PsxActivity extends SDLActivity {
             cycleGfx("resolucion3", 2, RES_VALUES.length);
             applyCoreOptions();
         });
-        p.addValue(I18n.t("psx_pgxp"), () -> I18n.t(gfx("pgxp", 1, 2) == 1 ? "yes" : "no"), () -> {
-            cycleGfx("pgxp", 1, 2);
+        p.addValue(I18n.t("psx_pgxp"), () -> I18n.t(gfx("pgxp2", 0, 2) == 1 ? "yes" : "no"), () -> {
+            cycleGfx("pgxp2", 0, 2);
             applyCoreOptions();
         });
         p.addValue(I18n.t("psx_pal60"), () -> I18n.t(gfx("pal60", 0, 2) == 1 ? "yes" : "no"), () -> {
