@@ -233,6 +233,8 @@ final class DukeMenuView extends View {
     }
 
     private final RectF footerRect = new RectF();
+    /** El icono de cambiar de sección (símbolo nuclear con la Y, 12 fotogramas en fila). */
+    private Bitmap sectionIcon;
     private final RectF[] tabRects = {new RectF(), new RectF()};
     private final Paint tabLine = new Paint();
 
@@ -426,14 +428,20 @@ final class DukeMenuView extends View {
         // Pie: una línea de información si la hay (carpeta, pista que suena...).
         String ft = p.footer != null ? p.footer.get() : "";
         if (!ft.isEmpty()) drawSmall(c, ft, 160, 191, 0.6f, true);
-        // Menú principal con secciones: abajo en el centro, el símbolo nuclear del juego (girando)
-        // con una Y dentro: Y cambia de sección (o tocarlo). Si hay un aviso, va el aviso.
-        if (stack.size() == 1 && p.otherSide != null && ft.isEmpty() && art.has(DukeArt.SPINNINGNUKEICON)) {
-            float nh = art.height(DukeArt.SPINNINGNUKEICON);
-            float ns = nh > 0 ? 17f / nh : 0.6f;
-            drawTileCentered(c, DukeArt.SPINNINGNUKEICON + frame, 160, 189, ns);
-            shade.setColorFilter(null);
-            drawBig(c, "Y", 160 - bigWidth("Y") * 0.55f / 2f, 189, 0.55f, shade);
+        // Menú principal con secciones: abajo en el centro, el símbolo nuclear girando con la Y en
+        // el eje (icono propio, 12 fotogramas): Y cambia de sección (o tocarlo). Si hay un aviso,
+        // va el aviso.
+        if (stack.size() == 1 && p.otherSide != null && ft.isEmpty()) {
+            if (sectionIcon == null)
+                sectionIcon = android.graphics.BitmapFactory.decodeResource(getResources(), R.drawable.icono_seccion);
+            if (sectionIcon != null) {
+                int frames = 12, fw = sectionIcon.getWidth() / frames, fh = sectionIcon.getHeight();
+                int f = (int) ((now / 60) % frames);
+                android.graphics.Rect src = new android.graphics.Rect(f * fw, 0, (f + 1) * fw, fh);
+                float hpx = 22 * sy, cx = vx(160), cy = vy(188);
+                dst.set(cx - hpx / 2f, cy - hpx / 2f, cx + hpx / 2f, cy + hpx / 2f);
+                c.drawBitmap(sectionIcon, src, dst, smooth);
+            }
         }
         footerRect.set(0, vy(183), w, h);
 
