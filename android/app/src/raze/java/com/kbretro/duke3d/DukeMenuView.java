@@ -64,6 +64,8 @@ final class DukeMenuView extends View {
         String title;
         String[] body;
         int selected;
+        /** Fondo propio de esta página (sección del menú principal); si no, el del menú. */
+        Bitmap background;
         /** La caja del juego elegido a la izquierda y la lista a la derecha. */
         boolean coverLeft;
         /**
@@ -250,10 +252,12 @@ final class DukeMenuView extends View {
             // Encima de la partida: solo un velo oscuro, el juego se ve detrás en pausa.
             c.drawColor(Color.argb(175, 0, 0, 0));
         } else if (background != null) {
-            float k = Math.max(w / (float) background.getWidth(), h / (float) background.getHeight());
-            float bw = background.getWidth() * k, bh = background.getHeight() * k;
+            // La sección del menú principal (y sus páginas) puede tener su propio fondo.
+            Bitmap bgImg = stack.get(0).background != null ? stack.get(0).background : background;
+            float k = Math.max(w / (float) bgImg.getWidth(), h / (float) bgImg.getHeight());
+            float bw = bgImg.getWidth() * k, bh = bgImg.getHeight() * k;
             dst.set((w - bw) / 2f, (h - bh) / 2f, (w + bw) / 2f, (h + bh) / 2f);
-            c.drawBitmap(background, null, dst, smooth);
+            c.drawBitmap(bgImg, null, dst, smooth);
         }
         Bitmap bg = background != null || overlay ? null : art.tile(DukeArt.BETASCREEN);
         if (bg == null && background == null && !overlay) bg = art.tile(DukeArt.MENUSCREEN);
