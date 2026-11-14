@@ -283,9 +283,9 @@ public class DosActivity extends SDLActivity {
 
     /** Lo que puede hacer un botón: tecla del juego y su nombre (clave de I18n o texto). */
     private static final int[] ACTION_KEYS = {K_CTRL, K_ALT, K_UP, K_DOWN, K_ENTER, K_ESC, K_SPACE,
-            'y', 'n', K_F1, K_F1 + 1, K_F1 + 2, K_F1 + 9, K_SHIFT, K_TAB, -1};
+            'y', 'n', 'p', K_F1, K_F1 + 1, K_F1 + 2, K_F1 + 9, K_SHIFT, K_TAB, -1};
     private static final String[] ACTION_NAMES = {"dos_act_jump", "dos_act_fire", "dos_act_use", "dos_act_down",
-            "Intro", "Esc", "dos_space", "Y", "N", "F1", "F2", "F3", "F10", "Shift", "Tab", "dos_act_none"};
+            "Intro", "Esc", "dos_space", "Y", "N", "dos_act_pause", "F1", "F2", "F3", "F10", "Shift", "Tab", "dos_act_none"};
 
     private static String actionName(int key) {
         for (int i = 0; i < ACTION_KEYS.length; i++)
@@ -396,15 +396,15 @@ public class DosActivity extends SDLActivity {
             case KeyEvent.KEYCODE_DPAD_LEFT: return K_LEFT;
             case KeyEvent.KEYCODE_DPAD_RIGHT: return K_RIGHT;
             case KeyEvent.KEYCODE_BUTTON_A: return K_CTRL;    // saltar
-            case KeyEvent.KEYCODE_BUTTON_B: return K_ALT;     // disparar
             case KeyEvent.KEYCODE_BUTTON_X: return K_ALT;     // disparar
-            case KeyEvent.KEYCODE_BUTTON_Y: return K_UP;      // usar / entrar
-            case KeyEvent.KEYCODE_BUTTON_L2: return K_CTRL;
-            case KeyEvent.KEYCODE_BUTTON_R2: return K_ALT;
-            case KeyEvent.KEYCODE_BUTTON_L1: return K_ESC;
-            case KeyEvent.KEYCODE_BUTTON_R1: return K_ENTER;
-            case KeyEvent.KEYCODE_BUTTON_START: return K_ENTER;
-            case KeyEvent.KEYCODE_BUTTON_SELECT: return K_ESC;
+            case KeyEvent.KEYCODE_BUTTON_B: return K_UP;      // usar / entrar en puertas
+            case KeyEvent.KEYCODE_BUTTON_Y: return K_UP;      // usar / entrar en puertas
+            case KeyEvent.KEYCODE_BUTTON_L2: return K_CTRL;   // saltar
+            case KeyEvent.KEYCODE_BUTTON_R2: return K_ALT;    // disparar
+            case KeyEvent.KEYCODE_BUTTON_L1: return 'p';      // pausa
+            case KeyEvent.KEYCODE_BUTTON_R1: return K_F1;     // ayuda / guardar y cargar
+            case KeyEvent.KEYCODE_BUTTON_START: return K_ENTER; // aceptar en los menus
+            case KeyEvent.KEYCODE_BUTTON_SELECT: return K_ESC;  // menu / volver
             case KeyEvent.KEYCODE_DPAD_CENTER: return K_ENTER;
             default: return -1;
         }

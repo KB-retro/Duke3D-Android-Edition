@@ -145,6 +145,7 @@ final class I18n {
         put("dos_act_use", "Usar / Arriba", "Use / Up");
         put("dos_act_down", "Abajo", "Down");
         put("dos_act_none", "Nada", "Nothing");
+        put("dos_act_pause", "Pausa (P)", "Pause (P)");
         put("dos_jump", "SALTAR", "JUMP");
         put("dos_fire", "DISPARAR", "FIRE");
         put("dos_use", "USAR", "USE");
