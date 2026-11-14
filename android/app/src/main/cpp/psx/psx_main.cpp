@@ -112,6 +112,8 @@ static int g_tex_w, g_tex_h;
 static SDL_AudioDeviceID g_audio;
 static int g_audio_rate;
 
+static void queue_silence(Uint32 bytes);
+
 static std::vector<uint32_t> g_frame;
 static int g_frame_w, g_frame_h;
 
@@ -450,7 +452,12 @@ static void process_commands(void)
             break;
         case CMD_RESUME:
             g_paused = false;
-            if (g_audio) { SDL_ClearQueuedAudio(g_audio); SDL_PauseAudioDevice(g_audio, 0); }
+            if (g_audio)
+            {
+                SDL_ClearQueuedAudio(g_audio);
+                queue_silence((Uint32)(g_audio_rate * 4 / 1000) * 80);
+                SDL_PauseAudioDevice(g_audio, 0);
+            }
             break;
         case CMD_SAVE:
             result = save_state();
@@ -519,6 +526,15 @@ JNIEXPORT jint JNICALL Java_com_kbretro_duke3d_PsxActivity_nativeCommand(JNIEnv 
 
 // ---- Ventana y sonido ----
 
+/** Silencio en la cola de sonido (colchón al empezar o si se queda sin sonido). */
+static void queue_silence(Uint32 bytes)
+{
+    if (!g_audio) return;
+    bytes &= ~3u;
+    std::vector<uint8_t> zero(bytes, 0);
+    SDL_QueueAudio(g_audio, zero.data(), bytes);
+}
+
 static void open_audio(int rate)
 {
     if (g_audio) SDL_CloseAudioDevice(g_audio);
@@ -531,7 +547,12 @@ static void open_audio(int rate)
     g_audio = SDL_OpenAudioDevice(NULL, 0, &want, &have, 0);
     g_audio_rate = rate;
     if (!g_audio) LOGE("Sin sonido: %s", SDL_GetError());
-    else SDL_PauseAudioDevice(g_audio, 0);
+    else
+    {
+        LOGI("Sonido: pedido %d Hz, el dispositivo da %d Hz, %d muestras por trozo", rate, have.freq, have.samples);
+        queue_silence((Uint32)(rate * 4 / 1000) * 80);
+        SDL_PauseAudioDevice(g_audio, 0);
+    }
 }
 
 static bool open_window(void)
@@ -629,6 +650,21 @@ extern "C" int SDL_main(int argc, char *argv[])
             open_audio((int)g_av.timing.sample_rate);
 
         core.run();
+        {
+            // Cada 5 s, al registro: fotogramas por segundo de verdad y sonido en cola.
+            static Uint64 t0 = 0;
+            static int frames = 0;
+            Uint64 t = SDL_GetPerformanceCounter();
+            if (!t0) t0 = t;
+            frames++;
+            if (t - t0 >= freq * 5)
+            {
+                LOGI("Ritmo: %.2f fps (núcleo %.2f), sonido en cola %u ms", frames * (double)freq / (t - t0),
+                     g_av.timing.fps, g_audio ? SDL_GetQueuedAudioSize(g_audio) / (Uint32)(g_audio_rate * 4 / 1000) : 0);
+                t0 = t;
+                frames = 0;
+            }
+        }
 
         // Ritmo: el reloj de la consola (unos 60 o 50 fotogramas por segundo), no el de la
         // pantalla ni la cola de sonido. El sonido solo corrige un poco: con mucho en cola se
@@ -637,13 +673,17 @@ extern "C" int SDL_main(int argc, char *argv[])
         double fps = g_av.timing.fps > 1 ? g_av.timing.fps : 60.0;
         Uint64 period = (Uint64)(freq / fps);
         next += period;
+        // Sonido: un colchón de unos 80 ms. Android pide el audio a trozos (~20-40 ms), así
+        // que la cola sube y baja sola; solo se corrige en los extremos (por la pequeña
+        // diferencia entre el reloj del sonido y el del sistema): sin acelerar el juego.
         if (g_audio)
         {
             Uint32 bytes_per_ms = (Uint32)(g_audio_rate * 4 / 1000);
             Uint32 queued = SDL_GetQueuedAudioSize(g_audio);
-            if (queued > bytes_per_ms * 250) SDL_ClearQueuedAudio(g_audio);   // muy atrasado
-            else if (queued > bytes_per_ms * 90) next += period / 8;           // demasiado en cola
-            else if (queued < bytes_per_ms * 25) next -= period / 8;           // a punto de quedarse sin sonido
+            if (queued > bytes_per_ms * 300)
+                SDL_ClearQueuedAudio(g_audio);           // muy atrasado: se vuelve a empezar
+            else if (queued < bytes_per_ms * 10)
+                queue_silence(bytes_per_ms * 70);        // a punto de quedarse sin sonido
         }
         Uint64 now = SDL_GetPerformanceCounter();
         if (next > now)

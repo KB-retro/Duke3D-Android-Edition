@@ -420,7 +420,24 @@ final class DukeMenuView extends View {
         }
 
         // Pie: una línea de información si la hay (carpeta, pista que suena...).
-        if (p.footer != null) drawSmall(c, p.footer.get(), 160, 191, 0.6f, true);
+        if (p.footer != null) {
+            String ft = p.footer.get();
+            drawSmall(c, ft, 160, 191, 0.6f, true);
+            // Menú principal con secciones: el símbolo nuclear del juego (girando) con una Y
+            // dentro, delante del «Y: cambiar a ...», para que se vea qué botón cambia de sección.
+            if (stack.size() == 1 && p.otherSide != null && ft.startsWith("Y") && art.has(DukeArt.SPINNINGNUKEICON)) {
+                float tw = 0;
+                for (char ch : clean(ft).toCharArray()) tw += smallAdvance(ch);
+                tw *= 0.6f;
+                float nh = art.height(DukeArt.SPINNINGNUKEICON);
+                float ns = nh > 0 ? 13f / nh : 0.5f;
+                float nw = art.width(DukeArt.SPINNINGNUKEICON) * ns;
+                float ix = 160 - tw / 2f - 4 - nw / 2f;
+                drawTileCentered(c, DukeArt.SPINNINGNUKEICON + frame, ix, 191, ns);
+                shade.setColorFilter(null);
+                drawBig(c, "Y", ix - bigWidth("Y") * 0.42f / 2f, 191, 0.42f, shade);
+            }
+        }
         footerRect.set(0, vy(183), w, h);
 
         // Versión de la app, pequeña, con las letras del juego, arriba a la derecha (lanzador).

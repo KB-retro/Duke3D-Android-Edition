@@ -328,6 +328,7 @@ public class LauncherActivity extends Activity {
                 else note[0] = I18n.t("dos_missing") + where + "/duke2";
             });
         }
+        addSectionMenu(p, gameDir);
         sectionFooter(p, note, "Legacy");
         return p;
     }
@@ -360,8 +361,16 @@ public class LauncherActivity extends Activity {
                 launchPsx(gameDir, disc, b, pg[2]);
             });
         }
+        addSectionMenu(p, gameDir);
         sectionFooter(p, note, "Legend");
         return p;
+    }
+
+    /** Opciones, Extras y Salir, también en las secciones Classic y Legacy. */
+    private void addSectionMenu(DukeMenuView.Page p, File gameDir) {
+        p.add(I18n.t("options"), null, () -> menuView.push(optionsPage(gameDir)));
+        p.add(I18n.t("extras"), null, () -> menuView.push(extrasPage(gameDir)));
+        p.add(I18n.t("quit"), null, this::finishAffinity);
     }
 
     /** Pie de una sección: el aviso del juego que no se pudo lanzar o cómo pasar a la siguiente. */
