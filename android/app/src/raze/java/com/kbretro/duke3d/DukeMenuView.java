@@ -510,7 +510,6 @@ final class DukeMenuView extends View {
         postInvalidateDelayed(stack.size() == 1 && p.otherSide != null ? 16 : 50);
     }
 
-    /** La caja entera dentro del rectángulo (x, y, w, h) del 320x200, con marco. */
     /** Dónde está la caja grande en pantalla (para tocarla). */
     private final RectF coverRect = new RectF();
 
@@ -520,10 +519,7 @@ final class DukeMenuView extends View {
         float k = Math.min(pw / b.getWidth(), ph / b.getHeight());
         float dw = b.getWidth() * k, dh = b.getHeight() * k;
         float l = vx(x) + (pw - dw) / 2f, t = vy(y) + (ph - dh) / 2f;
-        frame.setColor(Color.argb(200, 0, 0, 0));
-        c.drawRect(l - 6, t - 6, l + dw + 6, t + dh + 6, frame);
-        frame.setColor(Color.rgb(255, 200, 40));
-        c.drawRect(l - 3, t - 3, l + dw + 3, t + dh + 3, frame);
+        // Sin marco: las carátulas ya llevan su borde quemado (transparente por fuera).
         coverRect.set(l, t, l + dw, t + dh);
         dst.set(l, t, l + dw, t + dh);
         c.drawBitmap(b, null, dst, smooth);
