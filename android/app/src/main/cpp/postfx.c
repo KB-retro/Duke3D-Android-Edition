@@ -470,7 +470,13 @@ int android_postfx_init(SDL_Window *window)
         return 0;
     }
     SDL_GL_MakeCurrent(window, pfx_context);
+#ifdef POSTFX_PSX
+    // PlayStation: cada fotograma, en un refresco de la pantalla (sin esto, 50 fps en 120 Hz
+    // se veían aún más irregulares).
+    SDL_GL_SetSwapInterval(1);
+#else
     SDL_GL_SetSwapInterval(0);
+#endif
 
     if (!link_program(&p_scale, FS_SCALE) || !link_program(&p_fxaa, FS_FXAA) || !link_program(&p_easu, FS_EASU)
         || !link_program(&p_rcas, FS_RCAS) || !link_program(&p_bright, FS_BRIGHT) || !link_program(&p_blur, FS_BLUR))

@@ -153,6 +153,7 @@ static void set_default_options(void)
         {OPT "internal_resolution", "1x(native)"},
         {OPT "pgxp_mode", "disabled"},
         {OPT "display_osd", "disabled"},
+        {OPT "depth", "32bpp"},  // color de 32 bits con la GPU (a 16, bandas y tramado)
     };
     for (auto &d : defs) g_options[d[0]] = d[1];
 }
@@ -416,6 +417,17 @@ static void present(void)
 
 static void video_refresh(const void *data, unsigned w, unsigned h, size_t pitch)
 {
+    {
+        // Cada cambio de tamaño de la imagen, al registro (vídeos, menús, resolución...).
+        static unsigned lw, lh;
+        if (data && (w != lw || h != lh))
+        {
+            LOGI("Imagen %ux%u (aspecto del núcleo %.3f, %s)", w, h, g_av.geometry.aspect_ratio,
+                 data == RETRO_HW_FRAME_BUFFER_VALID ? "GPU" : "CPU");
+            lw = w;
+            lh = h;
+        }
+    }
     if (g_hw_on && (data == RETRO_HW_FRAME_BUFFER_VALID || (!data && g_last_w > 0)))
     {
         // Dibujado con la GPU en g_hw_fbo (NULL = el mismo fotograma de antes).
