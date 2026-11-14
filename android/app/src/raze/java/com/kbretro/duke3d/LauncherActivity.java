@@ -262,25 +262,21 @@ public class LauncherActivity extends Activity {
 
     private DukeMenuView.Page rootPage(File gameDir) {
         DukeMenuView.Page root = new DukeMenuView.Page();
-        // Con una campaña activada solo se puede jugar al juego base (es sobre el que corre).
-        boolean campaign = activeCampaign(gameDir) != null;
         for (GameData.Game g : assets.games) {
-            if (campaign && g != assets.games.get(0)) continue;
             Bitmap cover = cover(g);
             if (cover != null) root.addGame(g.menuLabel(), cover, () -> launch(gameDir, g));
             else root.add(g.menuLabel(), assets.icons.get(g.title), () -> launch(gameDir, g));
         }
-        // Penthouse Paradise (DLC gratuito de 1997), si está en extras/; como las expansiones,
-        // no sale con una campaña activada.
-        File pent = campaign ? null : findPenthouse(gameDir);
+        // Penthouse Paradise (DLC gratuito de 1997), si está en extras/.
+        File pent = findPenthouse(gameDir);
         if (pent != null) {
             root.addGame("Penthouse", box(R.drawable.caja_penthouse), () -> launchPenthouse(gameDir, pent));
             DukeMenuView.Entry e = root.entries.get(root.entries.size() - 1);
             e.coverTap = () -> penthouseTap(e);
         }
-        root.add(I18n.t("mods"), null, () -> menuView.push(modsPage(gameDir)));
         root.add(I18n.t("options"), null, () -> menuView.push(optionsPage(gameDir)));
-        root.add(I18n.t("extras"), null, () -> menuView.push(extrasPage(gameDir)));
+        // Los mods (gráficos y sonido) van dentro de Extras, solo en esta sección.
+        root.add(I18n.t("extras"), null, () -> menuView.push(extrasPage(gameDir, true)));
         root.add(I18n.t("quit"), null, this::finishAffinity);
 
         // Secciones del menú principal (botón Y o tocando el pie): Legend (Duke 3D), Classic
@@ -494,7 +490,12 @@ public class LauncherActivity extends Activity {
     }
 
     private DukeMenuView.Page extrasPage(File gameDir) {
+        return extrasPage(gameDir, false);
+    }
+
+    private DukeMenuView.Page extrasPage(File gameDir, boolean mods) {
         DukeMenuView.Page p = new DukeMenuView.Page();
+        if (mods) p.add(I18n.t("mods"), null, () -> menuView.push(modsPage(gameDir)));
         p.add(I18n.t("guide"), null, () -> menuView.push(guidePage()));
         p.add(I18n.t("music"), null, () -> menuView.push(musicPage(gameDir)));
         p.add(I18n.t("achievements"), null, () -> menuView.push(achievementsPage()));
@@ -1089,16 +1090,6 @@ public class LauncherActivity extends Activity {
                 .getStringSet("mods_activos", new java.util.HashSet<>()));
     }
 
-    /** La campaña activada (o null). */
-    private File activeCampaign(File gameDir) {
-        java.util.Set<String> enabled = enabledMods();
-        if (enabled.isEmpty()) return null;
-        for (File f : GameData.mods(gameDir)) {
-            if (enabled.contains(f.getName()) && GameData.isCampaign(f)) return f;
-        }
-        return null;
-    }
-
     private void setModEnabled(String name, boolean on) {
         java.util.Set<String> set = enabledMods();
         if (on) set.add(name);
@@ -1106,30 +1097,17 @@ public class LauncherActivity extends Activity {
         getSharedPreferences("ajustes", MODE_MULTI_PROCESS).edit().putStringSet("mods_activos", set).apply();
     }
 
-    /**
-     * Mods: dos cajas, Campañas (solo una activada a la vez) y Gráficos y sonido (varios).
-     * Cada mod va en una u otra según su subcarpeta o, si no está en ninguna, según lo que trae.
-     */
+    /** Mods: la caja de Gráficos y sonido (las campañas no van en el HD). */
     private DukeMenuView.Page modsPage(File gameDir) {
         DukeMenuView.Page p = new DukeMenuView.Page();
         GameData.makeCategoryDirs(gameDir);
-        List<File> campaigns = new ArrayList<>(), others = new ArrayList<>();
-        for (File f : GameData.mods(gameDir)) (GameData.isCampaign(f) ? campaigns : others).add(f);
-        p.addGame(I18n.t("mods_campaigns"), box(R.drawable.caja_campanas),
-                () -> menuView.push(modListPage(gameDir, campaigns, true)));
-        p.addGame(I18n.t("mods_gfx"), box(R.drawable.caja_graficos),
-                () -> menuView.push(modListPage(gameDir, others, false)));
+        List<File> mods = new ArrayList<>();
+        for (File f : GameData.mods(gameDir)) if (!GameData.isCampaign(f)) mods.add(f);
+        p.addGame(I18n.t("mods_gfx"), box(R.drawable.caja_graficos), () -> menuView.push(modListPage(gameDir)));
         p.add(I18n.t("back"), null, () -> menuView.pop());
-        // Al volver, el menú principal se rehace (con campaña solo se ve el juego base).
-        p.onLeave = () -> menuView.post(() -> {
-            DukeMenuView.Page root = rootPage(gameDir);
-            root.selected = Math.max(0, root.entries.size() - 4); // sigue en "Mods"
-            menuView.setRoot(root, this::finish);
-        });
         File dir = GameData.findChild(gameDir, "mods");
         String path = (dir != null ? dir : new File(gameDir, "mods")).getAbsolutePath();
-        p.footer = () -> p.selected == 0 ? countLabel(campaigns) + " - " + I18n.t("mods_one_campaign")
-                : p.selected == 1 ? countLabel(others) : I18n.t("mods_where") + path;
+        p.footer = () -> p.selected == 0 ? countLabel(mods) : I18n.t("mods_where") + path;
         return p;
     }
 
@@ -1154,38 +1132,30 @@ public class LauncherActivity extends Activity {
         return b;
     }
 
-    /** La lista de una de las dos secciones, con un interruptor por mod. */
-    private DukeMenuView.Page modListPage(File gameDir, List<File> mods, boolean campaigns) {
+    /**
+     * Mods de gráficos y sonido (en Extras de la sección Duke Nukem), con un interruptor por mod.
+     * Las campañas (TC) no van en el HD: usan el CON de EDuke32, que Raze no entiende.
+     */
+    private DukeMenuView.Page modListPage(File gameDir) {
         DukeMenuView.Page p = new DukeMenuView.Page();
+        GameData.makeCategoryDirs(gameDir);
+        List<File> mods = new ArrayList<>();
+        for (File f : GameData.mods(gameDir)) if (!GameData.isCampaign(f)) mods.add(f);
         for (File f : mods) {
             String name = f.getName();
             String label = name.replaceAll("(?i)\\.(zip|pk3|grp)$", "").replace('_', ' ');
-            p.addValue(label, () -> I18n.t(enabledMods().contains(name) ? "yes" : "no"), () -> {
-                boolean on = !enabledMods().contains(name);
-                java.util.Set<String> set = enabledMods();
-                if (on && campaigns) {
-                    // Una campaña va sola: no es compatible con ningún otro mod.
-                    set.clear();
-                } else if (on) {
-                    // Un mod de gráficos o sonido apaga la campaña que hubiera.
-                    File camp = activeCampaign(gameDir);
-                    if (camp != null) set.remove(camp.getName());
-                }
-                if (on) set.add(name);
-                else set.remove(name);
-                getSharedPreferences("ajustes", MODE_MULTI_PROCESS).edit().putStringSet("mods_activos", set).apply();
-            });
+            p.addValue(label, () -> I18n.t(enabledMods().contains(name) ? "yes" : "no"),
+                    () -> setModEnabled(name, !enabledMods().contains(name)));
             DukeMenuView.Entry e = p.entries.get(p.entries.size() - 1);
             e.active = () -> enabledMods().contains(name);
         }
         p.add(I18n.t("back"), null, () -> menuView.pop());
         File base = GameData.findChild(gameDir, "mods");
-        File dir = new File(base != null ? base : new File(gameDir, "mods"),
-                campaigns ? GameData.CAMPAIGN_DIR : GameData.GFX_DIR);
+        File dir = new File(base != null ? base : new File(gameDir, "mods"), GameData.GFX_DIR);
         p.footer = () -> mods.isEmpty()
                 ? I18n.t("mods_empty") + dir.getAbsolutePath()
-                : (p.selected < mods.size() ? mods.get(p.selected).getName() + " - " : "")
-                + I18n.t(campaigns ? "mods_campaign_alone" : "mods_note");
+                : p.selected < mods.size() ? mods.get(p.selected).getName() + " - " + I18n.t("mods_note")
+                : countLabel(mods) + " - " + I18n.t("mods_where") + dir.getAbsolutePath();
         return p;
     }
 
@@ -1223,10 +1193,9 @@ public class LauncherActivity extends Activity {
             String defFile = def;
             List<String> modArgs;
             try {
-                // Una campaña va sola, aunque hubiera otros mods activados de antes.
-                File camp = activeCampaign(gameDir);
-                java.util.Set<String> enabled = camp != null
-                        ? java.util.Collections.singleton(camp.getName()) : enabledMods();
+                // Sin campañas (las que quedaran activadas de antes no se cargan).
+                java.util.Set<String> enabled = enabledMods();
+                for (File f : GameData.mods(gameDir)) if (GameData.isCampaign(f)) enabled.remove(f.getName());
                 modArgs = alone ? new ArrayList<>() : GameData.modArguments(gameDir, enabled);
             } catch (Throwable t) {
                 android.util.Log.e("Duke3D", "No se pudieron preparar los mods", t);

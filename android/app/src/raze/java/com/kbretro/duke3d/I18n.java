@@ -134,7 +134,7 @@ final class I18n {
         put("mods_preparing", "Preparando mods", "Preparing mods");
         put("mods_wait", "la primera vez tarda (se descomprime)", "first time takes a while (unpacking)");
         put("mods_error", "No se pudieron preparar los mods: ", "Could not prepare the mods: ");
-        put("mods_note", "vóxeles y mapas sí; texturas y modelos HD no", "voxels and maps work; HD textures and models do not");
+        put("mods_note", "texturas y modelos HD (activa Modelos en el juego), vóxeles y sonido", "HD textures and models (turn on Models in game), voxels and sound");
         put("achievement_unlocked", "LOGRO DESBLOQUEADO", "ACHIEVEMENT UNLOCKED");
         put("unlocked_short", "OK", "OK");
         put("dos_keys", "Teclas", "Keys");

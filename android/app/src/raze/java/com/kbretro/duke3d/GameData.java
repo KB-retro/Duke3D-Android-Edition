@@ -130,15 +130,13 @@ final class GameData {
         File mods = new File(gameDir, "mods");
         File found = findChild(gameDir, "mods");
         if (found != null) mods = found;
-        boolean camp = false, gfx = false;
+        boolean gfx = false;
         File[] kids = mods.listFiles();
         if (kids != null) for (File k : kids) {
             if (!k.isDirectory()) continue;
             int c = categoryDir(k);
-            camp |= c == 1;
             gfx |= c == 2;
         }
-        if (!camp) new File(mods, CAMPAIGN_DIR).mkdirs();
         if (!gfx) new File(mods, GFX_DIR).mkdirs();
     }
 
