@@ -222,6 +222,15 @@ final class DukeMenuView extends View {
         return true;
     }
 
+    /** En el menú principal con secciones: pasa a la siguiente (botón Y o tocando el pie). */
+    boolean nextSection() {
+        if (stack.size() != 1 || page().otherSide == null) return false;
+        stack.set(0, page().otherSide);
+        invalidate();
+        return true;
+    }
+
+    private final RectF footerRect = new RectF();
     private final RectF[] tabRects = {new RectF(), new RectF()};
     private final Paint tabLine = new Paint();
 
@@ -412,6 +421,7 @@ final class DukeMenuView extends View {
 
         // Pie: una línea de información si la hay (carpeta, pista que suena...).
         if (p.footer != null) drawSmall(c, p.footer.get(), 160, 191, 0.6f, true);
+        footerRect.set(0, vy(183), w, h);
 
         // Versión de la app, pequeña, con las letras del juego, arriba a la derecha (lanzador).
         if (versionText != null && !overlay) {
@@ -717,6 +727,10 @@ final class DukeMenuView extends View {
             case KeyEvent.KEYCODE_BUTTON_A:
                 activate();
                 return true;
+            case KeyEvent.KEYCODE_BUTTON_Y:
+                // Menú principal con secciones (Legend, Classic, Legacy): Y pasa a la siguiente.
+                nextSection();
+                return true;
             case KeyEvent.KEYCODE_BACK:
             case KeyEvent.KEYCODE_BUTTON_B:
             case KeyEvent.KEYCODE_ESCAPE:
@@ -762,6 +776,7 @@ final class DukeMenuView extends View {
                 if (!dragged && idx < 0 && touched < 0) {
                     if (tabRects[0].contains(ev.getX(), ev.getY())) switchSide(-1);
                     else if (tabRects[1].contains(ev.getX(), ev.getY())) switchSide(1);
+                    else if (footerRect.contains(ev.getX(), ev.getY())) nextSection();
                 }
                 if (!dragged && idx < 0 && touched < 0 && coverRect.contains(ev.getX(), ev.getY())) {
                     Page p = page();

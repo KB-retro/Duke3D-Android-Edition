@@ -151,6 +151,45 @@ static void set_default_options(void)
     for (auto &d : defs) g_options[d[0]] = d[1];
 }
 
+// Los valores de serie de las opciones del núcleo (los que pondría RetroArch): sin ellos el núcleo
+// se quedaba con sus valores internos, que no siempre son los de serie (p. ej. sin recortar los
+// bordes negros). Los que ya tenemos (nuestros o de los argumentos) mandan.
+static void default_option(const char *key, const char *value)
+{
+    if (!key || !value) return;
+    std::lock_guard<std::mutex> lock(g_opt_mutex);
+    g_options.emplace(key, value);
+}
+
+static void defaults_v2(const retro_core_options_v2 *o)
+{
+    if (!o || !o->definitions) return;
+    for (const retro_core_option_v2_definition *d = o->definitions; d->key; d++)
+        default_option(d->key, d->default_value ? d->default_value : d->values[0].value);
+}
+
+static void defaults_v1(const retro_core_option_definition *d)
+{
+    if (!d) return;
+    for (; d->key; d++)
+        default_option(d->key, d->default_value ? d->default_value : d->values[0].value);
+}
+
+static void defaults_variables(const retro_variable *v)
+{
+    // "Descripción; valor1|valor2|...": el primero es el de serie.
+    if (!v) return;
+    for (; v->key; v++)
+    {
+        const char *semi = v->value ? strchr(v->value, ';') : NULL;
+        if (!semi) continue;
+        semi++;
+        while (*semi == ' ') semi++;
+        const char *bar = strchr(semi, '|');
+        default_option(v->key, std::string(semi, bar ? (size_t)(bar - semi) : strlen(semi)).c_str());
+    }
+}
+
 static void parse_option_arg(const char *arg)
 {
     const char *eq = strchr(arg, '=');
@@ -214,6 +253,8 @@ static bool environment(unsigned cmd, void *data)
         return true;
     case RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO:
         g_av = *(const retro_system_av_info *)data;
+        LOGI("Nuevo vídeo/sonido: %ux%u, aspecto %.3f, %.3f fps, sonido a %.0f Hz", g_av.geometry.base_width,
+             g_av.geometry.base_height, g_av.geometry.aspect_ratio, g_av.timing.fps, g_av.timing.sample_rate);
         return true;
     case RETRO_ENVIRONMENT_SET_GEOMETRY:
         g_av.geometry = *(const retro_game_geometry *)data;
@@ -238,10 +279,20 @@ static bool environment(unsigned cmd, void *data)
         *(unsigned *)data = 2;
         return true;
     case RETRO_ENVIRONMENT_SET_VARIABLES:
+        defaults_variables((const retro_variable *)data);
+        return true;
     case RETRO_ENVIRONMENT_SET_CORE_OPTIONS:
+        defaults_v1((const retro_core_option_definition *)data);
+        return true;
     case RETRO_ENVIRONMENT_SET_CORE_OPTIONS_INTL:
+        if (data) defaults_v1(((const retro_core_options_intl *)data)->us);
+        return true;
     case RETRO_ENVIRONMENT_SET_CORE_OPTIONS_V2:
+        defaults_v2((const retro_core_options_v2 *)data);
+        return true;
     case RETRO_ENVIRONMENT_SET_CORE_OPTIONS_V2_INTL:
+        if (data) defaults_v2(((const retro_core_options_v2_intl *)data)->us);
+        return true;
     case RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY:
     case RETRO_ENVIRONMENT_SET_CONTROLLER_INFO:
     case RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS:
@@ -517,7 +568,6 @@ extern "C" int SDL_main(int argc, char *argv[])
     set_default_options();
     for (int i = 5; i < argc; i++) parse_option_arg(argv[i]);
     LOGI("Disco: %s (sistema: %s)", disc, g_system_dir.c_str());
-    for (auto &o : g_options) LOGI("Opción %s = %s", o.first.c_str(), o.second.c_str());
 
     SDL_SetHint(SDL_HINT_ANDROID_TRAP_BACK_BUTTON, "1");
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) != 0)
@@ -548,6 +598,10 @@ extern "C" int SDL_main(int argc, char *argv[])
     // Mando DualShock (con los dos sticks) en el puerto 1.
     core.set_controller_port_device(0, RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_ANALOG, 1));
     core.get_system_av_info(&g_av);
+    {
+        std::lock_guard<std::mutex> lock(g_opt_mutex);
+        for (auto &o : g_options) LOGI("Opción %s = %s", o.first.c_str(), o.second.c_str());
+    }
     LOGI("Vídeo %ux%u (aspecto %.3f) a %.2f Hz, sonido a %.0f Hz", g_av.geometry.base_width,
          g_av.geometry.base_height, g_av.geometry.aspect_ratio, g_av.timing.fps, g_av.timing.sample_rate);
     open_audio(g_av.timing.sample_rate > 0 ? (int)g_av.timing.sample_rate : 44100);

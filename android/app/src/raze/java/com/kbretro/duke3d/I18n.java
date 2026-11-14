@@ -161,6 +161,7 @@ final class I18n {
         put("dos_load_error", "No se pudo cargar", "Could not load");
         put("dos_pad_help", "A: cambiar - la cruceta y el stick son siempre las flechas",
                 "A: change - D-pad and stick are always the arrows");
+        put("section_hint", "Y: cambiar a ", "Y: switch to ");
         put("psx_screen", "Pantalla", "Screen");
         put("psx_auto", "Automática", "Automatic");
         put("psx_wide", "Panorámica", "Widescreen");

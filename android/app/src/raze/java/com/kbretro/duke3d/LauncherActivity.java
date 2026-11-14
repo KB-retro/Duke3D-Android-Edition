@@ -280,32 +280,29 @@ public class LauncherActivity extends Activity {
         }
         root.add(I18n.t("mods"), null, () -> menuView.push(modsPage(gameDir)));
         root.add(I18n.t("options"), null, () -> menuView.push(optionsPage(gameDir)));
+        root.add(I18n.t("extras"), null, () -> menuView.push(extrasPage(gameDir)));
         root.add(I18n.t("quit"), null, this::finishAffinity);
 
-        // El otro lado: los clásicos y demás juegos (por orden de salida) y los extras, con la
-        // caja a la izquierda. Se pasa de un lado a otro con izquierda/derecha, L1/R1 o tocando
-        // las pestañas de arriba.
-        DukeMenuView.Page classics = classicsPage(gameDir);
-        String[] tabs = {"Duke Nukem 3D", I18n.t("dos_games")};
-        root.tabs = tabs;
-        classics.tabs = tabs;
-        classics.rightTab = true;
-        classics.coverLeft = true;
-        root.otherSide = classics;
-        classics.otherSide = root;
-        return showClassics ? classics : root;
+        // Secciones del menú principal (botón Y o tocando el pie): Legend (Duke 3D), Classic
+        // (Duke Nukem 1 y 2, MS-DOS) y Legacy (los de PlayStation). Todas con la caja a la derecha.
+        DukeMenuView.Page classic = classicPage(gameDir);
+        DukeMenuView.Page legacy = legacyPage(gameDir);
+        root.otherSide = classic;
+        classic.otherSide = legacy;
+        legacy.otherSide = root;
+        root.footer = () -> I18n.t("section_hint") + "Classic";
+        return section == 1 ? classic : section == 2 ? legacy : root;
     }
 
-    /** El menú principal vuelve al lado en el que se lanzó el último juego. */
-    private boolean showClassics;
+    /** El menú principal vuelve a la sección del último juego lanzado (0 Legend, 1 Classic, 2 Legacy). */
+    private int section;
 
-    /** Lado de los clásicos: Duke Nukem (1991), Duke Nukem II (1993), Time to Kill (1998), Land of the Babes (2000). */
-    private DukeMenuView.Page classicsPage(File gameDir) {
+    /** Classic: Duke Nukem (1991, sus tres episodios dentro) y Duke Nukem II (1993). */
+    private DukeMenuView.Page classicPage(File gameDir) {
         DukeMenuView.Page p = new DukeMenuView.Page();
         List<File> dirs = extrasDirs(gameDir);
         String where = (dirs.isEmpty() ? extrasDir() : dirs.get(0)).getAbsolutePath();
         String[] note = {null};
-        // Duke Nukem: un archivo por episodio; al elegirlo, sus tres episodios.
         p.addGame("Duke Nukem", box(R.drawable.caja_duke1), () -> {
             DukeMenuView.Page eps = new DukeMenuView.Page();
             for (DosGame g : DOS_GAMES) {
@@ -331,6 +328,16 @@ public class LauncherActivity extends Activity {
                 else note[0] = I18n.t("dos_missing") + where + "/duke2";
             });
         }
+        sectionFooter(p, note, "Legacy");
+        return p;
+    }
+
+    /** Legacy: Time to Kill (1998) y Land of the Babes (2000), de PlayStation. */
+    private DukeMenuView.Page legacyPage(File gameDir) {
+        DukeMenuView.Page p = new DukeMenuView.Page();
+        List<File> dirs = extrasDirs(gameDir);
+        String where = (dirs.isEmpty() ? extrasDir() : dirs.get(0)).getAbsolutePath();
+        String[] note = {null};
         int[] psxBoxes = {R.drawable.caja_ttk, R.drawable.caja_lotb};
         for (int i = 0; i < PSX_GAMES.length; i++) {
             String[] pg = PSX_GAMES[i];
@@ -353,17 +360,20 @@ public class LauncherActivity extends Activity {
                 launchPsx(gameDir, disc, b, pg[2]);
             });
         }
-        p.add(I18n.t("extras"), null, () -> menuView.push(extrasPage(gameDir)));
-        p.add(I18n.t("quit"), null, this::finishAffinity);
+        sectionFooter(p, note, "Legend");
+        return p;
+    }
+
+    /** Pie de una sección: el aviso del juego que no se pudo lanzar o cómo pasar a la siguiente. */
+    private static void sectionFooter(DukeMenuView.Page p, String[] note, String next) {
         int[] lastSel = {-1};
         p.footer = () -> {
             if (lastSel[0] != p.selected) {
-                note[0] = null; // el aviso es del juego que se intentó lanzar
+                note[0] = null;
                 lastSel[0] = p.selected;
             }
-            return note[0] != null ? note[0] : "";
+            return note[0] != null ? note[0] : I18n.t("section_hint") + next;
         };
-        return p;
     }
 
     /** El ejecutable de un juego de MS-DOS en las carpetas extras (o null). */
@@ -692,7 +702,7 @@ public class LauncherActivity extends Activity {
     }
 
     private void launchPsx(File gameDir, File disc, File bios, String id) {
-        showClassics = true;
+        section = 2;
         // Beetle PSX busca la BIOS por el nombre de su región (scph5500/5501/5502): se copia
         // con los tres a una carpeta de la app, sea cual sea el nombre del archivo del usuario.
         File system = new File(getFilesDir(), "psx_bios");
@@ -726,7 +736,7 @@ public class LauncherActivity extends Activity {
     }
 
     private void launchDos(File gameDir, DosGame g, File exe) {
-        showClassics = true;
+        section = 1;
         File saves = new File(extrasDir(), "partidas");
         //noinspection ResultOfMethodCallIgnored
         saves.mkdirs();
@@ -1092,7 +1102,7 @@ public class LauncherActivity extends Activity {
     private boolean launchAlone;
 
     private void launch(File gameDir, GameData.Game game, String[] extraArgs) {
-        showClassics = false;
+        section = 0;
         if (launching) return;
         launching = true;
         music.stop();
