@@ -438,7 +438,7 @@ final class DukeMenuView extends View {
                 int frames = 12, fw = sectionIcon.getWidth() / frames, fh = sectionIcon.getHeight();
                 int f = (int) ((now / 60) % frames);
                 android.graphics.Rect src = new android.graphics.Rect(f * fw, 0, (f + 1) * fw, fh);
-                float hpx = 22 * sy, cx = vx(160), cy = vy(188);
+                float hpx = 26 * sy, cx = vx(160), cy = vy(186);
                 dst.set(cx - hpx / 2f, cy - hpx / 2f, cx + hpx / 2f, cy + hpx / 2f);
                 c.drawBitmap(sectionIcon, src, dst, smooth);
             }
@@ -750,6 +750,7 @@ final class DukeMenuView extends View {
                 activate();
                 return true;
             case KeyEvent.KEYCODE_BUTTON_Y:
+            case KeyEvent.KEYCODE_BUTTON_X: // el botón de arriba en mandos tipo Nintendo
                 // Menú principal con secciones (Legend, Classic, Legacy): Y pasa a la siguiente.
                 nextSection();
                 return true;
