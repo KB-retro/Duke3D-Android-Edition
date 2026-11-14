@@ -140,6 +140,7 @@ final class I18n {
         put("dos_keys", "Teclas", "Keys");
         put("guide", "Guia", "Guide");
         put("next", "Siguiente", "Next");
+        put("dos_act_jump_enter", "Saltar + Intro", "Jump + Enter");
         put("dos_act_jump", "Saltar (Ctrl)", "Jump (Ctrl)");
         put("dos_act_fire", "Disparar (Alt)", "Fire (Alt)");
         put("dos_act_use", "Usar / Arriba", "Use / Up");

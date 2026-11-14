@@ -45,6 +45,16 @@ public class DosActivity extends SDLActivity {
     static final int K_F1 = 282, K_SHIFT = 304, K_CTRL = 306, K_ALT = 308;
     /** No es una tecla: abre la barra de teclas en pantalla (con el menú de ayuda F1). */
     static final int K_KEYBAR = -2;
+    /** No es una tecla: Ctrl (saltar) e Intro (aceptar en los menús) a la vez. */
+    static final int K_JUMP_ENTER = -3;
+
+    /** Pulsa o suelta lo que tenga asignado un botón (tecla o combinación). */
+    private static void action(int k, boolean down) {
+        if (k == K_JUMP_ENTER) {
+            key(K_CTRL, down);
+            key(K_ENTER, down);
+        } else if (k >= 0) key(k, down);
+    }
 
     private final Handler ui = new Handler(Looper.getMainLooper());
     private DukeMenuView quickMenu;
@@ -316,9 +326,9 @@ public class DosActivity extends SDLActivity {
     private static final String[] PAD_NAMES = {"A", "B", "X", "Y", "L1", "R1", "L2", "R2", "L3", "R3", "Start", "Select"};
 
     /** Lo que puede hacer un botón: tecla del juego y su nombre (clave de I18n o texto). */
-    private static final int[] ACTION_KEYS = {K_CTRL, K_ALT, K_UP, K_DOWN, K_ENTER, K_ESC, K_SPACE,
+    private static final int[] ACTION_KEYS = {K_JUMP_ENTER, K_CTRL, K_ALT, K_UP, K_DOWN, K_ENTER, K_ESC, K_SPACE,
             'y', 'n', 'p', K_KEYBAR, K_F1, K_F1 + 1, K_F1 + 2, K_F1 + 9, K_SHIFT, K_TAB, -1};
-    private static final String[] ACTION_NAMES = {"dos_act_jump", "dos_act_fire", "dos_act_use", "dos_act_down",
+    private static final String[] ACTION_NAMES = {"dos_act_jump_enter", "dos_act_jump", "dos_act_fire", "dos_act_use", "dos_act_down",
             "Intro", "Esc", "dos_space", "Y", "N", "dos_act_pause", "dos_act_keybar", "F1", "F2", "F3", "F10", "Shift", "Tab", "dos_act_none"};
 
     private static String actionName(int key) {
@@ -429,7 +439,7 @@ public class DosActivity extends SDLActivity {
             case KeyEvent.KEYCODE_DPAD_DOWN: return K_DOWN;
             case KeyEvent.KEYCODE_DPAD_LEFT: return K_LEFT;
             case KeyEvent.KEYCODE_DPAD_RIGHT: return K_RIGHT;
-            case KeyEvent.KEYCODE_BUTTON_A: return K_CTRL;    // saltar
+            case KeyEvent.KEYCODE_BUTTON_A: return K_JUMP_ENTER; // saltar + aceptar en menus
             case KeyEvent.KEYCODE_BUTTON_X: return K_ALT;     // disparar
             case KeyEvent.KEYCODE_BUTTON_B: return K_UP;      // usar / entrar en puertas
             case KeyEvent.KEYCODE_BUTTON_Y: return K_UP;      // usar / entrar en puertas
@@ -505,8 +515,7 @@ public class DosActivity extends SDLActivity {
             } else if (down && (code == KeyEvent.KEYCODE_DPAD_LEFT || code == KeyEvent.KEYCODE_DPAD_RIGHT)) {
                 keyBar.move(code == KeyEvent.KEYCODE_DPAD_LEFT ? -1 : 1);
             } else if (!down) {
-                int k = padAction(code); // suelta lo que estuviera pulsado al abrir la barra
-                if (k >= 0) key(k, false);
+                action(padAction(code), false); // suelta lo que estuviera pulsado al abrir la barra
             }
             return true;
         }
@@ -515,8 +524,8 @@ public class DosActivity extends SDLActivity {
             if (down && e.getRepeatCount() == 0) toggleKeyBar();
             return true;
         }
-        if (k < 0) return true;
-        if (e.getRepeatCount() == 0 || !down) key(k, down);
+        if (k < 0 && k != K_JUMP_ENTER) return true;
+        if (e.getRepeatCount() == 0 || !down) action(k, down);
         return true;
     }
 
@@ -564,12 +573,12 @@ public class DosActivity extends SDLActivity {
         if (l != trigL) {
             trigL = l;
             int k = padAction(KeyEvent.KEYCODE_BUTTON_L2);
-            if (k == K_KEYBAR) { if (l) toggleKeyBar(); } else if (k >= 0) key(k, l);
+            if (k == K_KEYBAR) { if (l) toggleKeyBar(); } else action(k, l);
         }
         if (r != trigR) {
             trigR = r;
             int k = padAction(KeyEvent.KEYCODE_BUTTON_R2);
-            if (k == K_KEYBAR) { if (r) toggleKeyBar(); } else if (k >= 0) key(k, r);
+            if (k == K_KEYBAR) { if (r) toggleKeyBar(); } else action(k, r);
         }
         return true;
     }
