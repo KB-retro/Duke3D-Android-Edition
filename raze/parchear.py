@@ -346,3 +346,126 @@ sub("source/common/console/c_console.cpp",
 sub("source/common/console/c_console.cpp",
     "void C_ToggleConsole ()\n{\n\tint togglestate;",
     "void C_ToggleConsole ()\n{\n#ifdef __ANDROID__\n\treturn;\n#endif\n\tint togglestate;")
+
+# 27. Modelos 3D (MD3/MD2 del HRP). Raze lee los «model» de los .def y tiene el renderizador de
+#     modelos (el mismo que dibuja los vóxeles), pero nunca llegaba a dibujarlos: el hueco de
+#     hw_drawinfo.cpp estaba comentado y HWSprite::ProcessModel no existía. Se coloca el modelo
+#     con las mismas cuentas que polymost_md3draw de EDuke32 (escala 0.01 * scale del .def,
+#     zadd/yoffset, giro del sprite, volteos), en unidades de Raze.
+sub("source/core/models/modeldata.h",
+    "\t\treturn tilenum.GetIndex() + (palette < 20);",
+    "\t\treturn tilenum.GetIndex() + (palette << 20);")
+sub("source/core/models/modeldata.h",
+    "\t\treturn frameMap.CheckKey(FrameMapKey(tilenum, pal)) != nullptr;",
+    "\t\treturn GetModel(tilenum, pal) != nullptr;")
+sub("source/core/models/modeldata.h",
+    "\t\treturn frameMap.CheckKey(FrameMapKey(tilenum, pal));",
+    # Como EDuke32: si no hay modelo para esa paleta, el de la paleta 0.
+    "\t\tauto f = frameMap.CheckKey(FrameMapKey(tilenum, pal));\n"
+    "\t\tif (!f && pal != 0) f = frameMap.CheckKey(FrameMapKey(tilenum, 0));\n"
+    "\t\treturn f;")
+sub("source/core/textures/texinfo.cpp",
+    "\t/*\n\tif (hw_models)\n\t{\n\t\treturn modelManager.CheckModel(tilenume, pal);\t// we have no models yet.\n\t}\n\t*/",
+    "\tif (hw_models && modelManager.CheckModel(texid, pal)) return true;")
+sub("source/core/textures/texinfo.cpp",
+    '#include "texinfo.h"',
+    '#include "texinfo.h"\n#include "models/modeldata.h"\nEXTERN_CVAR(Bool, hw_models)')
+sub("source/core/rendering/scene/hw_drawinfo.cpp",
+    "\t\t\t\t//HWSprite hwsprite;\n\t\t\t\t//if (hwsprite.ProcessModel(pt, tspr)) continue;",
+    "\t\t\t\tHWSprite hwsprite;\n\t\t\t\tif (hwsprite.ProcessModel(this, pt, tspr, tspr->sectp)) continue;")
+sub("source/core/rendering/scene/hw_drawstructs.h",
+    "\tvoxmodel_t* voxel;\n\n\tint index;",
+    "\tvoxmodel_t* voxel;\n\tclass FModel* mdl;\n\tstruct ModelDescriptor* mddesc;\n\tint mdframe, mdskinnum;\n\n\tint index;")
+sub("source/core/rendering/scene/hw_drawstructs.h",
+    "\tbool ProcessVoxel(HWDrawInfo* di, voxmodel_t* voxel, tspritetype* tspr, sectortype* sector, bool rotate);",
+    "\tbool ProcessVoxel(HWDrawInfo* di, voxmodel_t* voxel, tspritetype* tspr, sectortype* sector, bool rotate);\n"
+    "\tbool ProcessModel(HWDrawInfo* di, struct ModelTileFrame* pt, tspritetype* tspr, sectortype* sector);")
+sub("source/core/rendering/scene/hw_sprites.cpp",
+    '#include "hw_voxels.h"',
+    '#include "hw_voxels.h"\n#include "models/modeldata.h"\n#include "model.h"')
+sub("source/core/rendering/scene/hw_sprites.cpp",
+    "\t\telse\n\t\t{\n\t\t\t//RenderModel(&renderer, x, y, z, modelframe, actor, di->Viewpoint.TicFrac);\n\t\t}",
+    "\t\telse if (mdl && mddesc)\n\t\t{\n"
+    # Skin de cada superficie: la de la paleta del sprite o, si no hay, la de la paleta 0.
+    "\t\t\tFTextureID skins[32];\n\t\t\tfor (auto& s : skins) s.SetInvalid();\n\t\t\tbool any = false;\n"
+    "\t\t\tfor (int pass = 0; pass < 2; pass++)\n"
+    "\t\t\t\tfor (auto& sk : mddesc->skins)\n\t\t\t\t{\n"
+    "\t\t\t\t\tif (sk.skinnum != mdskinnum || (unsigned)sk.surfnum >= 32u || !sk.texture.isValid()) continue;\n"
+    "\t\t\t\t\tif (sk.palette != (pass == 0 ? palette : 0)) continue;\n"
+    "\t\t\t\t\tif (!skins[sk.surfnum].isValid()) { skins[sk.surfnum] = sk.texture; any = true; }\n"
+    "\t\t\t\t}\n"
+    "\t\t\tFGameTexture* single = (!mdl->hasSurfaces && skins[0].isValid()) ? TexMan.GetGameTexture(skins[0], true) : nullptr;\n"
+    "\t\t\tstate.SetDepthFunc(DF_LEqual);\n\t\t\tstate.EnableTexture(true);\n"
+    "\t\t\tmdl->BuildVertexBuffer(&mr);\n"
+    "\t\t\tmr.BeginDrawModel(RenderStyle, 0, rotmat, false);\n"
+    "\t\t\tstate.SetCulling(Cull_None);\n"
+    "\t\t\tTArray<VSMatrix> a;\n"
+    "\t\t\tmdl->RenderFrame(&mr, single, mdframe, mdframe, 0.f, NO_TRANSLATION, (single || !any) ? nullptr : skins, a, 0);\n"
+    "\t\t\tmr.EndDrawModel(RenderStyle, 0);\n"
+    "\t\t\tstate.SetDepthFunc(DF_Less);\n"
+    "\t\t}")
+sub("source/core/rendering/scene/hw_sprites.cpp",
+    "bool HWSprite::ProcessVoxel(HWDrawInfo* di, voxmodel_t* vox, tspritetype* spr, sectortype* sector, bool rotate)\n{",
+    r'''bool HWSprite::ProcessModel(HWDrawInfo* di, ModelTileFrame* pt, tspritetype* spr, sectortype* sector)
+{
+	if (!pt || (unsigned)pt->modelid >= modelManager.modelDescs.Size() || pt->framenum < 0) return false;
+	auto desc = &modelManager.modelDescs[pt->modelid];
+	if (desc->deleted || desc->modelID >= Models.Size() || !Models[desc->modelID]) return false;
+	if ((spr->cstat & CSTAT_SPRITE_ALIGNMENT_MASK) == CSTAT_SPRITE_ALIGNMENT_FLOOR) return false;
+	auto tex = TexMan.GetGameTexture(spr->spritetexture());
+	if (!tex) return false;
+
+	Sprite = spr;
+	auto ownerActor = spr->ownerActor;
+	texture = nullptr;
+	voxel = nullptr;
+	modelframe = 1;
+	mdl = Models[desc->modelID];
+	mddesc = desc;
+	mdframe = pt->framenum;
+	mdskinnum = pt->skinnum;
+	dynlightindex = -1;
+	shade = clamp(spr->shade + desc->shadeoff, -128, 127);
+	palette = spr->pal;
+	fade = lookups.getFade(sector->floorpal);
+	visibility = sectorVisibility(sector);
+	SetSpriteTranslucency(spr, alpha, RenderStyle);
+
+	auto ang = spr->Angles.Yaw + ownerActor->sprext.rot.Yaw;
+	if (spr->clipdist & TSPR_MDLROTATE)
+	{
+		int myclock = (PlayClock << 3) + MulScale(4 << 3, (int)di->Viewpoint.TicFrac, 16);
+		ang += DAngle::fromBuild(myclock);
+	}
+
+	bool yflip = (spr->cstat & CSTAT_SPRITE_YFLIP) != 0;
+	bool xflip = (spr->cstat & CSTAT_SPRITE_XFLIP) != 0;
+	// Unidades del MD3 (ya divididas entre 64 al cargarlo) a unidades de Raze.
+	float sh = 0.64f * desc->bscale * (float)spr->scale.X;
+	float sv = 0.64f * desc->bscale * (float)spr->scale.Y;
+	float th = (float)tex->GetDisplayHeight() * (float)spr->scale.Y;
+
+	float zpos = (float)(spr->pos.Z + ownerActor->sprext.position_offset.Z);
+	bool notface = (spr->ownerActor->spr.cstat & CSTAT_SPRITE_ALIGNMENT_MASK) != CSTAT_SPRITE_ALIGNMENT_FACING;
+	zpos -= spr->yoffset * (float)spr->scale.Y * ((yflip && notface) ? -1.f : 1.f);
+	if (spr->cstat & CSTAT_SPRITE_YCENTER) zpos += th * 0.5f;
+	if (yflip) zpos -= th;
+	float up = ((yflip ? -desc->zadd : desc->zadd) + desc->yoffset) * sv;
+
+	x = (float)(spr->pos.X + ownerActor->sprext.position_offset.X);
+	z = -zpos;
+	y = -(float)(spr->pos.Y + ownerActor->sprext.position_offset.Y);
+
+	rotmat.loadIdentity();
+	rotmat.translate(x, z + up, y);
+	rotmat.rotate((float)ang.Degrees(), 0, 1, 0);
+	rotmat.scale(sh, yflip ? -sv : sv, xflip ? -sh : sh);
+
+	auto vp = di->Viewpoint;
+	depth = (float)((x - vp.Pos.X) * vp.TanCos + (y - vp.Pos.Y) * vp.TanSin);
+	PutSprite(di, spriteHasTranslucency(Sprite));
+	return true;
+}
+
+bool HWSprite::ProcessVoxel(HWDrawInfo* di, voxmodel_t* vox, tspritetype* spr, sectortype* sector, bool rotate)
+{''')
