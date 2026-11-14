@@ -344,6 +344,9 @@ final class GameData {
     }
 
     /** Baja por las carpetas que no tienen datos del mod y solo contienen otra carpeta. */
+    private static final java.util.Set<String> RESOURCE_DIRS = new java.util.HashSet<>(java.util.Arrays.asList(
+            "highres", "lowres", "textures", "sprites", "models", "voxels", "sound", "sounds", "music", "maps", "screen", "skyboxes"));
+
     private static File modBase(File dir) {
         for (int depth = 0; depth < 5; depth++) {
             File[] kids = dir.listFiles();
@@ -362,6 +365,9 @@ final class GameData {
                 }
             }
             if (data || dirs != 1) return dir;
+            // Carpetas de recursos (las de los .def): el mod empieza en la de encima. Los
+            // complementos del HRP (p. ej. XXX) solo traen highres/ con las mismas rutas.
+            if (RESOURCE_DIRS.contains(onlyDir.getName().toLowerCase(java.util.Locale.ROOT))) return dir;
             dir = onlyDir;
         }
         return dir;
