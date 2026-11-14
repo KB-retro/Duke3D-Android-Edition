@@ -435,9 +435,9 @@ public class DosActivity extends SDLActivity {
             case KeyEvent.KEYCODE_BUTTON_Y: return K_UP;      // usar / entrar en puertas
             case KeyEvent.KEYCODE_BUTTON_L2: return K_CTRL;   // saltar
             case KeyEvent.KEYCODE_BUTTON_R2: return K_ALT;    // disparar
-            case KeyEvent.KEYCODE_BUTTON_L1: return 'p';      // pausa
+            case KeyEvent.KEYCODE_BUTTON_L1: return K_ENTER;  // aceptar en los menus
             case KeyEvent.KEYCODE_BUTTON_R1: return K_KEYBAR; // ayuda (F1) + barra de teclas
-            case KeyEvent.KEYCODE_BUTTON_START: return K_ENTER; // aceptar en los menus
+            case KeyEvent.KEYCODE_BUTTON_START: return 'p';   // pausa
             case KeyEvent.KEYCODE_BUTTON_SELECT: return K_ESC;  // menu / volver
             case KeyEvent.KEYCODE_DPAD_CENTER: return K_ENTER;
             default: return -1;
