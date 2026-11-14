@@ -556,3 +556,14 @@ sub("source/core/textures/tilesetbuilder.cpp",
 sub("source/core/textures/tilesetbuilder.cpp",
     '#include "tilesetbuilder.h"',
     '#include "tilesetbuilder.h"\n#include "models/modeldata.h"')
+
+# 29. Raze lee como TEXTURES de GZDoom cualquier archivo llamado «textures», tenga la extensión
+#     que tenga. Duke 64 trae un textures.def (de los de Build, lo incluye su duke64.def) y el
+#     juego se cerraba con «Texture definition expected, found 'undeftexturerange'».
+sub("source/common/textures/texturemanager.cpp",
+    "\t\tif (fileSystem.GetFileContainer(texLump) == wadnum)\n\t\t{\n\t\t\tParseTextureDef(texLump, build);",
+    "\t\tif (fileSystem.GetFileContainer(texLump) == wadnum)\n\t\t{\n"
+    "\t\t\tconst char* tfn = fileSystem.GetFileFullName(texLump, false);\n"
+    "\t\t\tsize_t tl = tfn ? strlen(tfn) : 0;\n"
+    "\t\t\tif (tl > 4 && (!stricmp(tfn + tl - 4, \".def\") || !stricmp(tfn + tl - 4, \".con\"))) continue;\n"
+    "\t\t\tParseTextureDef(texLump, build);")
