@@ -20,7 +20,7 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * Juegos de PlayStation de los extras (Duke Nukem: Time to Kill), con Beetle PSX (libpsxcore.so)
+ * Juegos de PlayStation de los extras (Duke Nukem: Time to Kill...), con SwanStation (libpsxcore.so)
  * y nuestro frontend (libpsx.so, ver cpp/psx/psx_main.cpp). Va en su propio proceso (":psx").
  *
  * El juego arranca directamente. El mando va como un DualShock (los dos sticks). Atrás abre el
@@ -152,9 +152,9 @@ public class PsxActivity extends SDLActivity {
     private static final String[] BLOOM_KEYS = {"no", "gfx_soft", "gfx_strong"};
     /** Pantalla: automática (según la de la consola), 4:3 o panorámica. */
     private static final String[] SCREEN_KEYS = {"psx_auto", "4:3", "psx_wide"};
-    // Beetle PSX solo admite potencias de dos (1x, 2x, 4x...): hasta 4x, que es lo que tiene sentido.
-    private static final String[] RES_LABELS = {"1x", "2x", "4x"};
-    private static final String[] RES_VALUES = {"1x(native)", "2x", "4x"};
+    // Resolución interna (con la GPU): de 1x a 6x.
+    private static final String[] RES_LABELS = {"1x", "2x", "3x", "4x", "5x", "6x"};
+    private static final String[] RES_VALUES = {"1", "2", "3", "4", "5", "6"};
 
     /** Ajuste propio de los juegos de PlayStation. */
     private int gfx(String key, int def, int n) {
@@ -178,8 +178,8 @@ public class PsxActivity extends SDLActivity {
     }
 
     /**
-     * Proporción panorámica para el truco de Beetle PSX, la más cercana a la de la pantalla
-     * (16:10, 16:9, 18:9, 19:9, 20:9, 21:9), o null si la pantalla es casi 4:3.
+     * Proporción panorámica para el truco de pantalla ancha de SwanStation, la más cercana a la
+     * de la pantalla (16:9, 19:9 o 20:9), o null si la pantalla es casi 4:3.
      */
     private String screenWide() {
         int mode = gfx("pantalla", 0, SCREEN_KEYS.length);
@@ -188,24 +188,24 @@ public class PsxActivity extends SDLActivity {
         getWindowManager().getDefaultDisplay().getRealMetrics(m);
         float r = (float) Math.max(m.widthPixels, m.heightPixels) / Math.max(1, Math.min(m.widthPixels, m.heightPixels));
         if (mode == 0 && r < 1.45f) return null; // pantalla 4:3 (o casi): sin panorámico
-        String[] names = {"16:10", "16:9", "18:9", "19:9", "20:9", "21:9"};
-        float[] ratios = {1.6f, 16f / 9f, 2f, 19f / 9f, 20f / 9f, 64f / 27f};
-        int best = 1;
+        String[] names = {"16:9", "19:9", "20:9"};
+        float[] ratios = {16f / 9f, 19f / 9f, 20f / 9f};
+        int best = 0;
         for (int i = 0; i < ratios.length; i++)
             if (Math.abs(ratios[i] - r) < Math.abs(ratios[best] - r)) best = i;
         return names[best];
     }
 
-    /** Opciones de Beetle PSX que dependen de los ajustes (las demás, en psx_main.cpp). */
+    /** Opciones de SwanStation que dependen de los ajustes (las demás, en psx_main.cpp). */
     private List<String[]> coreOptions() {
         List<String[]> o = new ArrayList<>();
         String wide = screenWide();
-        o.add(new String[]{"beetle_psx_hw_widescreen_hack", wide != null ? "enabled" : "disabled"});
-        if (wide != null) o.add(new String[]{"beetle_psx_hw_widescreen_hack_aspect_ratio", wide});
-        o.add(new String[]{"beetle_psx_hw_internal_resolution", RES_VALUES[gfx("resolucion2", 2, RES_VALUES.length)]});
-        o.add(new String[]{"beetle_psx_hw_pgxp_mode", gfx("pgxp", 1, 2) == 1 ? "memory only" : "disabled"});
+        o.add(new String[]{"swanstation_GPU_WidescreenHack", wide != null ? "true" : "false"});
+        o.add(new String[]{"swanstation_Display_AspectRatio", wide != null ? wide : "4:3"});
+        o.add(new String[]{"swanstation_GPU_ResolutionScale", RES_VALUES[gfx("resolucion3", 2, RES_VALUES.length)]});
+        o.add(new String[]{"swanstation_GPU_PGXPEnable", gfx("pgxp", 1, 2) == 1 ? "true" : "false"});
         // Versiones PAL (europeas, a 50 Hz) a 60 Hz, como la americana. Solo afecta a discos PAL.
-        o.add(new String[]{"beetle_psx_hw_pal_video_timing_override", gfx("pal60", 0, 2) == 1 ? "enabled" : "disabled"});
+        o.add(new String[]{"swanstation_GPU_ForceNTSCTimings", gfx("pal60", 0, 2) == 1 ? "true" : "false"});
         return o;
     }
 
@@ -296,8 +296,8 @@ public class PsxActivity extends SDLActivity {
             cycleGfx("pantalla", 0, SCREEN_KEYS.length);
             applyCoreOptions();
         });
-        p.addValue(I18n.t("psx_res"), () -> RES_LABELS[gfx("resolucion2", 2, RES_VALUES.length)], () -> {
-            cycleGfx("resolucion2", 2, RES_VALUES.length);
+        p.addValue(I18n.t("psx_res"), () -> RES_LABELS[gfx("resolucion3", 2, RES_VALUES.length)], () -> {
+            cycleGfx("resolucion3", 2, RES_VALUES.length);
             applyCoreOptions();
         });
         p.addValue(I18n.t("psx_pgxp"), () -> I18n.t(gfx("pgxp", 1, 2) == 1 ? "yes" : "no"), () -> {
@@ -406,7 +406,7 @@ public class PsxActivity extends SDLActivity {
         return p;
     }
 
-    /** Sale del juego (Beetle guarda antes la tarjeta de memoria). */
+    /** Sale del juego (antes se guarda la tarjeta de memoria). */
     private void quit(boolean all) {
         if (all) prefs().edit().putBoolean("salir_todo", true).commit();
         if (quickMenu != null) quickMenu.setVisibility(View.GONE);

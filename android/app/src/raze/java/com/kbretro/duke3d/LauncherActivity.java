@@ -355,12 +355,8 @@ public class LauncherActivity extends Activity {
                     note[0] = I18n.t("dos_missing") + where + "/" + pg[1];
                     return;
                 }
-                File b = findPsxBios(disc.getParentFile(), ds);
-                if (b == null) {
-                    note[0] = I18n.t("psx_no_bios") + disc.getParentFile().getAbsolutePath();
-                    return;
-                }
-                launchPsx(gameDir, disc, b, pg[2]);
+                // Sin BIOS también arranca: SwanStation trae OpenBIOS (libre) dentro.
+                launchPsx(gameDir, disc, findPsxBios(disc.getParentFile(), ds), pg[2]);
             });
         }
         addSectionMenu(p, gameDir);
@@ -714,13 +710,14 @@ public class LauncherActivity extends Activity {
 
     private void launchPsx(File gameDir, File disc, File bios, String id) {
         section = 2;
-        // Beetle PSX busca la BIOS por el nombre de su región (scph5500/5501/5502): se copia
-        // con los tres a una carpeta de la app, sea cual sea el nombre del archivo del usuario.
+        // SwanStation busca la BIOS por el nombre de su región (scph5500/5501/5502): se copia
+        // con los tres a una carpeta de la app, sea cual sea el nombre del archivo del usuario
+        // (sin BIOS, SwanStation usa OpenBIOS, que trae dentro).
         File system = new File(getFilesDir(), "psx_bios");
         //noinspection ResultOfMethodCallIgnored
         system.mkdirs();
         try {
-            for (String n : new String[]{"scph5500.bin", "scph5501.bin", "scph5502.bin"}) {
+            if (bios != null) for (String n : new String[]{"scph5500.bin", "scph5501.bin", "scph5502.bin"}) {
                 File out = new File(system, n);
                 if (out.length() == bios.length() && out.lastModified() >= bios.lastModified()) continue;
                 //noinspection ResultOfMethodCallIgnored

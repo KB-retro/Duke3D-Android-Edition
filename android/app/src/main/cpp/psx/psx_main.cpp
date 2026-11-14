@@ -1,6 +1,6 @@
 // Duke3D Android Edition (HD): juegos de PlayStation de los extras (Duke Nukem: Time to Kill).
 //
-// "Frontend" libretro mínimo para el núcleo Beetle PSX (Mednafen), que va en su propia
+// "Frontend" libretro mínimo para el núcleo SwanStation (DuckStation), que va en su propia
 // biblioteca (libpsxcore.so, compilada con su Android.mk) y se abre con dlopen. Como el de los
 // juegos de MS-DOS (dos/dos_main.cpp): ventana con OpenGL ES y los filtros de postfx.c, sonido
 // con la cola de audio de SDL, guardado y carga rápidos con los estados de libretro.
@@ -67,6 +67,8 @@ static struct Core {
     size_t (*serialize_size)(void);
     bool (*serialize)(void *, size_t);
     bool (*unserialize)(const void *, size_t);
+    void *(*get_memory_data)(unsigned);
+    size_t (*get_memory_size)(unsigned);
 } core;
 
 static bool load_core(void)
@@ -96,6 +98,8 @@ static bool load_core(void)
     SYM(serialize_size, "retro_serialize_size");
     SYM(serialize, "retro_serialize");
     SYM(unserialize, "retro_unserialize");
+    SYM(get_memory_data, "retro_get_memory_data");
+    SYM(get_memory_size, "retro_get_memory_size");
 #undef SYM
     return true;
 }
@@ -129,31 +133,23 @@ static std::map<std::string, std::string> g_options;
 static std::atomic<bool> g_options_changed{false};
 static std::string g_opt_value;  // la que se devuelve a GET_VARIABLE (vive hasta la siguiente)
 
-// El núcleo es el de render por hardware (mednafen_psx_hw): sus opciones van con este prefijo.
-#define OPT "beetle_psx_hw_"
+// El núcleo es SwanStation (la versión libretro de DuckStation): sus opciones van con este prefijo.
+#define OPT "swanstation_"
 
 static void set_default_options(void)
 {
     static const char *defs[][2] = {
-        {OPT "renderer", "hardware_gl"},                // con la GPU (OpenGL ES 3)
-        {OPT "cpu_dynarec", "execute"},          // dynarec (lightrec): rápido en ARM
-        {OPT "dynarec_invalidate", "full"},
-        {OPT "cd_access_method", "sync"},
-        {OPT "skip_bios", "enabled"},
-        {OPT "use_mednafen_memcard0_method", "mednafen"},  // el núcleo guarda la tarjeta (.mcr)
-        {OPT "enable_memcard1", "disabled"},
-        {OPT "analog_toggle", "enabled-analog"},  // DualShock en modo analógico
-        // El cambio a digital con L1+R1+Select (lo de serie) saltaba jugando y el stick izquierdo
-        // dejaba de responder: solo con los seis botones a la vez durante 5 segundos.
-        {OPT "analog_toggle_combo", "l1+l2+r1+r2+start+select"},
-        {OPT "analog_toggle_hold", "5"},
-        {OPT "frame_duping", "enabled"},
-        {OPT "widescreen_hack", "disabled"},
-        {OPT "widescreen_hack_aspect_ratio", "16:9"},
-        {OPT "internal_resolution", "1x(native)"},
-        {OPT "pgxp_mode", "disabled"},
-        {OPT "display_osd", "disabled"},
-        {OPT "depth", "32bpp"},  // color de 32 bits con la GPU (a 16, bandas y tramado)
+        {OPT "GPU_Renderer", "OpenGL"},               // con la GPU (OpenGL ES 3)
+        {OPT "GPU_ResolutionScale", "3"},
+        {OPT "GPU_TrueColor", "true"},                // color de 32 bits
+        {OPT "GPU_ScaledDithering", "true"},
+        {OPT "GPU_WidescreenHack", "false"},
+        {OPT "Display_AspectRatio", "4:3"},
+        {OPT "GPU_PGXPEnable", "false"},
+        {OPT "BIOS_PatchFastBoot", "true"},           // sin la animación de la BIOS
+        {OPT "Controller1_ForceAnalog", "true"},      // DualShock siempre en analógico
+        {OPT "Display_ShowOSDMessages", "false"},
+        {OPT "CPU_ExecutionMode", "Recompiler"},
     };
     for (auto &d : defs) g_options[d[0]] = d[1];
 }
@@ -309,7 +305,8 @@ static bool environment(unsigned cmd, void *data)
         *(bool *)data = g_options_changed.exchange(false);
         return true;
     case RETRO_ENVIRONMENT_GET_PREFERRED_HW_RENDER:
-        *(unsigned *)data = RETRO_HW_CONTEXT_OPENGLES3;
+        // OPENGLES_VERSION: así SwanStation prueba primero OpenGL ES (3.x).
+        *(unsigned *)data = RETRO_HW_CONTEXT_OPENGLES_VERSION;
         return true;
     case RETRO_ENVIRONMENT_SET_HW_RENDER: {
         retro_hw_render_callback *cb = (retro_hw_render_callback *)data;
@@ -482,6 +479,46 @@ static int16_t input_state(unsigned port, unsigned device, unsigned index, unsig
     }
 }
 
+// ---- Tarjeta de memoria (las partidas del propio juego) ----
+// SwanStation la da como SAVE_RAM: se carga al empezar y se guarda en un .srm junto a las
+// demás partidas cuando cambia (cada pocos segundos), en pausa y al salir.
+
+static std::string g_srm_path;
+static std::vector<uint8_t> g_srm_last;
+
+static void srm_load(void)
+{
+    uint8_t *mem = (uint8_t *)core.get_memory_data(RETRO_MEMORY_SAVE_RAM);
+    size_t size = core.get_memory_size(RETRO_MEMORY_SAVE_RAM);
+    if (!mem || !size) return;
+    FILE *f = fopen(g_srm_path.c_str(), "rb");
+    if (f)
+    {
+        size_t n = fread(mem, 1, size, f);
+        fclose(f);
+        LOGI("Tarjeta de memoria cargada: %zu bytes", n);
+    }
+    g_srm_last.assign(mem, mem + size);
+}
+
+static void srm_save(bool force)
+{
+    uint8_t *mem = (uint8_t *)core.get_memory_data(RETRO_MEMORY_SAVE_RAM);
+    size_t size = core.get_memory_size(RETRO_MEMORY_SAVE_RAM);
+    if (!mem || !size) return;
+    if (!force && g_srm_last.size() == size && memcmp(g_srm_last.data(), mem, size) == 0) return;
+    std::string tmp = g_srm_path + ".tmp";
+    FILE *f = fopen(tmp.c_str(), "wb");
+    if (!f) return;
+    bool ok = fwrite(mem, 1, size, f) == size;
+    ok = (fclose(f) == 0) && ok;
+    if (ok && rename(tmp.c_str(), g_srm_path.c_str()) == 0)
+    {
+        g_srm_last.assign(mem, mem + size);
+        LOGI("Tarjeta de memoria guardada");
+    }
+}
+
 // ---- Guardado rápido ----
 
 static int save_state(void)
@@ -541,6 +578,7 @@ static void process_commands(void)
         {
         case CMD_PAUSE:
             g_paused = true;
+            srm_save(false);  // por si Android cierra la app en segundo plano
             if (g_audio) { SDL_PauseAudioDevice(g_audio, 1); SDL_ClearQueuedAudio(g_audio); }
             break;
         case CMD_RESUME:
@@ -705,7 +743,7 @@ extern "C" int SDL_main(int argc, char *argv[])
     game.path = disc;
     if (!core.load_game(&game))
     {
-        LOGE("Beetle PSX no pudo abrir %s (¿falta la BIOS en %s?)", disc, g_system_dir.c_str());
+        LOGE("SwanStation no pudo abrir %s", disc);
         core.deinit();
         return 1;
     }
@@ -726,8 +764,16 @@ extern "C" int SDL_main(int argc, char *argv[])
     }
     else
         LOGI("Render por software");
-    // Mando DualShock (con los dos sticks) en el puerto 1.
-    core.set_controller_port_device(0, RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_ANALOG, 1));
+    // Mando DualShock (con los dos sticks) en el puerto 1 (SwanStation: subclase 0 de analógico).
+    core.set_controller_port_device(0, RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_ANALOG, 0));
+    // La tarjeta de memoria, junto al guardado rápido (mismo nombre, .srm).
+    g_srm_path = g_state_path;
+    {
+        size_t dot = g_srm_path.rfind('.');
+        if (dot != std::string::npos && g_srm_path.find('/', dot) == std::string::npos) g_srm_path.resize(dot);
+        g_srm_path += ".srm";
+    }
+    srm_load();
     core.get_system_av_info(&g_av);
     {
         std::lock_guard<std::mutex> lock(g_opt_mutex);
@@ -773,6 +819,7 @@ extern "C" int SDL_main(int argc, char *argv[])
                      g_av.timing.fps, g_audio ? SDL_GetQueuedAudioSize(g_audio) / (Uint32)(g_audio_rate * 4 / 1000) : 0);
                 t0 = t;
                 frames = 0;
+                srm_save(false);  // cada 5 s, si el juego ha guardado algo
             }
         }
 
@@ -812,8 +859,9 @@ extern "C" int SDL_main(int argc, char *argv[])
     }
 
     LOGI("Saliendo");
+    srm_save(false);
     if (g_hw_on && g_hw.context_destroy) g_hw.context_destroy();
-    core.unload_game();  // aquí Beetle guarda la tarjeta de memoria
+    core.unload_game();  // aquí se guarda la tarjeta de memoria
     core.deinit();
     if (g_audio) SDL_CloseAudioDevice(g_audio);
     if (android_postfx_active()) android_postfx_shutdown();

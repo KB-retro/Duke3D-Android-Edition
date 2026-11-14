@@ -11,8 +11,8 @@ fun config(name: String, default: String = ""): String =
 val sdlDir = rootProject.file("SDL2")
 // Código de DOSBox Pure (juegos de MS-DOS de los extras): lo descarga el workflow en android/dosbox-pure.
 val dosboxDir = rootProject.file("dosbox-pure")
-// Beetle PSX (juegos de PlayStation de los extras de la HD): lo descarga raze.yml en android/beetle-psx.
-val beetleDir = rootProject.file("beetle-psx")
+// SwanStation (juegos de PlayStation de los extras de la HD): lo descarga raze.yml en android/psx-core.
+val psxCoreDir = rootProject.file("psx-core")
 
 android {
     namespace = "com.kbretro.duke3d"
@@ -32,7 +32,7 @@ android {
         externalNativeBuild {
             cmake {
                 arguments += listOf("-DSDL2_DIR=${sdlDir.absolutePath}", "-DANDROID_STL=c++_shared",
-                    "-DDOSBOX_DIR=${dosboxDir.absolutePath}", "-DBEETLE_DIR=${beetleDir.absolutePath}")
+                    "-DDOSBOX_DIR=${dosboxDir.absolutePath}", "-DPSXCORE_DIR=${psxCoreDir.absolutePath}")
             }
         }
     }
