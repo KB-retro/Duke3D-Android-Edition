@@ -31,6 +31,7 @@
 #include <vector>
 
 #include "SDL.h"
+#include <GLES3/gl3.h>
 #include "libretro.h"
 
 #define LOG_TAG "Duke3D-PSX"
@@ -44,6 +45,7 @@ int android_postfx_active(void);
 void android_postfx_shutdown(void);
 void android_postfx_present(const void *pixels, int w, int h, int pitch);
 void android_postfx_set_aspect(float aspect);
+void android_postfx_present_fbo(unsigned fbo, int w, int h, int bottom_left);
 }
 
 // ---- El núcleo (libpsxcore.so) ----
@@ -127,28 +129,30 @@ static std::map<std::string, std::string> g_options;
 static std::atomic<bool> g_options_changed{false};
 static std::string g_opt_value;  // la que se devuelve a GET_VARIABLE (vive hasta la siguiente)
 
+// El núcleo es el de render por hardware (mednafen_psx_hw): sus opciones van con este prefijo.
+#define OPT "beetle_psx_hw_"
+
 static void set_default_options(void)
 {
     static const char *defs[][2] = {
-        {"beetle_psx_renderer", "software"},
-        {"beetle_psx_cpu_dynarec", "execute"},          // dynarec (lightrec): rápido en ARM
-        {"beetle_psx_dynarec_invalidate", "full"},
-        {"beetle_psx_cd_access_method", "sync"},
-        {"beetle_psx_skip_bios", "enabled"},
-        {"beetle_psx_use_mednafen_memcard0_method", "mednafen"},  // el núcleo guarda la tarjeta (.mcr)
-        {"beetle_psx_enable_memcard1", "disabled"},
-        {"beetle_psx_analog_toggle", "enabled-analog"},  // DualShock en modo analógico
+        {OPT "renderer", "hardware_gl"},                // con la GPU (OpenGL ES 3)
+        {OPT "cpu_dynarec", "execute"},          // dynarec (lightrec): rápido en ARM
+        {OPT "dynarec_invalidate", "full"},
+        {OPT "cd_access_method", "sync"},
+        {OPT "skip_bios", "enabled"},
+        {OPT "use_mednafen_memcard0_method", "mednafen"},  // el núcleo guarda la tarjeta (.mcr)
+        {OPT "enable_memcard1", "disabled"},
+        {OPT "analog_toggle", "enabled-analog"},  // DualShock en modo analógico
         // El cambio a digital con L1+R1+Select (lo de serie) saltaba jugando y el stick izquierdo
         // dejaba de responder: solo con los seis botones a la vez durante 5 segundos.
-        {"beetle_psx_analog_toggle_combo", "l1+l2+r1+r2+start+select"},
-        {"beetle_psx_analog_toggle_hold", "5"},
-        {"beetle_psx_frame_duping", "enabled"},
-        {"beetle_psx_widescreen_hack", "disabled"},
-        {"beetle_psx_widescreen_hack_aspect_ratio", "16:9"},
-        {"beetle_psx_internal_resolution", "1x(native)"},
-        {"beetle_psx_pgxp_mode", "disabled"},
-        {"beetle_psx_dither_mode", "1x(native)"},
-        {"beetle_psx_display_osd", "disabled"},
+        {OPT "analog_toggle_combo", "l1+l2+r1+r2+start+select"},
+        {OPT "analog_toggle_hold", "5"},
+        {OPT "frame_duping", "enabled"},
+        {OPT "widescreen_hack", "disabled"},
+        {OPT "widescreen_hack_aspect_ratio", "16:9"},
+        {OPT "internal_resolution", "1x(native)"},
+        {OPT "pgxp_mode", "disabled"},
+        {OPT "display_osd", "disabled"},
     };
     for (auto &d : defs) g_options[d[0]] = d[1];
 }
@@ -221,6 +225,56 @@ static void core_log(enum retro_log_level level, const char *fmt, ...)
     va_end(ap);
 }
 
+// ---- Render por hardware (OpenGL ES 3): el núcleo dibuja en nuestro framebuffer ----
+
+static retro_hw_render_callback g_hw;
+static bool g_hw_on;
+static GLuint g_hw_fbo, g_hw_tex, g_hw_depth;
+static int g_hw_fbo_w, g_hw_fbo_h;
+static int g_last_w, g_last_h;  // el último fotograma (para repetirlo)
+
+static uintptr_t hw_get_framebuffer(void)
+{
+    return g_hw_fbo;
+}
+
+static retro_proc_address_t hw_get_proc_address(const char *sym)
+{
+    return (retro_proc_address_t)SDL_GL_GetProcAddress(sym);
+}
+
+/** El framebuffer del núcleo, del tamaño máximo que puede dar (crece si sube la resolución). */
+static void hw_make_framebuffer(int w, int h)
+{
+    if (!g_hw_on || w <= 0 || h <= 0) return;
+    if (g_hw_fbo && w <= g_hw_fbo_w && h <= g_hw_fbo_h) return;
+    if (g_hw_fbo) glDeleteFramebuffers(1, &g_hw_fbo);
+    if (g_hw_tex) glDeleteTextures(1, &g_hw_tex);
+    if (g_hw_depth) glDeleteRenderbuffers(1, &g_hw_depth);
+    g_hw_fbo = g_hw_tex = g_hw_depth = 0;
+    glGenTextures(1, &g_hw_tex);
+    glBindTexture(GL_TEXTURE_2D, g_hw_tex);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    glGenFramebuffers(1, &g_hw_fbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, g_hw_fbo);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, g_hw_tex, 0);
+    if (g_hw.depth)
+    {
+        glGenRenderbuffers(1, &g_hw_depth);
+        glBindRenderbuffer(GL_RENDERBUFFER, g_hw_depth);
+        glRenderbufferStorage(GL_RENDERBUFFER, g_hw.stencil ? GL_DEPTH24_STENCIL8 : GL_DEPTH_COMPONENT24, w, h);
+        glFramebufferRenderbuffer(GL_FRAMEBUFFER, g_hw.stencil ? GL_DEPTH_STENCIL_ATTACHMENT : GL_DEPTH_ATTACHMENT,
+                                  GL_RENDERBUFFER, g_hw_depth);
+    }
+    GLenum st = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    g_hw_fbo_w = w;
+    g_hw_fbo_h = h;
+    LOGI("Framebuffer de la GPU: %dx%d (%s)", w, h, st == GL_FRAMEBUFFER_COMPLETE ? "bien" : "INCOMPLETO");
+}
+
 static bool environment(unsigned cmd, void *data)
 {
     switch (cmd)
@@ -253,13 +307,31 @@ static bool environment(unsigned cmd, void *data)
     case RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE:
         *(bool *)data = g_options_changed.exchange(false);
         return true;
+    case RETRO_ENVIRONMENT_GET_PREFERRED_HW_RENDER:
+        *(unsigned *)data = RETRO_HW_CONTEXT_OPENGLES3;
+        return true;
+    case RETRO_ENVIRONMENT_SET_HW_RENDER: {
+        retro_hw_render_callback *cb = (retro_hw_render_callback *)data;
+        bool gles3 = cb->context_type == RETRO_HW_CONTEXT_OPENGLES3
+                     || (cb->context_type == RETRO_HW_CONTEXT_OPENGLES_VERSION && cb->version_major == 3);
+        LOGI("El núcleo pide render por hardware: tipo %d, versión %u.%u -> %s", (int)cb->context_type,
+             cb->version_major, cb->version_minor, gles3 ? "sí" : "no");
+        if (!gles3) return false;
+        cb->get_current_framebuffer = hw_get_framebuffer;
+        cb->get_proc_address = hw_get_proc_address;
+        g_hw = *cb;
+        g_hw_on = true;
+        return true;
+    }
     case RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO:
         g_av = *(const retro_system_av_info *)data;
+        hw_make_framebuffer((int)g_av.geometry.max_width, (int)g_av.geometry.max_height);
         LOGI("Nuevo vídeo/sonido: %ux%u, aspecto %.3f, %.3f fps, sonido a %.0f Hz", g_av.geometry.base_width,
              g_av.geometry.base_height, g_av.geometry.aspect_ratio, g_av.timing.fps, g_av.timing.sample_rate);
         return true;
     case RETRO_ENVIRONMENT_SET_GEOMETRY:
         g_av.geometry = *(const retro_game_geometry *)data;
+        hw_make_framebuffer((int)g_av.geometry.max_width, (int)g_av.geometry.max_height);
         return true;
     case RETRO_ENVIRONMENT_SHUTDOWN:
         LOGI("El juego ha terminado");
@@ -344,6 +416,15 @@ static void present(void)
 
 static void video_refresh(const void *data, unsigned w, unsigned h, size_t pitch)
 {
+    if (g_hw_on && (data == RETRO_HW_FRAME_BUFFER_VALID || (!data && g_last_w > 0)))
+    {
+        // Dibujado con la GPU en g_hw_fbo (NULL = el mismo fotograma de antes).
+        if (data) { g_last_w = (int)w; g_last_h = (int)h; }
+        float aspect = g_av.geometry.aspect_ratio > 0.f ? g_av.geometry.aspect_ratio : 4.f / 3.f;
+        android_postfx_set_aspect(aspect);
+        android_postfx_present_fbo(g_hw_fbo, g_last_w, g_last_h, g_hw.bottom_left_origin ? 1 : 0);
+        return;
+    }
     if (data && w && h)  // NULL = el mismo fotograma de antes (frame duping)
     {
         if ((int)w != g_frame_w || (int)h != g_frame_h) g_frame.assign((size_t)w * h, 0);
@@ -616,6 +697,23 @@ extern "C" int SDL_main(int argc, char *argv[])
         core.deinit();
         return 1;
     }
+    if (g_hw_on)
+    {
+        if (!android_postfx_active())
+        {
+            LOGE("El núcleo quiere la GPU pero no hay contexto OpenGL ES 3");
+            core.unload_game();
+            core.deinit();
+            return 1;
+        }
+        retro_system_av_info av;
+        core.get_system_av_info(&av);
+        hw_make_framebuffer((int)av.geometry.max_width, (int)av.geometry.max_height);
+        if (g_hw.context_reset) g_hw.context_reset();
+        LOGI("Render por hardware (OpenGL ES 3) listo");
+    }
+    else
+        LOGI("Render por software");
     // Mando DualShock (con los dos sticks) en el puerto 1.
     core.set_controller_port_device(0, RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_ANALOG, 1));
     core.get_system_av_info(&g_av);
@@ -671,20 +769,25 @@ extern "C" int SDL_main(int argc, char *argv[])
         // espera algo más y, si se queda corto, no se espera. (Solo con la cola de sonido, si el
         // núcleo no la llenaba a tiempo el juego corría sin freno y rascaba.)
         double fps = g_av.timing.fps > 1 ? g_av.timing.fps : 60.0;
-        Uint64 period = (Uint64)(freq / fps);
-        next += period;
-        // Sonido: un colchón de unos 80 ms. Android pide el audio a trozos (~20-40 ms), así
-        // que la cola sube y baja sola; solo se corrige en los extremos (por la pequeña
-        // diferencia entre el reloj del sonido y el del sistema): sin acelerar el juego.
+        double period = (double)freq / fps;
+        // Sonido: un colchón de unos 80 ms. El núcleo dice 50/60 fps pero su sonido va al ritmo
+        // de la consola de verdad (p. ej. 49,76): la cola crecía poco a poco hasta vaciarse de
+        // golpe (rascada). El ritmo se ajusta muy poco (hasta un 1 %) según la cola, como hace
+        // RetroArch: nada que se note en la velocidad.
         if (g_audio)
         {
             Uint32 bytes_per_ms = (Uint32)(g_audio_rate * 4 / 1000);
             Uint32 queued = SDL_GetQueuedAudioSize(g_audio);
-            if (queued > bytes_per_ms * 300)
+            double err = ((double)queued / bytes_per_ms - 80.0) / 80.0;
+            if (err > 1) err = 1;
+            if (err < -1) err = -1;
+            period *= 1.0 + 0.01 * err;
+            if (queued > bytes_per_ms * 600)
                 SDL_ClearQueuedAudio(g_audio);           // muy atrasado: se vuelve a empezar
-            else if (queued < bytes_per_ms * 10)
-                queue_silence(bytes_per_ms * 70);        // a punto de quedarse sin sonido
+            else if (queued < bytes_per_ms * 8)
+                queue_silence(bytes_per_ms * 60);        // a punto de quedarse sin sonido
         }
+        next += (Uint64)period;
         Uint64 now = SDL_GetPerformanceCounter();
         if (next > now)
         {
@@ -697,6 +800,7 @@ extern "C" int SDL_main(int argc, char *argv[])
     }
 
     LOGI("Saliendo");
+    if (g_hw_on && g_hw.context_destroy) g_hw.context_destroy();
     core.unload_game();  // aquí Beetle guarda la tarjeta de memoria
     core.deinit();
     if (g_audio) SDL_CloseAudioDevice(g_audio);

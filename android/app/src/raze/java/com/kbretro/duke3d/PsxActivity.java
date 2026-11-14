@@ -152,8 +152,9 @@ public class PsxActivity extends SDLActivity {
     private static final String[] BLOOM_KEYS = {"no", "gfx_soft", "gfx_strong"};
     /** Pantalla: automática (según la de la consola), 4:3 o panorámica. */
     private static final String[] SCREEN_KEYS = {"psx_auto", "4:3", "psx_wide"};
-    private static final String[] RES_LABELS = {"1x", "2x", "4x", "8x"};
-    private static final String[] RES_VALUES = {"1x(native)", "2x", "4x", "8x"};
+    // Con la GPU: hasta 16x.
+    private static final String[] RES_LABELS = {"1x", "2x", "4x", "8x", "16x"};
+    private static final String[] RES_VALUES = {"1x(native)", "2x", "4x", "8x", "16x"};
 
     /** Ajuste propio de los juegos de PlayStation. */
     private int gfx(String key, int def, int n) {
@@ -199,12 +200,12 @@ public class PsxActivity extends SDLActivity {
     private List<String[]> coreOptions() {
         List<String[]> o = new ArrayList<>();
         String wide = screenWide();
-        o.add(new String[]{"beetle_psx_widescreen_hack", wide != null ? "enabled" : "disabled"});
-        if (wide != null) o.add(new String[]{"beetle_psx_widescreen_hack_aspect_ratio", wide});
-        o.add(new String[]{"beetle_psx_internal_resolution", RES_VALUES[gfx("resolucion", 1, RES_VALUES.length)]});
-        o.add(new String[]{"beetle_psx_pgxp_mode", gfx("pgxp", 1, 2) == 1 ? "memory only" : "disabled"});
+        o.add(new String[]{"beetle_psx_hw_widescreen_hack", wide != null ? "enabled" : "disabled"});
+        if (wide != null) o.add(new String[]{"beetle_psx_hw_widescreen_hack_aspect_ratio", wide});
+        o.add(new String[]{"beetle_psx_hw_internal_resolution", RES_VALUES[gfx("resolucion2", 2, RES_VALUES.length)]});
+        o.add(new String[]{"beetle_psx_hw_pgxp_mode", gfx("pgxp", 1, 2) == 1 ? "memory only" : "disabled"});
         // Versiones PAL (europeas, a 50 Hz) a 60 Hz, como la americana. Solo afecta a discos PAL.
-        o.add(new String[]{"beetle_psx_pal_video_timing_override", gfx("pal60", 0, 2) == 1 ? "enabled" : "disabled"});
+        o.add(new String[]{"beetle_psx_hw_pal_video_timing_override", gfx("pal60", 0, 2) == 1 ? "enabled" : "disabled"});
         return o;
     }
 
@@ -295,8 +296,8 @@ public class PsxActivity extends SDLActivity {
             cycleGfx("pantalla", 0, SCREEN_KEYS.length);
             applyCoreOptions();
         });
-        p.addValue(I18n.t("psx_res"), () -> RES_LABELS[gfx("resolucion", 1, RES_VALUES.length)], () -> {
-            cycleGfx("resolucion", 1, RES_VALUES.length);
+        p.addValue(I18n.t("psx_res"), () -> RES_LABELS[gfx("resolucion2", 2, RES_VALUES.length)], () -> {
+            cycleGfx("resolucion2", 2, RES_VALUES.length);
             applyCoreOptions();
         });
         p.addValue(I18n.t("psx_pgxp"), () -> I18n.t(gfx("pgxp", 1, 2) == 1 ? "yes" : "no"), () -> {

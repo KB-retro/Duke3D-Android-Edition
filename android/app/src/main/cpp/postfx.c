@@ -14,7 +14,11 @@
 #include <math.h>
 #include <string.h>
 #include <android/log.h>
+#ifdef POSTFX_PSX
+#include <GLES3/gl3.h>  // PlayStation: la imagen puede venir ya en la GPU (render por hardware)
+#else
 #include <GLES2/gl2.h>
+#endif
 
 #include "SDL.h"
 
@@ -439,7 +443,12 @@ void android_postfx_attributes(void)
 {
     SDL_GL_ResetAttributes();
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
+#ifdef POSTFX_PSX
+    // Beetle PSX dibuja con OpenGL ES 3 en el mismo contexto.
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+#else
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
+#endif
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
     SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);
     SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8);
@@ -509,6 +518,11 @@ void android_postfx_shutdown(void)
     pfx_ok = 0;
 }
 
+/** La imagen de partida ya está en RGBA (viene de la GPU), no en el BGRA de la CPU. */
+static int src_is_rgba;
+
+static void present_from_src(int w, int h);
+
 static void draw(const program_t *p, GLuint tex, int in_w, int in_h, int out_w, int out_h, int raw, int final_pass)
 {
     glUseProgram(p->prog);
@@ -517,7 +531,7 @@ static void draw(const program_t *p, GLuint tex, int in_w, int in_h, int out_w, 
     glUniform1i(p->u_tex, 0);
     glUniform2f(p->u_in, (float)in_w, (float)in_h);
     glUniform2f(p->u_out, (float)out_w, (float)out_h);
-    glUniform1f(p->u_bgra, raw ? 1.f : 0.f);
+    glUniform1f(p->u_bgra, raw && !src_is_rgba ? 1.f : 0.f);
     glUniform1f(p->u_flip, raw ? 1.f : 0.f);
     glUniform1f(p->u_scan, final_pass ? (float)pfx_crt : 0.f);
     glUniform1f(p->u_vivid, final_pass ? (float)pfx_color : 0.f);
@@ -561,7 +575,60 @@ void android_postfx_present(const void *pixels, int w, int h, int pitch)
     else
         for (int y = 0; y < h; y++)
             glTexSubImage2D(GL_TEXTURE_2D, 0, 0, y, w, 1, GL_RGBA, GL_UNSIGNED_BYTE, (const char *)pixels + y * pitch);
+    present_from_src(w, h);
+}
 
+#ifdef POSTFX_PSX
+static GLuint fbo_src;  // para copiar el fotograma de la GPU a src_tex
+
+/**
+ * Enseña un fotograma que el emulador ha dibujado con la GPU en el framebuffer fbo (w x h
+ * desde la esquina de abajo a la izquierda). Se copia a src_tex con la misma orientación que
+ * las imágenes de la CPU y sigue el mismo camino (escalado, nitidez, efectos...).
+ */
+void android_postfx_present_fbo(unsigned fbo, int w, int h, int bottom_left)
+{
+    if (!pfx_ok || w <= 0 || h <= 0)
+        return;
+    SDL_GL_MakeCurrent(pfx_window, pfx_context);
+    // El estado que haya dejado el emulador, fuera.
+    glBindVertexArray(0);
+    glDisable(GL_SCISSOR_TEST);
+    glDisable(GL_DEPTH_TEST);
+    glDisable(GL_STENCIL_TEST);
+    glDisable(GL_BLEND);
+    glDisable(GL_CULL_FACE);
+    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+    glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+    glActiveTexture(GL_TEXTURE0);
+
+    if (!src_tex || src_w != w || src_h != h)
+    {
+        if (src_tex) glDeleteTextures(1, &src_tex);
+        src_tex = make_texture(w, h);
+        src_w = w;
+        src_h = h;
+        if (!fbo_src) glGenFramebuffers(1, &fbo_src);
+        glBindFramebuffer(GL_FRAMEBUFFER, fbo_src);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, src_tex, 0);
+    }
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, fbo_src);
+    // src_tex lleva la fila de arriba de la imagen en t=0 (como lo que sube la CPU).
+    if (bottom_left)
+        glBlitFramebuffer(0, 0, w, h, 0, h, w, 0, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+    else
+        glBlitFramebuffer(0, 0, w, h, 0, 0, w, h, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    src_is_rgba = 1;
+    present_from_src(w, h);
+    src_is_rgba = 0;
+}
+#endif
+
+static void present_from_src(int w, int h)
+{
     // Rectángulo de salida: toda la pantalla, con la proporción de la imagen.
     int ww = 0, wh = 0;
     SDL_GL_GetDrawableSize(pfx_window, &ww, &wh);

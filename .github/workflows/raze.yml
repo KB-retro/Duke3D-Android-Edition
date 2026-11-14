@@ -124,11 +124,11 @@ jobs:
           cp -r sdl2 android/SDL2
           # DOSBox Pure: los juegos de MS-DOS de los extras (libdos.so, como en la Classic).
           git clone -q --depth 1 --branch "$DOSBOX_PURE_TAG" https://github.com/schellingb/dosbox-pure.git android/dosbox-pure
-          # Beetle PSX: su núcleo (libpsxcore.so) con su Android.mk, sin render por hardware.
+          # Beetle PSX: su núcleo (libpsxcore.so) con su Android.mk, con render por hardware (OpenGL ES 3).
           git init -q android/beetle-psx
           git -C android/beetle-psx fetch -q --depth 1 https://github.com/libretro/beetle-psx-libretro.git "$BEETLE_PSX_COMMIT"
           git -C android/beetle-psx checkout -q FETCH_HEAD
-          $NDK/ndk-build -s -C android/beetle-psx/jni APP_ABI=arm64-v8a APP_PLATFORM=android-26 HAVE_HW=0 -j"$(nproc)"
+          $NDK/ndk-build -s -C android/beetle-psx/jni APP_ABI=arm64-v8a APP_PLATFORM=android-26 HAVE_HW=1 -j"$(nproc)"
           J=android/app/src/raze/jniLibs/arm64-v8a
           D=android/app/src/raze/assets/raze
           mkdir -p $J $D
