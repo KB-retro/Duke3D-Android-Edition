@@ -179,11 +179,11 @@ jobs:
           for L in libpsx.so libpsxcore.so; do
             unzip -l app/build/outputs/apk/raze/release/app-raze-release.apk | grep -q "lib/arm64-v8a/$L" || { echo "Falta $L"; exit 1; }
           done
-          cp app/build/outputs/apk/raze/release/app-raze-release.apk "../salida/Duke3D-Raze-Edition-0.1.${VERSION_CODE}.apk"
+          cp app/build/outputs/apk/raze/release/app-raze-release.apk "../salida/Duke-Legacy-0.1.${VERSION_CODE}.apk"
 
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: Duke3D-Raze-Edition-0.1.${{ github.run_number }}
+          name: Duke-Legacy-0.1.${{ github.run_number }}
           path: salida
           retention-days: 14

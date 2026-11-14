@@ -108,7 +108,7 @@ final class DukeMenuView extends View {
     private final Paint frame = new Paint();
     private final List<Page> stack = new ArrayList<>();
     private Runnable onBackFromRoot;
-    /** Texto de la versión (p. ej. «Duke3D Raze Edition 0.1.27»), o null. */
+    /** Texto de la versión (p. ej. «Duke Legacy 0.1.27»), o null. */
     String versionText;
 
 
