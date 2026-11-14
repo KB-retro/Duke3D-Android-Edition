@@ -204,6 +204,8 @@ public class PsxActivity extends SDLActivity {
         o.add(new String[]{"swanstation_Display_AspectRatio", wide != null ? wide : "4:3"});
         o.add(new String[]{"swanstation_GPU_ResolutionScale", RES_VALUES[gfx("resolucion3", 2, RES_VALUES.length)]});
         o.add(new String[]{"swanstation_GPU_PGXPEnable", gfx("pgxp2", 0, 2) == 1 ? "true" : "false"});
+        // Dibujado: con la gráfica (OpenGL ES) o con el procesador (como la consola, a 1x).
+        o.add(new String[]{"swanstation_GPU_Renderer", gfx("render", 0, 2) == 1 ? "Software" : "OpenGL"});
         // Versiones PAL (europeas, a 50 Hz) a 60 Hz, como la americana. Solo afecta a discos PAL.
         o.add(new String[]{"swanstation_GPU_ForceNTSCTimings", gfx("pal60", 0, 2) == 1 ? "true" : "false"});
         return o;
@@ -299,6 +301,10 @@ public class PsxActivity extends SDLActivity {
         p.addValue(I18n.t("psx_res"), () -> RES_LABELS[gfx("resolucion3", 2, RES_VALUES.length)], () -> {
             cycleGfx("resolucion3", 2, RES_VALUES.length);
             applyCoreOptions();
+        });
+        p.addValue(I18n.t("psx_render"), () -> I18n.t(gfx("render", 0, 2) == 1 ? "psx_render_cpu" : "psx_render_gpu"), () -> {
+            cycleGfx("render", 0, 2);
+            status = I18n.t("psx_restart");
         });
         p.addValue(I18n.t("psx_pgxp"), () -> I18n.t(gfx("pgxp2", 0, 2) == 1 ? "yes" : "no"), () -> {
             cycleGfx("pgxp2", 0, 2);
