@@ -233,8 +233,8 @@ final class DukeMenuView extends View {
     }
 
     private final RectF footerRect = new RectF();
-    /** El icono de cambiar de sección (24 fotogramas en fila). */
-    private Bitmap sectionIcon;
+    /** El icono de cambiar de sección: el aro con las aspas (gira) y el centro con la Y/X. */
+    private Bitmap sectionRing, sectionHub;
     private final Paint iconFill = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final android.graphics.Path iconPath = new android.graphics.Path();
     private final RectF iconOval = new RectF();
@@ -478,16 +478,20 @@ final class DukeMenuView extends View {
         // sección (Y/X: el de arriba en mandos tipo Xbox y Nintendo). Dibujado con vectores: nítido
         // y redondo a cualquier resolución. Tocarlo también cambia. Si hay un aviso, el aviso.
         if (stack.size() == 1 && p.otherSide != null && ft.isEmpty()) {
-            // El diseño propio (aspas rojas metálicas, 24 fotogramas: un tercio de vuelta).
-            if (sectionIcon == null)
-                sectionIcon = android.graphics.BitmapFactory.decodeResource(getResources(), R.drawable.icono_seccion);
-            if (sectionIcon != null) {
-                int frames = 24, fw = sectionIcon.getWidth() / frames, fh = sectionIcon.getHeight();
-                int f = (int) ((now / 42) % frames);
-                android.graphics.Rect src = new android.graphics.Rect(f * fw, 0, (f + 1) * fw, fh);
+            // El diseño propio: el aro con las aspas gira entero (360°, suave) y el centro con la
+            // Y/X queda fijo encima.
+            if (sectionRing == null) {
+                sectionRing = android.graphics.BitmapFactory.decodeResource(getResources(), R.drawable.icono_seccion_aro);
+                sectionHub = android.graphics.BitmapFactory.decodeResource(getResources(), R.drawable.icono_seccion_centro);
+            }
+            if (sectionRing != null && sectionHub != null) {
                 float hpx = 27 * sy, cx = vx(160), cy = vy(186);
                 dst.set(cx - hpx / 2f, cy - hpx / 2f, cx + hpx / 2f, cy + hpx / 2f);
-                c.drawBitmap(sectionIcon, src, dst, smooth);
+                c.save();
+                c.rotate((now % 4000) * 360f / 4000f, cx, cy);
+                c.drawBitmap(sectionRing, null, dst, smooth);
+                c.restore();
+                c.drawBitmap(sectionHub, null, dst, smooth);
             } else {
                 drawSectionIcon(c, vx(160), vy(186), 13 * sy, (now % 3000) * 360f / 3000f);
             }
@@ -502,7 +506,8 @@ final class DukeMenuView extends View {
             float right = -ax / sx + w / sx - 4;
             drawSmall(c, versionText, right - wsum * scale, 6, scale, false);
         }
-        postInvalidateDelayed(50);
+        // Con el icono de sección girando, a 60 fps para que el giro sea suave.
+        postInvalidateDelayed(stack.size() == 1 && p.otherSide != null ? 16 : 50);
     }
 
     /** La caja entera dentro del rectángulo (x, y, w, h) del 320x200, con marco. */
