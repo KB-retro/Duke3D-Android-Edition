@@ -233,8 +233,8 @@ final class DukeMenuView extends View {
     }
 
     private final RectF footerRect = new RectF();
-    /** El icono de cambiar de sección (símbolo nuclear con la Y, 12 fotogramas en fila). */
-    private Bitmap sectionIcon;
+    /** El centro del icono de cambiar de sección (círculo con «Y/X»). */
+    private Bitmap sectionHub;
     private final RectF[] tabRects = {new RectF(), new RectF()};
     private final Paint tabLine = new Paint();
 
@@ -428,19 +428,26 @@ final class DukeMenuView extends View {
         // Pie: una línea de información si la hay (carpeta, pista que suena...).
         String ft = p.footer != null ? p.footer.get() : "";
         if (!ft.isEmpty()) drawSmall(c, ft, 160, 191, 0.6f, true);
-        // Menú principal con secciones: abajo en el centro, el símbolo nuclear girando con la Y en
-        // el eje (icono propio, 12 fotogramas): Y cambia de sección (o tocarlo). Si hay un aviso,
-        // va el aviso.
+        // Menú principal con secciones: abajo en el centro, el símbolo nuclear del propio juego
+        // girando sobre sí mismo y, en su centro, el botón para cambiar de sección (Y/X: el de
+        // arriba en mandos tipo Xbox y Nintendo). Tocarlo también cambia. Si hay un aviso, el aviso.
         if (stack.size() == 1 && p.otherSide != null && ft.isEmpty()) {
-            if (sectionIcon == null)
-                sectionIcon = android.graphics.BitmapFactory.decodeResource(getResources(), R.drawable.icono_seccion);
-            if (sectionIcon != null) {
-                int frames = 12, fw = sectionIcon.getWidth() / frames, fh = sectionIcon.getHeight();
-                int f = (int) ((now / 60) % frames);
-                android.graphics.Rect src = new android.graphics.Rect(f * fw, 0, (f + 1) * fw, fh);
-                float hpx = 26 * sy, cx = vx(160), cy = vy(186);
-                dst.set(cx - hpx / 2f, cy - hpx / 2f, cx + hpx / 2f, cy + hpx / 2f);
-                c.drawBitmap(sectionIcon, src, dst, smooth);
+            Bitmap nuke = art.has(DukeArt.SPINNINGNUKEICON) ? art.tile(DukeArt.SPINNINGNUKEICON) : null;
+            if (sectionHub == null)
+                sectionHub = android.graphics.BitmapFactory.decodeResource(getResources(), R.drawable.icono_centro);
+            float hpx = 26 * sy, cx = vx(160), cy = vy(186);
+            if (nuke != null) {
+                c.save();
+                c.rotate((now % 3000) * 360f / 3000f, cx, cy);
+                float wpx = hpx * nuke.getWidth() / (float) Math.max(1, nuke.getHeight());
+                dst.set(cx - wpx / 2f, cy - hpx / 2f, cx + wpx / 2f, cy + hpx / 2f);
+                c.drawBitmap(nuke, null, dst, smooth);
+                c.restore();
+            }
+            if (sectionHub != null) {
+                float hub = hpx * 0.5f;
+                dst.set(cx - hub / 2f, cy - hub / 2f, cx + hub / 2f, cy + hub / 2f);
+                c.drawBitmap(sectionHub, null, dst, smooth);
             }
         }
         footerRect.set(0, vy(183), w, h);
