@@ -364,9 +364,11 @@ sub("source/core/models/modeldata.h",
 sub("source/core/models/modeldata.h",
     "\tModelTileFrame* GetModel(FTextureID tilenum, int pal)\n\t{\n\t\treturn frameMap.CheckKey(FrameMapKey(tilenum, pal));\n\t}",
     "\tModelTileFrame* GetModel(FTextureID tilenum, int pal);")
+# Un frame sin «pal» llega con -1 (= paleta 0). La clave tiene que salir positiva: el lector
+# del .def toma un resultado negativo como error y quita el modelo entero sin decir por qué.
 sub("source/core/models/modeldata.cpp",
     "    auto key = FrameMapKey(tileGetTextureID(tilenum), pal);",
-    "    auto key = FrameMapKey(tilenum, pal);")
+    "    if (pal < 0 || pal >= MAXPALOOKUPS) pal = 0;\n    auto key = FrameMapKey(tilenum, pal);")
 sub("source/core/models/modeldata.cpp",
     "        frameMap.Remove(FrameMapKey(tileGetTextureID(tile), i));",
     "        frameMap.Remove(FrameMapKey(tile, i));")
