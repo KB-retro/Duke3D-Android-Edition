@@ -45,7 +45,7 @@ int android_postfx_active(void);
 void android_postfx_shutdown(void);
 void android_postfx_present(const void *pixels, int w, int h, int pitch);
 void android_postfx_set_aspect(float aspect);
-void android_postfx_present_fbo(unsigned fbo, int w, int h, int bottom_left);
+void android_postfx_present_texture(unsigned tex, int w, int h, int bottom_left, void *sync);
 }
 
 // ---- El núcleo (libpsxcore.so) ----
@@ -226,6 +226,16 @@ static void core_log(enum retro_log_level level, const char *fmt, ...)
 
 static retro_hw_render_callback g_hw;
 static bool g_hw_on;
+// El emulador dibuja en su propio contexto de OpenGL (compartido con el de los filtros): si
+// compartían uno, los filtros le cambiaban el estado (transparencias, subida de texturas...) y
+// salían el marcador en negro y rayas en los vídeos.
+static SDL_GLContext g_core_ctx;
+static bool g_game_loaded, g_hw_reinit;
+
+static void core_current(void)
+{
+    if (g_core_ctx) SDL_GL_MakeCurrent(g_window, g_core_ctx);
+}
 static GLuint g_hw_fbo, g_hw_tex, g_hw_depth;
 static int g_hw_fbo_w, g_hw_fbo_h;
 static int g_last_w, g_last_h;  // el último fotograma (para repetirlo)
@@ -241,10 +251,10 @@ static retro_proc_address_t hw_get_proc_address(const char *sym)
 }
 
 /** El framebuffer del núcleo, del tamaño máximo que puede dar (crece si sube la resolución). */
-static void hw_make_framebuffer(int w, int h)
+static void hw_make_framebuffer(int w, int h, bool force = false)
 {
     if (!g_hw_on || w <= 0 || h <= 0) return;
-    if (g_hw_fbo && w <= g_hw_fbo_w && h <= g_hw_fbo_h) return;
+    if (!force && g_hw_fbo && w <= g_hw_fbo_w && h <= g_hw_fbo_h) return;
     if (g_hw_fbo) glDeleteFramebuffers(1, &g_hw_fbo);
     if (g_hw_tex) glDeleteTextures(1, &g_hw_tex);
     if (g_hw_depth) glDeleteRenderbuffers(1, &g_hw_depth);
@@ -323,7 +333,10 @@ static bool environment(unsigned cmd, void *data)
     }
     case RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO:
         g_av = *(const retro_system_av_info *)data;
-        hw_make_framebuffer((int)g_av.geometry.max_width, (int)g_av.geometry.max_height);
+        // Como RetroArch: tras un cambio de vídeo (PAL a 60 Hz, resolución...) se reinicia el
+        // contexto del emulador al acabar el fotograma (sin esto se quedaba la pantalla negra).
+        if (g_hw_on && g_game_loaded) g_hw_reinit = true;
+        else hw_make_framebuffer((int)g_av.geometry.max_width, (int)g_av.geometry.max_height);
         LOGI("Nuevo vídeo/sonido: %ux%u, aspecto %.3f, %.3f fps, sonido a %.0f Hz", g_av.geometry.base_width,
              g_av.geometry.base_height, g_av.geometry.aspect_ratio, g_av.timing.fps, g_av.timing.sample_rate);
         return true;
@@ -431,7 +444,10 @@ static void video_refresh(const void *data, unsigned w, unsigned h, size_t pitch
         if (data) { g_last_w = (int)w; g_last_h = (int)h; }
         float aspect = g_av.geometry.aspect_ratio > 0.f ? g_av.geometry.aspect_ratio : 4.f / 3.f;
         android_postfx_set_aspect(aspect);
-        android_postfx_present_fbo(g_hw_fbo, g_last_w, g_last_h, g_hw.bottom_left_origin ? 1 : 0);
+        void *sync = g_core_ctx ? (void *)glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0) : NULL;
+        glFlush();
+        android_postfx_present_texture(g_hw_tex, g_last_w, g_last_h, g_hw.bottom_left_origin ? 1 : 0, sync);
+        core_current();
         return;
     }
     if (data && w && h)  // NULL = el mismo fotograma de antes (frame duping)
@@ -443,6 +459,7 @@ static void video_refresh(const void *data, unsigned w, unsigned h, size_t pitch
             memcpy(&g_frame[(size_t)y * w], (const char *)data + y * pitch, w * 4);
     }
     present();
+    core_current();
 }
 
 static void audio_sample(int16_t l, int16_t r)
@@ -729,6 +746,14 @@ extern "C" int SDL_main(int argc, char *argv[])
     }
     if (!load_core()) return 1;
     if (!open_window()) return 1;
+    if (android_postfx_active())
+    {
+        SDL_GL_SetAttribute(SDL_GL_SHARE_WITH_CURRENT_CONTEXT, 1);
+        g_core_ctx = SDL_GL_CreateContext(g_window);
+        if (g_core_ctx) LOGI("Contexto de OpenGL propio para el emulador");
+        else LOGE("Sin contexto propio para el emulador (%s): se comparte", SDL_GetError());
+        core_current();
+    }
 
     core.set_environment(environment);
     core.set_video_refresh(video_refresh);
@@ -747,8 +772,10 @@ extern "C" int SDL_main(int argc, char *argv[])
         core.deinit();
         return 1;
     }
+    g_game_loaded = true;
     if (g_hw_on)
     {
+        core_current();
         if (!android_postfx_active())
         {
             LOGE("El núcleo quiere la GPU pero no hay contexto OpenGL ES 3");
@@ -806,6 +833,15 @@ extern "C" int SDL_main(int argc, char *argv[])
             open_audio((int)g_av.timing.sample_rate);
 
         core.run();
+        if (g_hw_reinit)
+        {
+            g_hw_reinit = false;
+            core_current();
+            LOGI("Reinicio del contexto del emulador (cambio de vídeo)");
+            if (g_hw.context_destroy) g_hw.context_destroy();
+            hw_make_framebuffer((int)g_av.geometry.max_width, (int)g_av.geometry.max_height, true);
+            if (g_hw.context_reset) g_hw.context_reset();
+        }
         {
             // Cada 5 s, al registro: fotogramas por segundo de verdad y sonido en cola.
             static Uint64 t0 = 0;
@@ -860,10 +896,12 @@ extern "C" int SDL_main(int argc, char *argv[])
 
     LOGI("Saliendo");
     srm_save(false);
+    core_current();
     if (g_hw_on && g_hw.context_destroy) g_hw.context_destroy();
     core.unload_game();  // aquí se guarda la tarjeta de memoria
     core.deinit();
     if (g_audio) SDL_CloseAudioDevice(g_audio);
+    if (g_core_ctx) SDL_GL_DeleteContext(g_core_ctx);
     if (android_postfx_active()) android_postfx_shutdown();
     SDL_Quit();
     return 0;

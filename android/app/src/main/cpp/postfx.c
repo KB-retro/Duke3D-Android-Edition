@@ -585,28 +585,26 @@ void android_postfx_present(const void *pixels, int w, int h, int pitch)
 }
 
 #ifdef POSTFX_PSX
-static GLuint fbo_src;  // para copiar el fotograma de la GPU a src_tex
+static GLuint fbo_src;   // para copiar el fotograma de la GPU a src_tex
+static GLuint fbo_read;  // en este contexto, para leer la textura del emulador
 
 /**
- * Enseña un fotograma que el emulador ha dibujado con la GPU en el framebuffer fbo (w x h
- * desde la esquina de abajo a la izquierda). Se copia a src_tex con la misma orientación que
- * las imágenes de la CPU y sigue el mismo camino (escalado, nitidez, efectos...).
+ * Enseña un fotograma que el emulador ha dibujado con la GPU en la textura tex (w x h desde la
+ * esquina de abajo a la izquierda). El emulador va en su propio contexto de OpenGL (compartido
+ * con este): así nuestros filtros no le tocan el estado. sync es la valla que pone el emulador
+ * al terminar el fotograma (o NULL). Se copia a src_tex con la misma orientación que las
+ * imágenes de la CPU y sigue el mismo camino (escalado, nitidez, efectos...).
  */
-void android_postfx_present_fbo(unsigned fbo, int w, int h, int bottom_left)
+void android_postfx_present_texture(unsigned tex, int w, int h, int bottom_left, void *sync)
 {
     if (!pfx_ok || w <= 0 || h <= 0)
         return;
     SDL_GL_MakeCurrent(pfx_window, pfx_context);
-    // El estado que haya dejado el emulador, fuera.
-    glBindVertexArray(0);
-    glDisable(GL_SCISSOR_TEST);
-    glDisable(GL_DEPTH_TEST);
-    glDisable(GL_STENCIL_TEST);
-    glDisable(GL_BLEND);
-    glDisable(GL_CULL_FACE);
-    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-    glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+    if (sync)
+    {
+        glWaitSync((GLsync)sync, 0, GL_TIMEOUT_IGNORED);
+        glDeleteSync((GLsync)sync);
+    }
     glActiveTexture(GL_TEXTURE0);
 
     if (!src_tex || src_w != w || src_h != h)
@@ -619,7 +617,9 @@ void android_postfx_present_fbo(unsigned fbo, int w, int h, int bottom_left)
         glBindFramebuffer(GL_FRAMEBUFFER, fbo_src);
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, src_tex, 0);
     }
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo);
+    if (!fbo_read) glGenFramebuffers(1, &fbo_read);
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo_read);
+    glFramebufferTexture2D(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex, 0);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, fbo_src);
     // src_tex lleva la fila de arriba de la imagen en t=0 (como lo que sube la CPU).
     if (bottom_left)
