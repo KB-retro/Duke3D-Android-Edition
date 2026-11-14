@@ -292,7 +292,7 @@ public class LauncherActivity extends Activity {
         root.otherSide = classic;
         classic.otherSide = legacy;
         legacy.otherSide = root;
-        root.footer = () -> I18n.t("section_hint") + "Classic";
+        // Abajo solo el símbolo nuclear con la Y (lo dibuja DukeMenuView).
         return section == 1 ? classic : section == 2 ? legacy : root;
     }
 
@@ -383,7 +383,7 @@ public class LauncherActivity extends Activity {
                 note[0] = null;
                 lastSel[0] = p.selected;
             }
-            return note[0] != null ? note[0] : I18n.t("section_hint") + next;
+            return note[0] != null ? note[0] : "";
         };
     }
 
