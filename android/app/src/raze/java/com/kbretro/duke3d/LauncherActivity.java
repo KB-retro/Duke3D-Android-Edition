@@ -330,7 +330,7 @@ public class LauncherActivity extends Activity {
                 else note[0] = I18n.t("dos_missing") + where + "/duke2";
             });
         }
-        addSectionMenu(p, gameDir);
+        addSectionMenu(p, gameDir, false);
         sectionFooter(p, note, "Legacy");
         return p;
     }
@@ -359,16 +359,94 @@ public class LauncherActivity extends Activity {
                 launchPsx(gameDir, disc, findPsxBios(disc.getParentFile(), ds), pg[2]);
             });
         }
-        addSectionMenu(p, gameDir);
+        addSectionMenu(p, gameDir, true);
         sectionFooter(p, note, "Legend");
         return p;
     }
 
-    /** Opciones, Extras y Salir, también en las secciones Classic y Legacy. */
-    private void addSectionMenu(DukeMenuView.Page p, File gameDir) {
-        p.add(I18n.t("options"), null, () -> menuView.push(optionsPage(gameDir)));
+    /** Opciones (las de la sección), Extras y Salir, también en las secciones Classic y Legacy. */
+    private void addSectionMenu(DukeMenuView.Page p, File gameDir, boolean psx) {
+        p.add(I18n.t("options"), null, () -> menuView.push(psx ? psxOptionsPage() : dosOptionsPage()));
         p.add(I18n.t("extras"), null, () -> menuView.push(extrasPage(gameDir)));
         p.add(I18n.t("quit"), null, this::finishAffinity);
+    }
+
+    // ---- Opciones de cada sección (cada una con sus propios ajustes) ----
+
+    private static final String[] SCALER_KEYS = {"gfx_pixel", "gfx_sharp", "gfx_smooth", "gfx_bicubic", "gfx_fsr"};
+    private static final String[] SHARP_KEYS = {"no", "gfx_low", "gfx_mid", "gfx_high"};
+    private static final String[] CRT_KEYS = {"no", "gfx_lines", "gfx_crt", "gfx_lcd"};
+    private static final String[] COLOR_KEYS = {"gfx_normal", "gfx_vivid", "gfx_warm", "gfx_cold", "gfx_cinema"};
+    private static final String[] BLOOM_KEYS = {"no", "gfx_soft", "gfx_strong"};
+
+    /** Ajuste guardado con prefijo (dos_ o psx_), como en DosActivity y PsxActivity. */
+    private int secPref(String prefix, String key, int def, int n) {
+        int v = getSharedPreferences("ajustes", MODE_MULTI_PROCESS).getInt(prefix + key, def);
+        return v >= 0 && v < n ? v : def;
+    }
+
+    private void cycleSecPref(String prefix, String key, int def, int n) {
+        getSharedPreferences("ajustes", MODE_MULTI_PROCESS).edit()
+                .putInt(prefix + key, (secPref(prefix, key, def, n) + 1) % n).apply();
+    }
+
+    /** Los filtros gráficos (escalado, nitidez, resplandor, color, efecto) con su prefijo. */
+    private void addFilters(DukeMenuView.Page p, String prefix) {
+        String[][] f = {{"gfx_scaler", "escalado", "1"}, {"gfx_sharpness", "nitidez", "0"},
+                {"gfx_bloom", "resplandor", "0"}, {"gfx_color", "color", "0"}, {"gfx_effect", "crt", "0"}};
+        String[][] keys = {SCALER_KEYS, SHARP_KEYS, BLOOM_KEYS, COLOR_KEYS, CRT_KEYS};
+        for (int i = 0; i < f.length; i++) {
+            String key = f[i][1];
+            int def = Integer.parseInt(f[i][2]);
+            String[] k = keys[i];
+            p.addValue(I18n.t(f[i][0]), () -> I18n.t(k[secPref(prefix, key, def, k.length)]),
+                    () -> cycleSecPref(prefix, key, def, k.length));
+        }
+    }
+
+    private void addLogEntry(DukeMenuView.Page p) {
+        p.add(I18n.t("make_log"), null, () -> {
+            logStatus = I18n.t("making_log");
+            new Thread(() -> {
+                saveLog();
+                logStatus = I18n.t("log_saved") + new File(baseDir(), "registro.txt").getAbsolutePath();
+            }, "Registro").start();
+        });
+    }
+
+    /** Opciones de Classic (MS-DOS): sus táctiles y sus filtros. */
+    private DukeMenuView.Page dosOptionsPage() {
+        DukeMenuView.Page p = new DukeMenuView.Page();
+        p.addValue(I18n.t("touch_controls"), () -> ControlSettings.dosTouchModeLabel(this),
+                () -> ControlSettings.cycleDosTouchMode(this));
+        addFilters(p, "dos_");
+        addLogEntry(p);
+        p.add(I18n.t("back"), null, () -> menuView.pop());
+        p.onLeave = () -> logStatus = null;
+        p.footer = () -> logStatus != null ? logStatus : "";
+        return p;
+    }
+
+    private static final String[] PSX_SCREEN_KEYS = {"psx_auto", "4:3", "psx_wide"};
+    private static final String[] PSX_RES_LABELS = {"1x", "2x", "3x", "4x", "5x", "6x"};
+
+    /** Opciones de Legacy (PlayStation): pantalla, resolución, PGXP, PAL a 60 Hz y sus filtros. */
+    private DukeMenuView.Page psxOptionsPage() {
+        DukeMenuView.Page p = new DukeMenuView.Page();
+        p.addValue(I18n.t("psx_screen"), () -> I18n.t(PSX_SCREEN_KEYS[secPref("psx_", "pantalla", 0, 3)]),
+                () -> cycleSecPref("psx_", "pantalla", 0, 3));
+        p.addValue(I18n.t("psx_res"), () -> PSX_RES_LABELS[secPref("psx_", "resolucion3", 2, PSX_RES_LABELS.length)],
+                () -> cycleSecPref("psx_", "resolucion3", 2, PSX_RES_LABELS.length));
+        p.addValue(I18n.t("psx_pgxp"), () -> I18n.t(secPref("psx_", "pgxp", 1, 2) == 1 ? "yes" : "no"),
+                () -> cycleSecPref("psx_", "pgxp", 1, 2));
+        p.addValue(I18n.t("psx_pal60"), () -> I18n.t(secPref("psx_", "pal60", 0, 2) == 1 ? "yes" : "no"),
+                () -> cycleSecPref("psx_", "pal60", 0, 2));
+        addFilters(p, "psx_");
+        addLogEntry(p);
+        p.add(I18n.t("back"), null, () -> menuView.pop());
+        p.onLeave = () -> logStatus = null;
+        p.footer = () -> logStatus != null ? logStatus : "";
+        return p;
     }
 
     /** Pie de una sección: el aviso del juego que no se pudo lanzar o cómo pasar a la siguiente. */

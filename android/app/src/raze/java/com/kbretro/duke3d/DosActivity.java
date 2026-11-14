@@ -164,7 +164,7 @@ public class DosActivity extends SDLActivity {
     /** Táctiles: automático (sin mando, o al tocar la pantalla), siempre o nunca. */
     private void updateTouch(boolean touched) {
         if (touch == null) return;
-        int mode = ControlSettings.touchMode(this);
+        int mode = ControlSettings.dosTouchMode(this);
         boolean show;
         if (mode == 1) show = true;
         else if (mode == 2) show = false;
@@ -263,8 +263,8 @@ public class DosActivity extends SDLActivity {
 
     private DukeMenuView.Page controlsPage() {
         DukeMenuView.Page p = new DukeMenuView.Page();
-        p.addValue(I18n.t("touch_controls"), () -> ControlSettings.touchModeLabel(this),
-                () -> ControlSettings.cycleTouchMode(this));
+        p.addValue(I18n.t("touch_controls"), () -> ControlSettings.dosTouchModeLabel(this),
+                () -> ControlSettings.cycleDosTouchMode(this));
         p.add(I18n.t("gamepad_config"), null, () -> quickMenu.push(gamepadPage()));
         p.add(I18n.t("back"), null, () -> quickMenu.pop());
         return p;
@@ -513,7 +513,7 @@ public class DosActivity extends SDLActivity {
     @Override
     public boolean dispatchTouchEvent(MotionEvent e) {
         if (!menuOpen() && e.getActionMasked() == MotionEvent.ACTION_DOWN && touch != null
-                && touch.getVisibility() != View.VISIBLE && ControlSettings.touchMode(this) == 0) {
+                && touch.getVisibility() != View.VISIBLE && ControlSettings.dosTouchMode(this) == 0) {
             padUsed = false;
             updateTouch(true);
         }

@@ -60,6 +60,22 @@ final class ControlSettings {
         }
     }
 
+    // ---- Táctiles de los juegos de MS-DOS (sección Classic): ajuste propio ----
+
+    static int dosTouchMode(Context c) {
+        int m = prefs(c).getInt("dos_tactil", 0);
+        return m >= 0 && m <= 2 ? m : 0;
+    }
+
+    static String dosTouchModeLabel(Context c) {
+        int m = dosTouchMode(c);
+        return I18n.t(m == 1 ? "yes" : m == 2 ? "no" : "touch_auto");
+    }
+
+    static void cycleDosTouchMode(Context c) {
+        prefs(c).edit().putInt("dos_tactil", (dosTouchMode(c) + 1) % 3).apply();
+    }
+
     static void cycleTouchMode(Context c) {
         prefs(c).edit().putInt("tactil", (touchMode(c) + 1) % 3).apply();
     }
