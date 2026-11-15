@@ -751,28 +751,7 @@ void hw_CollectSceneLights(double interpfrac)
 
 // Sube al búfer las luces que tocan una caja (coordenadas del render) en ese sector.
 // attenuate: según el ángulo con la superficie (paredes y suelos); los sprites no tienen normal.
-// Sombras básicas: Raze en OpenGL ES no tiene mapas de sombras, así que se mira si hay algo en
-// medio (paredes, columnas, suelos y techos) entre la luz y unos puntos de la superficie. Si no
-// llega a ninguno no se ilumina; si llega a algunos, con menos fuerza.
-CVAR(Bool, hw_lightshadows, true, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
-
-static float LightVisibility(const HWSceneLight& l, sectortype* sec, const FVector3* samples, int nsamples)
-{
-	if (!hw_lightshadows || nsamples <= 0) return 1.f;
-	int vis = 0;
-	for (int i = 0; i < nsamples; i++)
-	{
-		// Del render al mapa: x, -y, -altura. Un poco hacia la luz para no quedarse en la pared.
-		DVector3 p(samples[i].X, -samples[i].Z, -samples[i].Y);
-		DVector3 d = l.mappos - p;
-		double len = d.Length();
-		if (len > 2) p += d * (1.5 / len);
-		if (cansee(l.mappos, l.sector, p, sec)) vis++;
-	}
-	return float(vis) / nsamples;
-}
-
-int hw_GetLights(sectortype* sec, const FVector3& mins, const FVector3& maxs, bool attenuate, const FVector3* samples, int nsamples)
+int hw_GetLights(sectortype* sec, const FVector3& mins, const FVector3& maxs, bool attenuate)
 {
 	if (hw_scenelights.Size() == 0 || !sec) return -1;
 	static thread_local FDynLightData lightdata;	// (la «lightdata» global de Raze no está definida)
@@ -791,11 +770,9 @@ int hw_GetLights(sectortype* sec, const FVector3& mins, const FVector3& maxs, bo
 			else if (v > maxs[a]) d += (v - maxs[a]) * (v - maxs[a]);
 		}
 		if (d >= l.radius * l.radius) continue;
-		float vis = LightVisibility(l, sec, samples, nsamples);
-		if (vis <= 0) continue;
 		float* data = &lightdata.arrays[0][lightdata.arrays[0].Reserve(16)];
 		data[0] = l.pos.X; data[1] = l.pos.Y; data[2] = l.pos.Z; data[3] = l.radius;
-		data[4] = l.color.X * vis; data[5] = l.color.Y * vis; data[6] = l.color.Z * vis; data[7] = attenuate ? -1.f : 1.f;
+		data[4] = l.color.X; data[5] = l.color.Y; data[6] = l.color.Z; data[7] = attenuate ? -1.f : 1.f;
 		for (int i = 8; i < 16; i++) data[i] = 0;
 		if (++n >= 8) break;
 	}
@@ -812,7 +789,7 @@ int hw_GetFlatLights(sectortype* sec)
 		float x = (float)wal.pos.X, y = (float)-wal.pos.Y;
 		x0 = min(x0, x); x1 = max(x1, x); y0 = min(y0, y); y1 = max(y1, y);
 	}
-	return hw_GetLights(sec, FVector3(x0, -1e30f, y0), FVector3(x1, 1e30f, y1), true, nullptr, 0);
+	return hw_GetLights(sec, FVector3(x0, -1e30f, y0), FVector3(x1, 1e30f, y1), true);
 }
 
 bool HWSprite::ProcessModel(HWDrawInfo* di, ModelTileFrame* pt, tspritetype* spr, sectortype* sector)
@@ -820,13 +797,12 @@ bool HWSprite::ProcessModel(HWDrawInfo* di, ModelTileFrame* pt, tspritetype* spr
 # Sprites, modelos y vóxeles: sus luces al dibujarlos (los aditivos, como las explosiones, no).
 sub("source/core/rendering/scene/hw_sprites.cpp",
     "void HWSprite::DrawSprite(HWDrawInfo* di, FRenderState& state, bool translucent)\n{\n\tbool additivefog = false;",
-    "int hw_GetLights(sectortype* sec, const FVector3& mins, const FVector3& maxs, bool attenuate, const FVector3* samples, int nsamples);\n"
+    "int hw_GetLights(sectortype* sec, const FVector3& mins, const FVector3& maxs, bool attenuate);\n"
     "void HWSprite::DrawSprite(HWDrawInfo* di, FRenderState& state, bool translucent)\n{\n"
     "\tdynlightindex = -1;\n"
     "\tif (Sprite && hw_scenelights.Size() > 0 && RenderStyle.BlendOp != STYLEOP_Add)\n\t{\n"
     "\t\tFVector3 c((float)Sprite->pos.X, (float)-Sprite->pos.Z, (float)-Sprite->pos.Y);\n"
-    "\t\tFVector3 mid = c + FVector3(0, 24, 0);\n"
-    "\t\tdynlightindex = hw_GetLights(Sprite->sectp, c - FVector3(24, 8, 24), c + FVector3(24, 72, 24), false, &mid, 1);\n\t}\n"
+    "\t\tdynlightindex = hw_GetLights(Sprite->sectp, c - FVector3(24, 8, 24), c + FVector3(24, 72, 24), false);\n\t}\n"
     "\tbool additivefog = false;")
 sub("source/core/rendering/scene/hw_sprites.cpp",
     "\t\tstate.SetLightIndex(-1);\n\t\tstate.Draw(DT_TriangleStrip, vertexindex, 4);",
@@ -834,18 +810,13 @@ sub("source/core/rendering/scene/hw_sprites.cpp",
 # Paredes.
 sub("source/core/rendering/scene/hw_walls.cpp",
     "void HWWall::DrawWall(HWDrawInfo *di, FRenderState &state, bool translucent)\n{\n\trendered_lines++;",
-    "int hw_GetLights(sectortype* sec, const FVector3& mins, const FVector3& maxs, bool attenuate, const FVector3* samples, int nsamples);\n"
+    "int hw_GetLights(sectortype* sec, const FVector3& mins, const FVector3& maxs, bool attenuate);\n"
     "void HWWall::DrawWall(HWDrawInfo *di, FRenderState &state, bool translucent)\n{\n\trendered_lines++;\n"
     "\tdynlightindex = -1;\n"
-    "\tif (hw_scenelights.Size() > 0 && texture != nullptr && type != RENDERWALL_MIRRORSURFACE && RenderStyle.BlendOp != STYLEOP_Add)\n\t{\n"
-    "\t\tFVector3 smp[3];\n"
-    "\t\tfor (int i = 0; i < 3; i++)\n\t\t{\n"
-    "\t\t\tfloat t = i == 0 ? 0.15f : i == 1 ? 0.5f : 0.85f;\n"
-    "\t\t\tsmp[i] = FVector3(glseg.x1 + (glseg.x2 - glseg.x1) * t,\n"
-    "\t\t\t\t((zbottom[0] + ztop[0]) * (1 - t) + (zbottom[1] + ztop[1]) * t) * 0.5f, glseg.y1 + (glseg.y2 - glseg.y1) * t);\n\t\t}\n"
+    "\tif (hw_scenelights.Size() > 0 && texture != nullptr && type != RENDERWALL_MIRRORSURFACE && RenderStyle.BlendOp != STYLEOP_Add)\n"
     "\t\tdynlightindex = hw_GetLights(frontsector,\n"
     "\t\t\tFVector3(min(glseg.x1, glseg.x2), min(zbottom[0], zbottom[1]), min(glseg.y1, glseg.y2)),\n"
-    "\t\t\tFVector3(max(glseg.x1, glseg.x2), max(ztop[0], ztop[1]), max(glseg.y1, glseg.y2)), true, smp, 3);\n\t}")
+    "\t\t\tFVector3(max(glseg.x1, glseg.x2), max(ztop[0], ztop[1]), max(glseg.y1, glseg.y2)), true);")
 sub("source/core/rendering/scene/hw_walls.cpp",
     '#include "hw_lightbuffer.h"',
     '#include "hw_lightbuffer.h"\n#include "gamefuncs.h"')
