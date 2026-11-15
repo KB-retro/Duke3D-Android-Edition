@@ -1133,6 +1133,8 @@ public class LauncherActivity extends Activity {
         boolean spanish = I18n.ES.equals(I18n.lang()) && !alone;
         // Mientras se preparan (la primera vez se descomprimen y tarda), se enseña el progreso.
         DukeMenuView.Page wait = new DukeMenuView.Page();
+        // El pack HD y el XXX, activados de serie la primera vez que aparecen.
+        if (!alone) GameData.applyDefaultMods(this, gameDir);
         if (!alone && !enabledMods().isEmpty()) {
             GameData.progress = "";
             GameData.progressValue = "";

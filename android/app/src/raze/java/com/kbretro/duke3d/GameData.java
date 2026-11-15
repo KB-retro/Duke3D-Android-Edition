@@ -179,8 +179,29 @@ final class GameData {
         c.getSharedPreferences("ajustes", android.content.Context.MODE_MULTI_PROCESS).edit().putStringSet("mods_activos", set).apply();
     }
 
+    /**
+     * El pack HD (HRP) y el XXX vienen activados de serie: la primera vez que aparecen en la
+     * carpeta de mods se activan. Si luego se apagan, se quedan apagados (se apunta que ya se vieron).
+     */
+    static void applyDefaultMods(android.content.Context c, File gameDir) {
+        android.content.SharedPreferences sp = c.getSharedPreferences("ajustes", android.content.Context.MODE_MULTI_PROCESS);
+        java.util.Set<String> seen = new java.util.HashSet<>(sp.getStringSet("mods_conocidos", new java.util.HashSet<>()));
+        java.util.Set<String> on = enabledMods(c);
+        boolean changed = false;
+        for (File f : gfxMods(gameDir)) {
+            String name = f.getName();
+            if (seen.contains(name)) continue;
+            seen.add(name);
+            changed = true;
+            String low = name.toLowerCase(java.util.Locale.ROOT);
+            if (low.contains("hrp") || low.contains("xxx") || low.matches("(?s).*(^|[^a-z])hd([^a-z]|$).*")) on.add(name);
+        }
+        if (changed) sp.edit().putStringSet("mods_conocidos", seen).putStringSet("mods_activos", on).apply();
+    }
+
     /** Un interruptor (Sí/No) por cada mod de gráficos y sonido. */
     static void addModToggles(android.content.Context c, DukeMenuView.Page p, File gameDir, Runnable onChange) {
+        applyDefaultMods(c, gameDir);
         for (File f : gfxMods(gameDir)) {
             String name = f.getName();
             p.addValue(I18n.t("mod_prefix") + modLabel(name), () -> I18n.t(enabledMods(c).contains(name) ? "yes" : "no"), () -> {
