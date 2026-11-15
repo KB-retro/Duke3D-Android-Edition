@@ -124,7 +124,7 @@ final class I18n {
         put("gfx_preset_bal", "Equilibrado", "Balanced");
         put("gfx_preset_quality", "Calidad", "Quality");
         put("gfx_preset_custom", "Personalizado", "Custom");
-        put("gyro", "Apuntar con el móvil", "Gyro aiming");
+        put("gyro", "Giroscopio", "Gyroscope");
         put("gyro_none", "No hay giroscopio", "No gyroscope");
         put("gfx_lens", "Destellos de luz", "Lens flares");
         put("game_menu", "Menú del juego", "Game menu");
