@@ -415,6 +415,7 @@ public class GameActivity extends SDLActivity {
         // Los ajustes guardados, cuando el juego ya ha arrancado (si no, su configuración los pisa).
         ui.postDelayed(() -> {
             applyRefreshRate(fps()); // otra vez, ya con la superficie del juego creada
+            updateGyro(); // y el bloqueo de giro (SDL pone su orientación al crear la ventana)
             command("r_maxfps " + fps());
             if (scale() != 100) applyScaleWhenReady(scale(), 0);
         }, 4000);
@@ -597,7 +598,7 @@ public class GameActivity extends SDLActivity {
             boolean left = getWindowManager().getDefaultDisplay().getRotation() == android.view.Surface.ROTATION_90;
             // Unidades del ratón de Raze: 1/16 de grado.
             float k = 57.29578f * 16f * gyroScale * dt;
-            float dx = (left ? -gx : gx) * k, dy = (left ? gy : -gy) * k;
+            float dx = (left ? gx : -gx) * k, dy = (left ? gy : -gy) * k;
             try {
                 nativeTouchLook(dx, dy, 0.25f);
             } catch (UnsatisfiedLinkError ignored) {
@@ -618,6 +619,14 @@ public class GameActivity extends SDLActivity {
     private void updateGyro() {
         boolean want = gyroSensor != null && ControlSettings.gyro(this) > 0 && !isPausedNow;
         gyroScale = ControlSettings.gyro(this);
+        // Con el giroscopio, la pantalla no se da la vuelta al inclinar el móvil: se queda en la
+        // orientación de ahora. Sin él, vuelve a girar sola entre las dos horizontales.
+        if (gyroSensor != null) {
+            boolean lock = ControlSettings.gyro(this) > 0;
+            int o = lock ? android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LOCKED
+                    : android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE;
+            if (getRequestedOrientation() != o) setRequestedOrientation(o);
+        }
         if (want == gyroOn) return;
         gyroOn = want;
         gyroLast = 0;
