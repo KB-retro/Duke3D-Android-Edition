@@ -273,8 +273,29 @@ final class TouchControls extends View {
             drawStick(c);
             for (Button b : buttons) drawButton(c, b);
         }
-        // Se vuelve a mirar si se está en plena partida (para aparecer y desaparecer a tiempo).
-        postInvalidateDelayed(visible ? 100 : 300);
+    }
+
+    // Si se está en plena partida se mira aparte, sin redibujar: antes los controles se repintaban
+    // 10 veces por segundo encima del juego aunque nada cambiara.
+    private final Runnable poll = new Runnable() {
+        @Override
+        public void run() {
+            if ((enabled && host.inGame()) != shown) invalidate();
+            postDelayed(this, 150);
+        }
+    };
+
+    @Override
+    protected void onAttachedToWindow() {
+        super.onAttachedToWindow();
+        removeCallbacks(poll);
+        post(poll);
+    }
+
+    @Override
+    protected void onDetachedFromWindow() {
+        removeCallbacks(poll);
+        super.onDetachedFromWindow();
     }
 
     // Estilo sobrio: cristal ahumado, borde fino y amarillo Duke solo al pulsar.

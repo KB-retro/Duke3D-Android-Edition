@@ -112,7 +112,7 @@ public class LauncherActivity extends Activity {
             // El registro entero tarda (logcat): en otro hilo, para no congelar el lanzador al
             // volver del juego. Si hubo un fallo, se enseña cuando está listo.
             new Thread(() -> {
-                List<String> log = saveLog();
+                List<String> log = saveLog(getPreferences(MODE_PRIVATE).getString("inicio_partida", null));
                 runOnUiThread(() -> {
                     if (isFinishing() || isDestroyed()) return;
                     lastLog = log;
@@ -643,7 +643,7 @@ public class LauncherActivity extends Activity {
         p.add(I18n.t("make_log"), null, () -> {
             logStatus = I18n.t("making_log");
             new Thread(() -> {
-                saveLog();
+                saveLog(null);
                 logStatus = I18n.t("log_saved") + new File(baseDir(), "registro.txt").getAbsolutePath();
             }, "Registro").start();
         });
@@ -958,7 +958,8 @@ public class LauncherActivity extends Activity {
                 launching = false;
                 if (menuView.top() == wait) menuView.pop();
                 if (isFinishing() || isDestroyed()) return;
-                getPreferences(MODE_PRIVATE).edit().putBoolean("jugando", true).apply();
+                getPreferences(MODE_PRIVATE).edit().putBoolean("jugando", true)
+                        .putString("inicio_partida", logTime(System.currentTimeMillis() - 2000)).apply();
                 Intent intent = new Intent(this, GameActivity.class);
                 intent.putExtra(GameActivity.EXTRA_DIR, gameDir.getAbsolutePath());
                 intent.putExtra(GameActivity.EXTRA_ARGS, args.toArray(new String[0]));
@@ -975,7 +976,17 @@ public class LauncherActivity extends Activity {
      * Guarda el registro del sistema de esta app (juego incluido) en /Duke3D/registro.txt y
      * devuelve las líneas del juego y de los errores, para enseñar las últimas en pantalla.
      */
-    private List<String> saveLog() {
+    /** Hora en el formato de «logcat -v time» (MM-dd HH:mm:ss.SSS), para comparar líneas. */
+    private static String logTime(long ms) {
+        return new java.text.SimpleDateFormat("MM-dd HH:mm:ss.SSS", java.util.Locale.ROOT).format(new java.util.Date(ms));
+    }
+
+    /**
+     * @param since solo cuentan (para enseñar y para detectar un fallo) las líneas desde esta
+     *              hora: el registro de Android guarda también las partidas anteriores, y un fallo
+     *              viejo salía otra vez al volver de una partida que había ido bien. null: todas.
+     */
+    private List<String> saveLog(String since) {
         List<String> important = new ArrayList<>();
         File out = new File(baseDir(), "registro.txt");
         try {
@@ -986,6 +997,7 @@ public class LauncherActivity extends Activity {
                 while ((line = r.readLine()) != null) {
                     w.write(line);
                     w.write('\n');
+                    if (since != null && (line.length() < 18 || line.substring(0, 18).compareTo(since) < 0)) continue;
                     if (line.contains("EDuke32") || line.contains("Duke3D") || line.contains("Raze") || line.contains("SDL")
                             || line.contains("AndroidRuntime") || line.contains("DEBUG")
                             || line.contains(" F/") || line.contains(" E/")) {

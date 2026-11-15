@@ -282,8 +282,13 @@ public class GameActivity extends SDLActivity {
     }
 
     /** Suelta todo lo que estuviera pulsado (al abrir el menú, por ejemplo). */
-    private static void releaseAllFuncs() {
+    private void releaseAllFuncs() {
         for (int i = 0; i < 64; i++) pressFunc(i, false);
+        // Y el estado de la cruceta reasignada (si se soltaba con el menú abierto, la acción
+        // seguía pulsada al volver).
+        triggerL = triggerR = false;
+        hatKey = -1;
+        padActive = false;
         try {
             nativeTouchMove(0, 0);
         } catch (UnsatisfiedLinkError ignored) {
@@ -912,7 +917,7 @@ public class GameActivity extends SDLActivity {
         return true;
     }
 
-    private boolean triggerL, triggerR;
+    private boolean triggerL, triggerR, padActive;
     private int stickMenuKey = -1;
 
     private static float dead(float v) {
@@ -943,8 +948,11 @@ public class GameActivity extends SDLActivity {
                 if (f >= 0) pressFunc(f, r);
             }
             razeHat(hx, hy, true);
+            padActive = true;
             return;
         }
+        // Fuera de la partida (menú del juego, fin de nivel...): nada se queda andando ni girando.
+        if (padActive) releaseAllFuncs();
         // Menús: stick izquierdo y cruceta (como ejes) = flechas.
         int k = -1;
         float x = Math.abs(hx) > 0.5f ? hx : lx, y = Math.abs(hy) > 0.5f ? hy : ly;
@@ -1005,7 +1013,18 @@ public class GameActivity extends SDLActivity {
      * lanzador (que va en otro proceso) queda a la vista. Si no termina en 2 s, se cierra igual.
      * @param all también cierra el lanzador
      */
+    @Override
+    protected void onPause() {
+        // Al salir de la app en plena partida (llamada, Inicio...), al volver la partida espera
+        // en el menú rápido en vez de seguir de golpe con los enemigos disparando.
+        if (!quitting && !isFinishing() && art != null && !menuOpen() && inGame()) openMenu();
+        super.onPause();
+    }
+
+    private boolean quitting;
+
     private void quitGame(boolean all) {
+        quitting = true;
         // Primero termina el juego; el lanzador se cierra después al volver a él (si se cerraba
         // antes, la ventana del juego desaparecía con el juego aún dibujando y Raze fallaba).
         if (all) prefs().edit().putBoolean("salir_todo", true).commit();

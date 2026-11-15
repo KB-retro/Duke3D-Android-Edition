@@ -109,7 +109,6 @@ final class I18n {
         put("gfx_ssao", "Oclusión ambiental", "Ambient occlusion");
         put("gfx_hq", "Texturas suavizadas", "Smoothed textures");
         put("gfx_lens", "Destellos de luz", "Lens flares");
-        put("game_menu", "Menú del juego", "Game menu");
         put("gfx_colors", "Colores", "Colors");
         put("gfx_truecolor", "Color real", "True color");
         put("new_game", "Nueva partida", "New game");
