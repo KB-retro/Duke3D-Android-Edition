@@ -444,10 +444,15 @@ static void ModelAnimate(DCoreActor* act, ModelDescriptor* desc, ModelTileFrame*
 	if (ext.mdanimcur != target + 1)
 	{
 		bool first = ext.mdanimcur == 0;
+		// Fundido con la postura anterior. Si el .def no dice cuánto (smoothduration), lo que
+		// duró la anterior: los enemigos cambian de fotograma unas 8 veces por segundo y, sin
+		// esto, el modelo saltaba de una postura a otra (movimiento robótico).
+		float dur = pt->smoothduration;
+		if (dur <= 0 && !first) dur = clamp((now - ext.mdanimtims) / 1000.f, 0.06f, 0.2f);
 		ext.mdanimcur = (int16_t)(target + 1);
 		ext.mdanimtims = now;
-		sm.mdsmooth = (!first && pt->smoothduration > 0) ? 1 : 0;
-		sm.smoothduration = pt->smoothduration;
+		sm.mdsmooth = (!first && dur > 0) ? 1 : 0;
+		sm.smoothduration = dur;
 	}
 	int d = (int)(now - ext.mdanimtims);
 	if (d < 0) { ext.mdanimtims = now; d = 0; }
@@ -513,7 +518,40 @@ bool HWSprite::ProcessModel(HWDrawInfo* di, ModelTileFrame* pt, tspritetype* spr
 	visibility = sectorVisibility(sector);
 	SetSpriteTranslucency(spr, alpha, RenderStyle);
 
-	auto ang = spr->Angles.Yaw + ownerActor->sprext.rot.Yaw;
+	// Giro suave: el ángulo de los enemigos cambia de golpe (Duke no guarda el anterior para
+	// interpolarlo), así que el modelo se va girando hacia él en unas décimas de segundo.
+	DAngle baseyaw = spr->Angles.Yaw;
+	{
+		struct SmoothYaw { double yaw, t; };
+		static TMap<DCoreActor*, SmoothYaw> yaws;
+		static double lastPurge = 0;
+		double t = ((double)PlayClock + 4. * di->Viewpoint.TicFrac) / 120.;
+		if (t < lastPurge || t - lastPurge > 10)
+		{
+			// Sin restos de actores que ya no se ven (o ya borrados).
+			TArray<DCoreActor*> old;
+			TMap<DCoreActor*, SmoothYaw>::Iterator it(yaws);
+			TMap<DCoreActor*, SmoothYaw>::Pair* pair;
+			while (it.NextPair(pair)) if (t < pair->Value.t || t - pair->Value.t > 1) old.Push(pair->Key);
+			for (auto a : old) yaws.Remove(a);
+			lastPurge = t;
+		}
+		if (spr->Angles.Yaw == ownerActor->spr.Angles.Yaw)
+		{
+			SmoothYaw* sy = yaws.CheckKey(ownerActor);
+			double target = spr->Angles.Yaw.Degrees();
+			if (!sy || t < sy->t || t - sy->t > 0.5) yaws.Insert(ownerActor, { target, t });
+			else
+			{
+				double d = remainder(target - sy->yaw, 360.);
+				double k = 1. - exp(-(t - sy->t) / 0.07);
+				sy->yaw += d * k;
+				sy->t = t;
+				baseyaw = DAngle::fromDeg(sy->yaw);
+			}
+		}
+	}
+	auto ang = baseyaw + ownerActor->sprext.rot.Yaw;
 	if (spr->clipdist & TSPR_MDLROTATE)
 	{
 		int myclock = (PlayClock << 3) + MulScale(4 << 3, (int)di->Viewpoint.TicFrac, 16);
