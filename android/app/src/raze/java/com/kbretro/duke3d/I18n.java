@@ -112,6 +112,7 @@ final class I18n {
         put("gfx_hightile", "Texturas HD", "HD textures");
         put("gfx_voxels", "Vóxeles", "Voxels");
         put("gfx_shadows", "Sombras", "Shadows");
+        put("gfx_lights", "Luces dinámicas", "Dynamic lights");
         put("gfx_fov", "Campo de visión", "Field of view");
         put("gfx_fps_counter", "Contador de FPS", "FPS counter");
         put("gfx_preset", "Perfil", "Preset");

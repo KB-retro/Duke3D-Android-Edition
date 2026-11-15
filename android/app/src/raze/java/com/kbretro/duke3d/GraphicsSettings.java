@@ -139,6 +139,9 @@ final class GraphicsSettings {
                     new String[]{"no", "yes"}, new String[]{"r_voxels 0", "r_voxels 1"}),
             new RazeOpt("gfx_shadows", "raze_sombras", 1,
                     new String[]{"no", "yes"}, new String[]{"r_shadows 0", "r_shadows 1"}),
+            // Luces de explosiones, disparos, fuego... (parche 31 de raze/parchear.py).
+            new RazeOpt("gfx_lights", "raze_luces", 1,
+                    new String[]{"no", "yes"}, new String[]{"hw_dynlights 0", "hw_dynlights 1"}),
             // Más campo de visión en pantallas panorámicas (Raze lo corrige según la proporción).
             new RazeOpt("gfx_fov", "raze_fov", 0,
                     new String[]{"90°", "100°", "110°", "120°"},

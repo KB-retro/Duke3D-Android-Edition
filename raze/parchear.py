@@ -675,3 +675,244 @@ sub("source/core/models/modeldata.cpp",
     "    if (pal < 0 || pal >= MAXPALOOKUPS) pal = 0;\n    auto key = FrameMapKey(tilenum, pal);",
     "    if (pal < 0 || pal >= MAXPALOOKUPS) pal = 0;\n    extern bool tileArtShapeChanged(int tile);\n"
     "    if (tileArtShapeChanged(tilenum)) return 0;\n    auto key = FrameMapKey(tilenum, pal);")
+
+# 31. Luces dinámicas (como las de Polymer en EDuke32). Raze trae la parte del shader (luces por
+#     superficie en OpenGL ES), pero ningún juego las crea y la recogida estaba comentada. Cada
+#     fotograma el juego da su lista de luces (explosiones, cohetes, fuego, rayos, fogonazo del
+#     arma...) y cada pared, suelo, sprite y modelo 3D se lleva las que le tocan. Sin mapas de
+#     sombras: para que no atraviesen paredes, cada luz solo alumbra su sector y los contiguos a
+#     los que se asoma por un hueco abierto.
+sub("source/core/gamefuncs.h",
+    '#include "updatesector.h"',
+    '#include "updatesector.h"\n\n'
+    "struct HWSceneLight\n{\n\tenum { MAXSECT = 24 };\n\tFVector3 pos;\t\t// en coordenadas del render (x, altura, -y)\n"
+    "\tDVector3 mappos;\n\tfloat radius;\n\tFVector3 color;\n\tsectortype* sector;\n"
+    "\tsectortype* sect[MAXSECT];\n\tint nsect;\n};\n"
+    "extern TArray<HWSceneLight> hw_scenelights;\n"
+    "extern void (*hw_gamelights)(TArray<HWSceneLight>& out, double interpfrac);\n"
+    "void hw_AddSceneLight(TArray<HWSceneLight>& out, const DVector3& pos, sectortype* sect, float radius, float r, float g, float b);\n")
+sub("source/core/rendering/scene/hw_sprites.cpp",
+    '#include "models/modeldata.h"\n#include "model.h"',
+    '#include "models/modeldata.h"\n#include "model.h"\n#include "gamefuncs.h"\n#include "hw_dynlightdata.h"\n#include "hw_lightbuffer.h"')
+sub("source/core/rendering/scene/hw_sprites.cpp",
+    "bool HWSprite::ProcessModel(HWDrawInfo* di, ModelTileFrame* pt, tspritetype* spr, sectortype* sector)\n{",
+    r'''// ---- Luces dinámicas ----
+CVAR(Bool, hw_dynlights, true, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
+TArray<HWSceneLight> hw_scenelights;
+void (*hw_gamelights)(TArray<HWSceneLight>& out, double interpfrac) = nullptr;
+
+void hw_AddSceneLight(TArray<HWSceneLight>& out, const DVector3& pos, sectortype* sect, float radius, float r, float g, float b)
+{
+	if (!sect || radius <= 0 || out.Size() >= 64) return;
+	HWSceneLight& l = out[out.Reserve(1)];
+	l.mappos = pos;
+	l.pos = FVector3((float)pos.X, (float)-pos.Z, (float)-pos.Y);
+	l.radius = radius;
+	l.color = FVector3(r, g, b);
+	l.sector = sect;
+	l.nsect = 0;
+}
+
+static double LightSegDistSq(const DVector2& p, const DVector2& a, const DVector2& b)
+{
+	DVector2 ab = b - a;
+	double len = ab.LengthSquared();
+	double t = len > 0 ? clamp(((p - a) | ab) / len, 0., 1.) : 0.;
+	return (a + ab * t - p).LengthSquared();
+}
+
+void hw_CollectSceneLights(double interpfrac)
+{
+	hw_scenelights.Clear();
+	if (!hw_dynlights || !hw_gamelights) return;
+	hw_gamelights(hw_scenelights, interpfrac);
+	for (auto& l : hw_scenelights)
+	{
+		// Sectores a los que llega: el suyo y, por huecos abiertos que estén a su alcance, los de al lado.
+		l.sect[l.nsect++] = l.sector;
+		DVector2 mp = l.mappos.XY();
+		double r2 = (double)l.radius * l.radius;
+		for (int i = 0; i < l.nsect && l.nsect < HWSceneLight::MAXSECT; i++)
+		{
+			for (auto& wal : l.sect[i]->walls)
+			{
+				if (!wal.twoSided()) continue;
+				auto ns = wal.nextSector();
+				if (!ns || ns->floorz <= ns->ceilingz) continue;	// puerta cerrada
+				bool have = false;
+				for (int k = 0; k < l.nsect; k++) if (l.sect[k] == ns) { have = true; break; }
+				if (have || LightSegDistSq(mp, wal.pos, wal.point2Wall()->pos) > r2) continue;
+				l.sect[l.nsect++] = ns;
+				if (l.nsect >= HWSceneLight::MAXSECT) break;
+			}
+		}
+	}
+}
+
+// Sube al búfer las luces que tocan una caja (coordenadas del render) en ese sector.
+// attenuate: según el ángulo con la superficie (paredes y suelos); los sprites no tienen normal.
+int hw_GetLights(sectortype* sec, const FVector3& mins, const FVector3& maxs, bool attenuate)
+{
+	if (hw_scenelights.Size() == 0 || !sec) return -1;
+	static thread_local FDynLightData lightdata;	// (la «lightdata» global de Raze no está definida)
+	lightdata.Clear();
+	int n = 0;
+	for (auto& l : hw_scenelights)
+	{
+		bool ok = false;
+		for (int k = 0; k < l.nsect; k++) if (l.sect[k] == sec) { ok = true; break; }
+		if (!ok) continue;
+		float d = 0;
+		for (int a = 0; a < 3; a++)
+		{
+			float v = l.pos[a];
+			if (v < mins[a]) d += (mins[a] - v) * (mins[a] - v);
+			else if (v > maxs[a]) d += (v - maxs[a]) * (v - maxs[a]);
+		}
+		if (d >= l.radius * l.radius) continue;
+		float* data = &lightdata.arrays[0][lightdata.arrays[0].Reserve(16)];
+		data[0] = l.pos.X; data[1] = l.pos.Y; data[2] = l.pos.Z; data[3] = l.radius;
+		data[4] = l.color.X; data[5] = l.color.Y; data[6] = l.color.Z; data[7] = attenuate ? -1.f : 1.f;
+		for (int i = 8; i < 16; i++) data[i] = 0;
+		if (++n >= 8) break;
+	}
+	if (n == 0) return -1;
+	return screen->mLights->UploadLights(lightdata);
+}
+
+int hw_GetFlatLights(sectortype* sec)
+{
+	if (hw_scenelights.Size() == 0 || !sec) return -1;
+	float x0 = 1e30f, x1 = -1e30f, y0 = 1e30f, y1 = -1e30f;
+	for (auto& wal : sec->walls)
+	{
+		float x = (float)wal.pos.X, y = (float)-wal.pos.Y;
+		x0 = min(x0, x); x1 = max(x1, x); y0 = min(y0, y); y1 = max(y1, y);
+	}
+	return hw_GetLights(sec, FVector3(x0, -1e30f, y0), FVector3(x1, 1e30f, y1), true);
+}
+
+bool HWSprite::ProcessModel(HWDrawInfo* di, ModelTileFrame* pt, tspritetype* spr, sectortype* sector)
+{''')
+# Sprites, modelos y vóxeles: sus luces al dibujarlos (los aditivos, como las explosiones, no).
+sub("source/core/rendering/scene/hw_sprites.cpp",
+    "void HWSprite::DrawSprite(HWDrawInfo* di, FRenderState& state, bool translucent)\n{\n\tbool additivefog = false;",
+    "int hw_GetLights(sectortype* sec, const FVector3& mins, const FVector3& maxs, bool attenuate);\n"
+    "void HWSprite::DrawSprite(HWDrawInfo* di, FRenderState& state, bool translucent)\n{\n"
+    "\tdynlightindex = -1;\n"
+    "\tif (Sprite && hw_scenelights.Size() > 0 && RenderStyle.BlendOp != STYLEOP_Add)\n\t{\n"
+    "\t\tFVector3 c((float)Sprite->pos.X, (float)-Sprite->pos.Z, (float)-Sprite->pos.Y);\n"
+    "\t\tdynlightindex = hw_GetLights(Sprite->sectp, c - FVector3(24, 8, 24), c + FVector3(24, 72, 24), false);\n\t}\n"
+    "\tbool additivefog = false;")
+sub("source/core/rendering/scene/hw_sprites.cpp",
+    "\t\tstate.SetLightIndex(-1);\n\t\tstate.Draw(DT_TriangleStrip, vertexindex, 4);",
+    "\t\tstate.SetLightIndex(dynlightindex);\n\t\tstate.Draw(DT_TriangleStrip, vertexindex, 4);\n\t\tstate.SetLightIndex(-1);")
+# Paredes.
+sub("source/core/rendering/scene/hw_walls.cpp",
+    "void HWWall::DrawWall(HWDrawInfo *di, FRenderState &state, bool translucent)\n{\n\trendered_lines++;",
+    "int hw_GetLights(sectortype* sec, const FVector3& mins, const FVector3& maxs, bool attenuate);\n"
+    "void HWWall::DrawWall(HWDrawInfo *di, FRenderState &state, bool translucent)\n{\n\trendered_lines++;\n"
+    "\tdynlightindex = -1;\n"
+    "\tif (hw_scenelights.Size() > 0 && texture != nullptr && type != RENDERWALL_MIRRORSURFACE && RenderStyle.BlendOp != STYLEOP_Add)\n"
+    "\t\tdynlightindex = hw_GetLights(frontsector,\n"
+    "\t\t\tFVector3(min(glseg.x1, glseg.x2), min(zbottom[0], zbottom[1]), min(glseg.y1, glseg.y2)),\n"
+    "\t\t\tFVector3(max(glseg.x1, glseg.x2), max(ztop[0], ztop[1]), max(glseg.y1, glseg.y2)), true);")
+sub("source/core/rendering/scene/hw_walls.cpp",
+    '#include "hw_lightbuffer.h"',
+    '#include "hw_lightbuffer.h"\n#include "gamefuncs.h"')
+sub("source/core/rendering/scene/hw_walls.cpp",
+    "\t\tdefault:\n\t\t\tRenderTranslucentWall(di, state);\n\t\t\tbreak;\n\t\t}\n\t}\n}",
+    "\t\tdefault:\n\t\t\tRenderTranslucentWall(di, state);\n\t\t\tbreak;\n\t\t}\n\t}\n\tstate.SetLightIndex(-1);\n}")
+# Suelos y techos.
+sub("source/core/rendering/scene/hw_flats.cpp",
+    "\tstate.SetLightIndex(dynlightindex);\n\tstate.Draw(DT_Triangles, vertindex, vertcount);",
+    "\t{\n\t\tint hw_GetFlatLights(sectortype* sec);\n"
+    "\t\tdynlightindex = (texture && RenderStyle.BlendOp != STYLEOP_Add) ? hw_GetFlatLights(sec) : -1;\n\t}\n"
+    "\tstate.SetLightIndex(dynlightindex);\n\tstate.Draw(DT_Triangles, vertindex, vertcount);\n\tstate.SetLightIndex(-1);")
+sub("source/core/rendering/scene/hw_flats.cpp",
+    '#include "hw_lightbuffer.h"',
+    '#include "hw_lightbuffer.h"\n#include "gamefuncs.h"')
+# La lista de luces, una vez por fotograma (antes de los espejos y portales).
+sub("source/core/rendering/hw_entrypoint.cpp",
+    "\tscreen->mLights->Clear();\n\tscreen->mViewpoints->Clear();\n\tscreen->mVertexData->Reset();\n\n\tif (writingsavepic)",
+    "\tscreen->mLights->Clear();\n\tscreen->mViewpoints->Clear();\n\tscreen->mVertexData->Reset();\n"
+    "\t{\n\t\tvoid hw_CollectSceneLights(double interpfrac);\n\t\thw_CollectSceneLights(writingsavepic ? 1. : interpfrac);\n\t}\n\n\tif (writingsavepic)")
+# Duke: qué da luz. Radio en unidades del mapa de Raze (1 = 16 de Build).
+sub("source/games/duke/src/animatesprites.cpp",
+    "\t\t\t\tgetPlayer(screenpeek)->visibility = -127;\n\t\t\t\tlastvisinc = PlayClock + 32;\n\t\t\t}\n\t\t}\n\n\t}\n}\nEND_DUKE_NS",
+    r'''				getPlayer(screenpeek)->visibility = -127;
+				lastvisinc = PlayClock + 32;
+			}
+		}
+
+	}
+}
+
+int gDukeMuzzleClock = -1000;	// último disparo del jugador (lo apunta el bucle del juego)
+
+static void DukeSceneLights(TArray<HWSceneLight>& out, double interpfrac)
+{
+	if (!isDuke()) return;
+	struct LightDef { const char* cls; float radius, r, g, b; bool flicker; };
+	static const LightDef defs[] = {
+		{ "DukeExplosion2", 170, 1.0f, 0.6f, 0.25f, false },
+		{ "DukeExplosion2Bot", 170, 1.0f, 0.6f, 0.25f, false },
+		{ "DukeSeenine", 0, 0, 0, 0, false },
+		{ "DukeRPG", 72, 1.0f, 0.6f, 0.25f, false },
+		{ "DukeFireball", 90, 1.0f, 0.55f, 0.2f, true },
+		{ "DukeFreezeBlast", 64, 0.3f, 0.55f, 1.0f, false },
+		{ "DukeShrinkSpark", 64, 0.35f, 1.0f, 0.35f, false },
+		{ "DukeShrinkerExplosion", 128, 0.35f, 1.0f, 0.35f, false },
+		{ "DukeGrowSpark", 64, 1.0f, 0.35f, 0.35f, false },
+		{ "DukeCoolExplosion1", 96, 0.8f, 0.35f, 1.0f, false },
+		{ "DukeFirelaser", 48, 1.0f, 0.3f, 0.15f, false },
+		{ "DukeDevastatorBlast", 72, 1.0f, 0.6f, 0.25f, false },
+		{ "DukeShotSpark", 28, 1.0f, 0.8f, 0.45f, false },
+		{ "DukeBurning", 72, 1.0f, 0.5f, 0.15f, true },
+		{ "DukeBurning2", 72, 1.0f, 0.5f, 0.15f, true },
+		{ "DukeFire", 72, 1.0f, 0.5f, 0.15f, true },
+		{ "DukeFire2", 72, 1.0f, 0.5f, 0.15f, true },
+		{ "DukeOnFire", 56, 1.0f, 0.5f, 0.15f, true },
+		{ "DukeFloorFlame", 72, 1.0f, 0.5f, 0.15f, true },
+		{ "DukeFlamethrowerFlame", 64, 1.0f, 0.5f, 0.15f, true },
+		{ "DukeAtomicHealth", 48, 0.3f, 0.55f, 1.0f, false },
+		{ "DukeTransporterStar", 56, 0.4f, 0.6f, 1.0f, false },
+		{ "DukeTransporterBeam", 80, 0.4f, 0.6f, 1.0f, false },
+		{ "DukeReactorSpark", 64, 0.6f, 0.8f, 1.0f, false },
+		{ "DukeReactor2Spark", 64, 0.6f, 0.8f, 1.0f, false },
+	};
+	static TMap<FName, int> map;
+	if (map.CountUsed() == 0)
+		for (int i = 0; i < (int)countof(defs); i++) map.Insert(FName(defs[i].cls), i);
+
+	DukeSpriteIterator it;
+	while (auto act = it.Next())
+	{
+		if (act->spr.scale.X <= 0 || (act->spr.cstat & CSTAT_SPRITE_INVISIBLE) || !act->sector()) continue;
+		auto idx = map.CheckKey(act->GetClass()->TypeName);
+		if (!idx) continue;
+		auto& d = defs[*idx];
+		if (d.radius <= 0) continue;
+		float rad = d.radius;
+		if (d.flicker) rad *= 0.85f + 0.15f * sinf(PlayClock * 0.35f + act->GetIndex() * 1.7f);
+		hw_AddSceneLight(out, act->interpolatedpos(interpfrac).plusZ(-6), act->sector(), rad, d.r, d.g, d.b);
+	}
+	// Fogonazo del arma del jugador (unos 80 ms tras cada disparo).
+	auto p = getPlayer(screenpeek);
+	auto pact = p ? p->GetActor() : nullptr;
+	if (pact && pact->sector() && PlayClock - gDukeMuzzleClock >= 0 && PlayClock - gDukeMuzzleClock < 10)
+	{
+		auto pos = pact->getRenderPos(interpfrac) + DVector3(pact->spr.Angles.Yaw.ToVector() * 12, 8);
+		hw_AddSceneLight(out, pos, pact->sector(), 120, 1.0f, 0.78f, 0.45f);
+	}
+}
+
+static struct DukeSceneLightsInit { DukeSceneLightsInit() { hw_gamelights = DukeSceneLights; } } dukeSceneLightsInit;
+
+END_DUKE_NS''')
+sub("source/games/duke/src/gameloop.cpp",
+    "\t\tfi.think();\n#ifdef __ANDROID__\n\t\tandroid_duke_tick();\n#endif\n",
+    "\t\tfi.think();\n#ifdef __ANDROID__\n\t\tandroid_duke_tick();\n#endif\n"
+    # El jugador dispara: sus armas ponen visibility a 0 (el fogonazo del original).
+    "\t\t{\n\t\t\textern int gDukeMuzzleClock;\n\t\t\tauto mp = getPlayer(screenpeek);\n"
+    "\t\t\tif (mp && mp->visibility == 0 && ud.const_visibility != 0) gDukeMuzzleClock = PlayClock;\n\t\t}\n")
