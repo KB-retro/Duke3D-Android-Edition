@@ -942,6 +942,7 @@ public class LauncherActivity extends Activity {
             try {
                 args.addAll(Arrays.asList(GameData.arguments(this, gameDir, game, defFile)));
                 args.addAll(Arrays.asList(extraArgs));
+                GameData.chainModCons(this, args, modArgs);
                 args.addAll(modArgs);
                 all = GameData.games(gameDir);
             } catch (Throwable t) {

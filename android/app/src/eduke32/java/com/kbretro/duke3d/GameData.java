@@ -748,6 +748,65 @@ final class GameData {
         return sb.toString();
     }
 
+    /**
+     * Con una expansión, los mods que traen un guion que solo envuelve al del juego (p. ej. el
+     * eduke.con del pack de vóxeles, con «include game.con») tapaban con su -x el de la expansión
+     * (XP_...): se perdían los episodios ocultos y salían los del Duke 3D normal. Se hace una copia
+     * de ese guion que incluye el de la expansión en su lugar, y es esa la que se usa.
+     * @param args    los argumentos del juego (con el -x XP_... de la expansión, si la hay)
+     * @param modArgs los de los mods (se cambian aquí)
+     */
+    static void chainModCons(android.content.Context ctx, List<String> args, List<String> modArgs) {
+        String xp = null;
+        for (int i = 0; i + 1 < args.size(); i++)
+            if ("-x".equals(args.get(i)) && args.get(i + 1).startsWith("XP_")) xp = args.get(i + 1);
+        if (xp == null) return;
+        File out = new File(ctx.getFilesDir(), "expansion_mods");
+        deleteTree(out);
+        java.util.regex.Pattern inc = java.util.regex.Pattern.compile("(?im)^(\\s*include\\s+)\"?game\\.con\"?(\\s*)$");
+        String dir = null;
+        boolean added = false;
+        for (int i = 0; i + 1 < modArgs.size(); i++) {
+            String a = modArgs.get(i);
+            if ("-j".equals(a)) dir = modArgs.get(i + 1);
+            if (!"-x".equals(a) || dir == null) continue;
+            String name = modArgs.get(i + 1);
+            File con = resolveCase(new File(dir), name);
+            if (con == null) continue;
+            try {
+                String text = new String(readAll(con), java.nio.charset.StandardCharsets.ISO_8859_1);
+                java.util.regex.Matcher m = inc.matcher(text);
+                if (!m.find()) continue; // un guion propio entero (una campaña): ese manda
+                String chained = m.replaceAll("$1" + xp + "$2");
+                //noinspection ResultOfMethodCallIgnored
+                out.mkdirs();
+                String newName = "XPM_" + i + "_" + con.getName().toUpperCase(java.util.Locale.ROOT);
+                writeBytes(new File(out, newName), chained.getBytes(java.nio.charset.StandardCharsets.ISO_8859_1));
+                modArgs.set(i + 1, newName);
+                if (!added) {
+                    modArgs.add(0, out.getAbsolutePath());
+                    modArgs.add(0, "-j");
+                    added = true;
+                    i += 2;
+                }
+                android.util.Log.i("Duke3D", "Guion del mod " + name + " encadenado con " + xp + " (" + newName + ")");
+            } catch (java.io.IOException e) {
+                android.util.Log.w("Duke3D", "No se pudo leer " + con, e);
+            }
+        }
+    }
+
+    /** Un archivo dentro de dir por su ruta relativa, sin mirar mayúsculas (o null). */
+    private static File resolveCase(File dir, String rel) {
+        File cur = dir;
+        for (String part : rel.replace('\\', '/').split("/")) {
+            if (part.isEmpty()) continue;
+            cur = findChild(cur, part);
+            if (cur == null) return null;
+        }
+        return cur.isFile() ? cur : null;
+    }
+
     private static byte[] readAll(File f) throws java.io.IOException {
         try (java.io.InputStream in = new java.io.FileInputStream(f)) {
             java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
