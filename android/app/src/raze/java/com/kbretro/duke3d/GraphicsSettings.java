@@ -167,6 +167,9 @@ final class GraphicsSettings {
             // Luces de explosiones, disparos, fuego... (parche 31 de raze/parchear.py).
             new RazeOpt("gfx_lights", "raze_luces", 1,
                     new String[]{"no", "yes"}, new String[]{"hw_dynlights 0", "hw_dynlights 1"}),
+            // Las paredes y columnas tapan las luces (sombras básicas, ver parche 31).
+            new RazeOpt("gfx_light_shadows", "raze_sombras_luces", 1,
+                    new String[]{"no", "yes"}, new String[]{"hw_lightshadows 0", "hw_lightshadows 1"}),
             // Más campo de visión en pantallas panorámicas (Raze lo corrige según la proporción).
             // (Clave nueva: en «raze_fov» el 0 era 90°.) De serie 90°, también con los perfiles.
             new RazeOpt("gfx_fov", "raze_campo", 2,
