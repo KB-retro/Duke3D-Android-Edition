@@ -64,6 +64,16 @@ final class GraphicsSettings {
             prefs(c).edit().putInt("escala", next).apply();
             if (onScale != null) onScale.accept(next);
         });
+        // Izquierda/derecha: baja o sube (antes cualquier lado pasaba al siguiente).
+        lastEntry(p).step = d -> {
+            int i = 0;
+            for (int k = 0; k < SCALE_VALUES.length; k++) if (SCALE_VALUES[k] == scale(c)) i = k;
+            // SCALE_VALUES va de mayor a menor: derecha = más resolución.
+            int j = Math.max(0, Math.min(SCALE_VALUES.length - 1, i - d));
+            if (j == i) return;
+            prefs(c).edit().putInt("escala", SCALE_VALUES[j]).apply();
+            if (onScale != null) onScale.accept(SCALE_VALUES[j]);
+        };
         if (Motor.RAZE) {
             p.addValue(I18n.t("gfx_preset"), () -> {
                 int cur = currentPreset(c);
@@ -74,6 +84,14 @@ final class GraphicsSettings {
                 if (onScale != null) onScale.accept(PRESETS[next][0]);
                 if (onChange != null) onChange.run();
             });
+            lastEntry(p).step = d -> {
+                int cur = currentPreset(c);
+                int next = cur < 0 ? (d > 0 ? 0 : PRESETS.length - 1) : Math.max(0, Math.min(PRESETS.length - 1, cur + d));
+                if (next == cur) return;
+                applyPreset(c, next);
+                if (onScale != null) onScale.accept(PRESETS[next][0]);
+                if (onChange != null) onChange.run();
+            };
             // Raze dibuja con OpenGL ES: en vez de los filtros de EDuke32, sus propias opciones.
             for (RazeOpt o : RAZE_OPTS) {
                 p.addValue(I18n.t(o.label), () -> I18n.t(o.labels[razeIndex(c, o)]), () -> {
@@ -81,6 +99,13 @@ final class GraphicsSettings {
                     prefs(c).edit().putInt(o.pref, next).apply();
                     if (onChange != null) onChange.run();
                 });
+                lastEntry(p).step = d -> {
+                    int cur = razeIndex(c, o);
+                    int next = Math.max(0, Math.min(o.labels.length - 1, cur + d));
+                    if (next == cur) return;
+                    prefs(c).edit().putInt(o.pref, next).apply();
+                    if (onChange != null) onChange.run();
+                };
             }
             return;
         }
@@ -143,9 +168,10 @@ final class GraphicsSettings {
             new RazeOpt("gfx_lights", "raze_luces", 1,
                     new String[]{"no", "yes"}, new String[]{"hw_dynlights 0", "hw_dynlights 1"}),
             // Más campo de visión en pantallas panorámicas (Raze lo corrige según la proporción).
-            new RazeOpt("gfx_fov", "raze_fov", 0,
-                    new String[]{"90°", "100°", "110°", "120°"},
-                    new String[]{"r_fov 90", "r_fov 100", "r_fov 110", "r_fov 120"}),
+            // (Clave nueva: en «raze_fov» el 0 era 90°.) De serie 90°, también con los perfiles.
+            new RazeOpt("gfx_fov", "raze_campo", 2,
+                    new String[]{"70°", "80°", "90°", "100°", "110°", "120°"},
+                    new String[]{"r_fov 70", "r_fov 80", "r_fov 90", "r_fov 100", "r_fov 110", "r_fov 120"}),
             new RazeOpt("gfx_fps_counter", "raze_contador", 0,
                     new String[]{"no", "yes"}, new String[]{"vid_fps 0", "vid_fps 1"}),
     };
@@ -198,6 +224,10 @@ final class GraphicsSettings {
             for (String cmd : o.commands[razeIndex(c, o)].split(";")) out.add(cmd.trim());
         }
         return out;
+    }
+
+    private static DukeMenuView.Entry lastEntry(DukeMenuView.Page p) {
+        return p.entries.get(p.entries.size() - 1);
     }
 
     interface IntConsumer {
