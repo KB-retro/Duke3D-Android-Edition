@@ -606,16 +606,20 @@ static bool ArtTable(const TArray<uint8_t>& d, TMap<int, std::pair<uint32_t, uin
 
 static void MarkChangedArt(const FString& filename, const TArray<uint8_t>& artdata)
 {
+	// La copia de este ART en el primer archivo que lo trae (el GRP del juego base). Al jugar una
+	// expansión su GRP también cuenta como del juego, así que no vale mirar GetMaxIwadNum.
 	int lump = fileSystem.FindFile(filename.GetChars());
-	if (lump < 0 || fileSystem.GetFileContainer(lump) <= fileSystem.GetMaxIwadNum()) return;
+	if (lump < 0) return;
 	int base = -1, last = 0, l;
 	while ((l = fileSystem.FindLumpFullName(filename.GetChars(), &last)) >= 0)
-		if (fileSystem.GetFileContainer(l) <= fileSystem.GetMaxIwadNum()) base = l;
+		if (base < 0 || fileSystem.GetFileContainer(l) < fileSystem.GetFileContainer(base)) base = l;
+	if (base < 0 || fileSystem.GetFileContainer(base) == fileSystem.GetFileContainer(lump)) return;
+	Printf("%s: de %s, comparando con %s\n", filename.GetChars(), fileSystem.GetResourceFileName(fileSystem.GetFileContainer(lump)),
+		fileSystem.GetResourceFileName(fileSystem.GetFileContainer(base)));
 	TMap<int, std::pair<uint32_t, uint32_t>> nt, bt;
 	TMap<int, uint32_t> ns, bs;
 	if (!ArtTable(artdata, nt, ns)) return;
 	TArray<uint8_t> based;
-	if (base >= 0)
 	{
 		FileReader br = fileSystem.OpenFileReader(base);
 		based.Resize((unsigned)br.GetLength());
