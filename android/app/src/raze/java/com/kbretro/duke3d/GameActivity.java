@@ -259,7 +259,7 @@ public class GameActivity extends SDLActivity {
 
             @Override
             public void openMenu() {
-                if (art != null) GameActivity.this.openMenu();
+                if (art != null && GameActivity.inGame()) GameActivity.this.openMenu();
             }
         });
         addContentView(touch, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
@@ -873,9 +873,10 @@ public class GameActivity extends SDLActivity {
         if (isPadKey(e) && razePadKey(e)) return true;
         if (key == KeyEvent.KEYCODE_BACK) {
             if (e.getAction() == KeyEvent.ACTION_DOWN && e.getRepeatCount() == 0) {
-                // En plena partida, el menú rápido; en los menús del juego, el título, etc., Escape.
-                // En Raze, Atrás abre siempre el menú rápido (su menú se maneja con B).
-                if (art != null && (inGame() || Motor.RAZE)) openMenu();
+                // El menú rápido solo en plena partida (nunca encima de los menús del juego, el
+                // título, los vídeos o el fin de nivel); fuera de ella, Atrás vuelve atrás en el menú.
+                if (art != null && inGame()) openMenu();
+                else if (Motor.RAZE) command("android_menukey 7");
                 else sendKey(KeyEvent.KEYCODE_ESCAPE);
             }
             return true;
