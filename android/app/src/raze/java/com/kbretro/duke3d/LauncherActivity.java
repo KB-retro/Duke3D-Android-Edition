@@ -943,9 +943,9 @@ public class LauncherActivity extends Activity {
             sp.edit().putInt("fps", values[(i + 1) % values.length]).apply();
         });
         p.addValue(I18n.t("vibration"), () -> I18n.t(
-                getSharedPreferences("ajustes", MODE_MULTI_PROCESS).getBoolean("vibracion", true) ? "yes" : "no"), () -> {
+                getSharedPreferences("ajustes", MODE_MULTI_PROCESS).getBoolean("vibracion_v2", true) ? "yes" : "no"), () -> {
             SharedPreferences sp = getSharedPreferences("ajustes", MODE_MULTI_PROCESS);
-            sp.edit().putBoolean("vibracion", !sp.getBoolean("vibracion", true)).apply();
+            sp.edit().putBoolean("vibracion_v2", !sp.getBoolean("vibracion_v2", true)).apply();
         });
         p.addValue(I18n.t("touch_controls"), () -> ControlSettings.touchModeLabel(this),
                 () -> ControlSettings.cycleTouchMode(this));

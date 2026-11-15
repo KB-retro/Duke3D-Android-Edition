@@ -207,7 +207,7 @@ public class GameActivity extends SDLActivity {
     }
 
     private boolean vibrationPref() {
-        return prefs().getBoolean("vibracion", true);
+        return prefs().getBoolean("vibracion_v2", true);
     }
 
     /** Mejoras gráficas de postfx.c: escalado, FXAA, nitidez, CRT y color. */
@@ -696,11 +696,6 @@ public class GameActivity extends SDLActivity {
         if (Motor.RAZE && getIntent().getStringExtra(EXTRA_DIR) != null)
             p.add(I18n.t("mods"), null, () -> quickMenu.push(modsPage()));
         p.add(I18n.t("controls"), null, () -> quickMenu.push(controlsPage()));
-        p.addValue(I18n.t("vibration"), () -> I18n.t(vibrationOn ? "yes" : "no"), () -> {
-            vibrationOn = !vibrationOn;
-            prefs().edit().putBoolean("vibracion", vibrationOn).apply();
-            if (vibrationOn) vibrate(200, 120); // para notar que está activa
-        });
         p.add(I18n.t("to_launcher"), null, () -> quitGame(false));
         p.add(I18n.t("quit_game"), null, () -> quitGame(true));
         return p;
@@ -761,6 +756,11 @@ public class GameActivity extends SDLActivity {
             if (gyroSensor == null) return;
             ControlSettings.cycleGyro(this);
             updateGyro();
+        });
+        p.addValue(I18n.t("vibration"), () -> I18n.t(vibrationOn ? "yes" : "no"), () -> {
+            vibrationOn = !vibrationOn;
+            prefs().edit().putBoolean("vibracion_v2", vibrationOn).apply();
+            if (vibrationOn) vibrate(200, 120); // para notar que está activa
         });
         p.add(I18n.t("gamepad_config"), null, () -> quickMenu.push(gamepadPage()));
         p.add(I18n.t("back"), null, () -> quickMenu.pop());
