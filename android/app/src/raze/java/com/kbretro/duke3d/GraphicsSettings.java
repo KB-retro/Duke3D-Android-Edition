@@ -65,7 +65,7 @@ final class GraphicsSettings {
             if (onScale != null) onScale.accept(next);
         });
         if (Motor.RAZE) {
-            // Raze dibuja con Vulkan: en vez de los filtros de EDuke32, sus propias opciones.
+            // Raze dibuja con OpenGL ES: en vez de los filtros de EDuke32, sus propias opciones.
             for (RazeOpt o : RAZE_OPTS) {
                 p.addValue(I18n.t(o.label), () -> I18n.t(o.labels[razeIndex(c, o)]), () -> {
                     int next = (razeIndex(c, o) + 1) % o.labels.length;
@@ -89,7 +89,7 @@ final class GraphicsSettings {
                 () -> cycle(c, "crt", crt(c), CRT_KEYS.length, onChange));
     }
 
-    // ---- Raze (Vulkan) ----
+    // ---- Raze (OpenGL ES) ----
 
     private static final class RazeOpt {
         final String label, pref;
@@ -121,6 +121,15 @@ final class GraphicsSettings {
                     new String[]{"gl_texture_hqresizemode 0",
                             "gl_texture_hqresizemult 2;gl_texture_hqresizemode 4",
                             "gl_texture_hqresizemult 3;gl_texture_hqresizemode 4"}),
+            // Raze trae los modelos apagados (hw_models false): con el HRP salían los sprites planos.
+            new RazeOpt("gfx_models", "raze_modelos", 1,
+                    new String[]{"no", "yes"}, new String[]{"hw_models 0", "hw_models 1"}),
+            new RazeOpt("gfx_hightile", "raze_hightile", 1,
+                    new String[]{"no", "yes"}, new String[]{"hw_hightile 0", "hw_hightile 1"}),
+            new RazeOpt("gfx_voxels", "raze_voxels", 1,
+                    new String[]{"no", "yes"}, new String[]{"r_voxels 0", "r_voxels 1"}),
+            new RazeOpt("gfx_shadows", "raze_sombras", 1,
+                    new String[]{"no", "yes"}, new String[]{"r_shadows 0", "r_shadows 1"}),
     };
 
     private static int razeIndex(Context c, RazeOpt o) {

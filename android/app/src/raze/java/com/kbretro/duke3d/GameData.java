@@ -664,9 +664,17 @@ final class GameData {
         }
         if (Motor.RAZE) {
             args.add("-nosetup"); // sin la ventana de elegir juego de Raze
-            // Sin sincronía vertical: el límite de FPS del lanzador (60/120...) manda.
+            // Sin sincronía vertical: el límite de FPS del lanzador (60/120...) manda. Desde el
+            // arranque (Raze trae 500 y, hasta que llegaba el del lanzador, el título y la carga
+            // iban sin freno: calor y batería).
             args.add("+vid_vsync");
             args.add("0");
+            int fps = ctx.getSharedPreferences("ajustes", android.content.Context.MODE_MULTI_PROCESS).getInt("fps", 60);
+            args.add("+vid_maxfps");
+            args.add(String.valueOf(fps <= 0 ? 1000 : fps));
+            // Resolución interna guardada (porcentaje de la pantalla).
+            args.add("+vid_scalefactor");
+            args.add(String.valueOf(GraphicsSettings.scale(ctx) / 100f));
             // El mando lo gestiona la app (con «Configurar mando»): sin el de Raze, que duplicaba.
             args.add("+use_joystick");
             args.add("0");

@@ -108,6 +108,10 @@ final class I18n {
         put("gfx_palette", "Paleta 8 bits", "8-bit palette");
         put("gfx_ssao", "Oclusión ambiental", "Ambient occlusion");
         put("gfx_hq", "Texturas suavizadas", "Smoothed textures");
+        put("gfx_models", "Modelos 3D", "3D models");
+        put("gfx_hightile", "Texturas HD", "HD textures");
+        put("gfx_voxels", "Vóxeles", "Voxels");
+        put("gfx_shadows", "Sombras", "Shadows");
         put("gfx_lens", "Destellos de luz", "Lens flares");
         put("game_menu", "Menú del juego", "Game menu");
         put("gfx_colors", "Colores", "Colors");
@@ -134,7 +138,7 @@ final class I18n {
         put("mods_preparing", "Preparando mods", "Preparing mods");
         put("mods_wait", "la primera vez tarda (se descomprime)", "first time takes a while (unpacking)");
         put("mods_error", "No se pudieron preparar los mods: ", "Could not prepare the mods: ");
-        put("mods_note", "texturas y modelos HD (activa Modelos en el juego), vóxeles y sonido", "HD textures and models (turn on Models in game), voxels and sound");
+        put("mods_note", "texturas y modelos 3D HD (Modelos 3D en Gráficos), vóxeles y sonido", "HD textures and 3D models (3D models in Graphics), voxels and sound");
         put("achievement_unlocked", "LOGRO DESBLOQUEADO", "ACHIEVEMENT UNLOCKED");
         put("unlocked_short", "OK", "OK");
         put("dos_keys", "Teclas", "Keys");
