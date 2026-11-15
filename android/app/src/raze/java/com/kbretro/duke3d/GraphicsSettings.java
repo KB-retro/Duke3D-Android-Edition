@@ -65,6 +65,15 @@ final class GraphicsSettings {
             if (onScale != null) onScale.accept(next);
         });
         if (Motor.RAZE) {
+            p.addValue(I18n.t("gfx_preset"), () -> {
+                int cur = currentPreset(c);
+                return I18n.t(cur >= 0 ? PRESET_KEYS[cur] : "gfx_preset_custom");
+            }, () -> {
+                int next = (currentPreset(c) + 1) % PRESETS.length;
+                applyPreset(c, next);
+                if (onScale != null) onScale.accept(PRESETS[next][0]);
+                if (onChange != null) onChange.run();
+            });
             // Raze dibuja con OpenGL ES: en vez de los filtros de EDuke32, sus propias opciones.
             for (RazeOpt o : RAZE_OPTS) {
                 p.addValue(I18n.t(o.label), () -> I18n.t(o.labels[razeIndex(c, o)]), () -> {
@@ -130,7 +139,44 @@ final class GraphicsSettings {
                     new String[]{"no", "yes"}, new String[]{"r_voxels 0", "r_voxels 1"}),
             new RazeOpt("gfx_shadows", "raze_sombras", 1,
                     new String[]{"no", "yes"}, new String[]{"r_shadows 0", "r_shadows 1"}),
+            // Más campo de visión en pantallas panorámicas (Raze lo corrige según la proporción).
+            new RazeOpt("gfx_fov", "raze_fov", 0,
+                    new String[]{"90°", "100°", "110°", "120°"},
+                    new String[]{"r_fov 90", "r_fov 100", "r_fov 110", "r_fov 120"}),
+            new RazeOpt("gfx_fps_counter", "raze_contador", 0,
+                    new String[]{"no", "yes"}, new String[]{"vid_fps 0", "vid_fps 1"}),
     };
+
+    // ---- Perfiles: cambian de una vez la resolución y las opciones que más pesan ----
+    // Orden de los valores: escala, filtro, anisotrópico, suavizado xBRZ, modelos, sombras.
+    private static final String[] PRESET_KEYS = {"gfx_preset_perf", "gfx_preset_bal", "gfx_preset_quality"};
+    private static final int[][] PRESETS = {
+            {75, 0, 0, 0, 1, 0},
+            {100, 0, 2, 0, 1, 1},
+            {100, 3, 3, 1, 1, 1},
+    };
+    private static final String[] PRESET_PREFS = {"raze_filtro", "raze_aniso", "raze_hq", "raze_modelos", "raze_sombras"};
+
+    /** El perfil que coincide con los ajustes actuales, o -1 (personalizado). */
+    static int currentPreset(Context c) {
+        for (int i = 0; i < PRESETS.length; i++) {
+            boolean ok = scale(c) == PRESETS[i][0];
+            for (int k = 0; ok && k < PRESET_PREFS.length; k++) ok = razeIndex(c, opt(PRESET_PREFS[k])) == PRESETS[i][k + 1];
+            if (ok) return i;
+        }
+        return -1;
+    }
+
+    private static RazeOpt opt(String pref) {
+        for (RazeOpt o : RAZE_OPTS) if (o.pref.equals(pref)) return o;
+        throw new IllegalArgumentException(pref);
+    }
+
+    private static void applyPreset(Context c, int i) {
+        SharedPreferences.Editor e = prefs(c).edit().putInt("escala", PRESETS[i][0]);
+        for (int k = 0; k < PRESET_PREFS.length; k++) e.putInt(PRESET_PREFS[k], PRESETS[i][k + 1]);
+        e.apply();
+    }
 
     private static int razeIndex(Context c, RazeOpt o) {
         int i = prefs(c).getInt(o.pref, o.def);

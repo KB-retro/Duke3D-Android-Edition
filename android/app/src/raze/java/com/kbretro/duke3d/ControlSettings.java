@@ -100,6 +100,28 @@ final class ControlSettings {
         prefs(c).edit().putInt("tactil_sens", (sensIndex(c) + 1) % SENS.length).apply();
     }
 
+    // ---- Apuntar moviendo el móvil (giroscopio) ----
+
+    private static final float[] GYRO = {0f, 0.6f, 1f, 1.6f};
+    private static final String[] GYRO_KEYS = {"no", "gfx_low", "gfx_mid", "gfx_high"};
+
+    static int gyroIndex(Context c) {
+        int g = prefs(c).getInt("giroscopio", 0);
+        return g >= 0 && g < GYRO.length ? g : 0;
+    }
+
+    static float gyro(Context c) {
+        return GYRO[gyroIndex(c)];
+    }
+
+    static String gyroLabel(Context c) {
+        return I18n.t(GYRO_KEYS[gyroIndex(c)]);
+    }
+
+    static void cycleGyro(Context c) {
+        prefs(c).edit().putInt("giroscopio", (gyroIndex(c) + 1) % GYRO.length).apply();
+    }
+
     // ---- Sensibilidad de los sticks del mando ----
 
     private static final float[] LOOK = {0.5f, 0.75f, 1f, 1.35f, 1.75f, 2.25f};

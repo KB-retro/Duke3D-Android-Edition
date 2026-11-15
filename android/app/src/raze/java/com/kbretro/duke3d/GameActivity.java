@@ -395,6 +395,7 @@ public class GameActivity extends SDLActivity {
         }
         startWatchdog();
         loadStickSens();
+        initGyro();
         setupTouch();
         I18n.load(this);
         instance = this;
@@ -570,8 +571,66 @@ public class GameActivity extends SDLActivity {
     /** Pausa o reanuda el sonido de Raze (OpenAL), que Android no para solo. */
     static native void nativeAudioPause(boolean pause);
 
+    // ---- Apuntar con el móvil (giroscopio) ----
+    // El giro del móvil mueve la vista como el ratón: girar a los lados gira a Duke e inclinarlo
+    // mira arriba y abajo. 1 radián = 1 radián en el juego con la sensibilidad media.
+
+    private android.hardware.SensorManager sensors;
+    private android.hardware.Sensor gyroSensor;
+    private boolean gyroOn;
+    private long gyroLast;
+    private float gyroScale;
+
+    private final android.hardware.SensorEventListener gyroListener = new android.hardware.SensorEventListener() {
+        @Override
+        public void onSensorChanged(android.hardware.SensorEvent e) {
+            long t = e.timestamp;
+            float dt = gyroLast != 0 ? (t - gyroLast) * 1e-9f : 0f;
+            gyroLast = t;
+            if (dt <= 0f || dt > 0.1f || menuOpen() || !inGame()) return;
+            float gx = e.values[0], gy = e.values[1];
+            // Sin la deriva del sensor con el móvil quieto.
+            if (Math.abs(gx) < 0.02f) gx = 0;
+            if (Math.abs(gy) < 0.02f) gy = 0;
+            if (gx == 0 && gy == 0) return;
+            // En horizontal el eje X del móvil apunta arriba (giro) y el Y a un lado (inclinación).
+            boolean left = getWindowManager().getDefaultDisplay().getRotation() == android.view.Surface.ROTATION_90;
+            // Unidades del ratón de Raze: 1/16 de grado.
+            float k = 57.29578f * 16f * gyroScale * dt;
+            float dx = (left ? -gx : gx) * k, dy = (left ? gy : -gy) * k;
+            try {
+                nativeTouchLook(dx, dy, 0.25f);
+            } catch (UnsatisfiedLinkError ignored) {
+            }
+        }
+
+        @Override
+        public void onAccuracyChanged(android.hardware.Sensor s, int accuracy) {
+        }
+    };
+
+    private void initGyro() {
+        sensors = (android.hardware.SensorManager) getSystemService(SENSOR_SERVICE);
+        gyroSensor = sensors != null ? sensors.getDefaultSensor(android.hardware.Sensor.TYPE_GYROSCOPE) : null;
+    }
+
+    /** Activa o quita el giroscopio según el ajuste (y solo con la app a la vista). */
+    private void updateGyro() {
+        boolean want = gyroSensor != null && ControlSettings.gyro(this) > 0 && !isPausedNow;
+        gyroScale = ControlSettings.gyro(this);
+        if (want == gyroOn) return;
+        gyroOn = want;
+        gyroLast = 0;
+        if (want) sensors.registerListener(gyroListener, gyroSensor, android.hardware.SensorManager.SENSOR_DELAY_GAME);
+        else sensors.unregisterListener(gyroListener);
+    }
+
+    private boolean isPausedNow;
+
     @Override
     protected void onPause() {
+        isPausedNow = true;
+        updateGyro();
         // Al salir de la app en plena partida (llamada, Inicio...), al volver la partida espera
         // en el menú rápido en vez de seguir de golpe con los enemigos disparando.
         if (art != null && !menuOpen() && inGame()) openMenu();
@@ -585,6 +644,8 @@ public class GameActivity extends SDLActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        isPausedNow = false;
+        updateGyro();
         try {
             nativeAudioPause(false);
         } catch (UnsatisfiedLinkError ignored) {
@@ -679,6 +740,11 @@ public class GameActivity extends SDLActivity {
         p.addValue(I18n.t("touch_sens"), () -> ControlSettings.sensLabel(this), () -> {
             ControlSettings.cycleSens(this);
             updateTouch();
+        });
+        p.addValue(I18n.t("gyro"), () -> gyroSensor != null ? ControlSettings.gyroLabel(this) : I18n.t("gyro_none"), () -> {
+            if (gyroSensor == null) return;
+            ControlSettings.cycleGyro(this);
+            updateGyro();
         });
         p.add(I18n.t("gamepad_config"), null, () -> quickMenu.push(gamepadPage()));
         p.add(I18n.t("back"), null, () -> quickMenu.pop());
