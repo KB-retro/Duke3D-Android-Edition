@@ -125,6 +125,8 @@ final class I18n {
         put("gfx_preset_quality", "Calidad", "Quality");
         put("gfx_preset_custom", "Personalizado", "Custom");
         put("gyro", "Giroscopio", "Gyroscope");
+        put("gyro_invert_h", "Invertir giroscopio horizontal", "Invert gyroscope horizontal");
+        put("gyro_invert_v", "Invertir giroscopio vertical", "Invert gyroscope vertical");
         put("gyro_none", "No hay giroscopio", "No gyroscope");
         put("gfx_lens", "Destellos de luz", "Lens flares");
         put("game_menu", "Menú del juego", "Game menu");

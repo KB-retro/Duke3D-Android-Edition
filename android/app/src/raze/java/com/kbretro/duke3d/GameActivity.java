@@ -581,6 +581,7 @@ public class GameActivity extends SDLActivity {
     private boolean gyroOn;
     private long gyroLast;
     private float gyroScale;
+    private volatile boolean gyroInvertX, gyroInvertY;
 
     private final android.hardware.SensorEventListener gyroListener = new android.hardware.SensorEventListener() {
         @Override
@@ -598,7 +599,9 @@ public class GameActivity extends SDLActivity {
             boolean left = getWindowManager().getDefaultDisplay().getRotation() == android.view.Surface.ROTATION_90;
             // Unidades del ratón de Raze: 1/16 de grado.
             float k = 57.29578f * 16f * gyroScale * dt;
-            float dx = (left ? gx : -gx) * k, dy = (left ? gy : -gy) * k;
+            float dx = (left ? -gx : gx) * k, dy = (left ? gy : -gy) * k;
+            if (gyroInvertX) dx = -dx;
+            if (gyroInvertY) dy = -dy;
             try {
                 nativeTouchLook(dx, dy, 0.25f);
             } catch (UnsatisfiedLinkError ignored) {
@@ -619,6 +622,8 @@ public class GameActivity extends SDLActivity {
     private void updateGyro() {
         boolean want = gyroSensor != null && ControlSettings.gyro(this) > 0 && !isPausedNow;
         gyroScale = ControlSettings.gyro(this);
+        gyroInvertX = prefs().getBoolean("giro_invertir_h", false);
+        gyroInvertY = prefs().getBoolean("giro_invertir_v", false);
         // Con el giroscopio, la pantalla no se da la vuelta al inclinar el móvil: se queda en la
         // orientación de ahora. Sin él, vuelve a girar sola entre las dos horizontales.
         if (gyroSensor != null) {
@@ -766,6 +771,16 @@ public class GameActivity extends SDLActivity {
             ControlSettings.cycleGyro(this);
             updateGyro();
         });
+        if (gyroSensor != null) {
+            for (boolean vertical : new boolean[]{false, true}) {
+                String key = vertical ? "giro_invertir_v" : "giro_invertir_h";
+                p.addValue(I18n.t(vertical ? "gyro_invert_v" : "gyro_invert_h"),
+                        () -> I18n.t(prefs().getBoolean(key, false) ? "yes" : "no"), () -> {
+                            prefs().edit().putBoolean(key, !prefs().getBoolean(key, false)).apply();
+                            updateGyro();
+                        });
+            }
+        }
         p.addValue(I18n.t("vibration"), () -> I18n.t(vibrationOn ? "yes" : "no"), () -> {
             vibrationOn = !vibrationOn;
             prefs().edit().putBoolean("vibracion_v2", vibrationOn).apply();
