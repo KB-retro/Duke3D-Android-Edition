@@ -241,7 +241,7 @@ extern "C" {
 
 static JavaVM *java_vm;
 static jclass game_class;
-static jmethodID vibrate_method, achievement_method;
+static jmethodID vibrate_method, achievement_method, quit_method;
 
 JNIEXPORT jint JNI_OnLoad(JavaVM *vm, void *)
 {
@@ -254,6 +254,7 @@ JNIEXPORT void JNICALL Java_com_kbretro_duke3d_GameActivity_nativeInit(JNIEnv *e
     if (!game_class) game_class = (jclass)env->NewGlobalRef(cls);
     vibrate_method = env->GetStaticMethodID(cls, "vibrate", "(II)V");
     achievement_method = env->GetStaticMethodID(cls, "achievementEvent", "(IIII)V");
+    quit_method = env->GetStaticMethodID(cls, "quitRequest", "(I)V");
     if (env->ExceptionCheck()) env->ExceptionClear();
 }
 
@@ -280,6 +281,15 @@ __attribute__((visibility("default"))) void android_raze_event(int type, int a, 
     JNIEnv *env = game_env();
     if (!env || !achievement_method) return;
     env->CallStaticVoidMethod(game_class, achievement_method, type, a, b, c);
+    if (env->ExceptionCheck()) env->ExceptionClear();
+}
+
+// «Volver al lanzador» (all = 0) y «Salir» (all = 1) del menú del juego: los hace la app.
+__attribute__((visibility("default"))) void android_raze_quit(int all)
+{
+    JNIEnv *env = game_env();
+    if (!env || !quit_method) return;
+    env->CallStaticVoidMethod(game_class, quit_method, all);
     if (env->ExceptionCheck()) env->ExceptionClear();
 }
 

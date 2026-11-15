@@ -87,6 +87,15 @@ public class GameActivity extends SDLActivity {
                 def -> act.ui.post(() -> act.showAchievement(def)));
     }
 
+    /**
+     * Lo llama el juego (su hilo) desde su propio menú: «Volver al lanzador» (all = 0) o
+     * «Salir» (all = 1), lo mismo que en el menú rápido.
+     */
+    static void quitRequest(int all) {
+        GameActivity act = instance;
+        if (act != null) act.ui.post(() -> act.quitGame(all != 0));
+    }
+
     private android.widget.TextView banner;
 
     /** Cartel arriba durante unos segundos: "Logro desbloqueado" y su nombre. */

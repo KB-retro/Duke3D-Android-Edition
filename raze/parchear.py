@@ -308,33 +308,37 @@ sub("source/core/cheats.cpp",
     "#ifdef __ANDROID__\n\tif (player == myconnectindex) android_raze_event(5, cheat, 0, 0);\n#endif")
 
 # 25. El menú del juego de Raze se queda, con sus Opciones (hay ajustes de gráficos y sonido que
-#     solo están ahí), pero sin «Salir del juego» (repetido: la salida va en el menú rápido de la
-#     app). Se quita la entrada del menú principal y del de partida (y las de debajo suben).
+#     solo están ahí). Fuera de la partida el menú rápido de la app no se abre, así que el menú
+#     del juego trae «Volver al lanzador» y «Salir» (cierra la app entera), en el principal y en
+#     el de partida. Los dos los hace la app (GameActivity.quitRequest), como su menú rápido.
+sub("wadsrc/static/menudef.txt",
+    '\t\tDukeTextItem "$MNU_QUITGAME", "q", "QuitMenu"\n',
+    '\t\tDukeTextItem "Launcher", "v", "AndroidLauncher"\n\t\tDukeTextItem "$MNU_QUITGAME", "q", "AndroidQuit"\n',
+    count=2)
 sub("source/core/menu/razemenu.cpp",
     "void BuildGameMenus()\n{\n\tBuildEpisodeMenu();",
-    "#ifdef __ANDROID__\nstatic void android_hide_options(FName name)\n{\n"
+    "#ifdef __ANDROID__\nstatic void android_menu_texts(FName name)\n{\n"
     "\tDMenuDescriptor** desc = MenuDescriptors.CheckKey(name);\n"
     "\tif (!desc || !(*desc)->IsKindOf(RUNTIME_CLASS(DListMenuDescriptor))) return;\n"
     "\tauto ld = static_cast<DListMenuDescriptor*>(*desc);\n"
     "\tconst char* lang = getenv(\"DUKE3D_LANG\");\n"
-    "\tbool es = lang && !strcmp(lang, \"es\");\n\tint removed = 0;\n"
-    "\tfor (unsigned i = 0; i < ld->mItems.Size(); i++)\n\t{\n"
+    "\tbool es = lang && !strcmp(lang, \"es\");\n"
+    "\tfor (auto item : ld->mItems)\n\t{\n"
     # «Terminar partida» (vuelve al título): en castellano Raze lo traduce igual que «Salir».
-    "\t\tif (ld->mItems[i]->mAction == FName(\"EndgameMenu\"))\n\t\t{\n"
-    "\t\t\tld->mItems[i]->StringVar(FName(\"mText\")) = es ? \"Terminar partida\" : \"End Game\";\n"
-    "\t\t\tcontinue;\n\t\t}\n"
-    "\t\tif (ld->mItems[i]->mAction != FName(\"QuitMenu\")) continue;\n"
-    "\t\tfor (unsigned j = i + 1; j < ld->mItems.Size(); j++) ld->mItems[j]->mYpos -= ld->mLinespacing;\n"
-    "\t\tld->mItems.Delete(i);\n"
-    "\t\tif (ld->mSelectedItem > (int)i) ld->mSelectedItem--;\n"
-    "\t\tremoved++;\n"
-    "\t\ti--;\n\t}\n"
-    # Con menos opciones, las que quedan bajan para seguir centradas.
-    "\tfor (auto item : ld->mItems)\n"
-    "\t\tif (item->mAction != NAME_None) item->mYpos += removed * ld->mLinespacing / 2.;\n"
-    "}\n#endif\n\n"
-    "void BuildGameMenus()\n{\n#ifdef __ANDROID__\n\tandroid_hide_options(NAME_Mainmenu);\n"
-    "\tandroid_hide_options(NAME_IngameMenu);\n#endif\n\tBuildEpisodeMenu();")
+    "\t\tif (item->mAction == FName(\"EndgameMenu\")) item->StringVar(FName(\"mText\")) = es ? \"Terminar partida\" : \"End Game\";\n"
+    "\t\telse if (item->mAction == FName(\"AndroidLauncher\")) item->StringVar(FName(\"mText\")) = es ? \"Volver al lanzador\" : \"Back to launcher\";\n"
+    "\t\telse if (item->mAction == FName(\"AndroidQuit\")) item->StringVar(FName(\"mText\")) = es ? \"Salir\" : \"Quit\";\n"
+    "\t}\n}\n#endif\n\n"
+    "void BuildGameMenus()\n{\n#ifdef __ANDROID__\n\tandroid_menu_texts(NAME_Mainmenu);\n"
+    "\tandroid_menu_texts(NAME_IngameMenu);\n#endif\n\tBuildEpisodeMenu();")
+sub("source/core/menu/razemenu.cpp",
+    "bool M_SetSpecialMenu(FName& menu, int param)\n{",
+    "#ifdef __ANDROID__\nextern \"C\" void android_raze_quit(int all);\n#endif\n"
+    "bool M_SetSpecialMenu(FName& menu, int param)\n{\n"
+    "#ifdef __ANDROID__\n"
+    "\tif (menu == FName(\"AndroidLauncher\") || menu == FName(\"AndroidQuit\"))\n\t{\n"
+    "\t\tandroid_raze_quit(menu == FName(\"AndroidQuit\") ? 1 : 0);\n\t\treturn false;\n\t}\n"
+    "#endif")
 
 # 26. Sin consola en Android: no se puede usar sin teclado y, fuera de partida, dejaba la
 #     pantalla sin el menú ni su fondo. Donde Raze pondría la consola a pantalla completa (al
