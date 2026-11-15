@@ -19,7 +19,7 @@ final class ControlSettings {
             {"Por defecto", "Default"}, {"Disparar", "Fire"}, {"Usar / abrir", "Use / open"},
             {"Saltar", "Jump"}, {"Agacharse", "Crouch"}, {"Correr", "Run"}, {"Patada", "Kick"},
             {"Arma siguiente", "Next weapon"}, {"Arma anterior", "Previous weapon"},
-            {"Última arma", "Last weapon"}, {"Usar objeto", "Use item"}, {"Objeto anterior", "Previous item"},
+            {"Arma alternativa", "Alternate weapon"}, {"Usar objeto", "Use item"}, {"Objeto anterior", "Previous item"},
             {"Objeto siguiente", "Next item"}, {"Botiquín", "Medkit"}, {"Jetpack", "Jetpack"},
             {"Esteroides", "Steroids"}, {"Visión nocturna", "Night vision"}, {"Holoduke", "Holoduke"},
             {"Mapa", "Map"}, {"Media vuelta", "Turn around"}, {"Centrar vista", "Center view"},

@@ -282,10 +282,16 @@ public class GameActivity extends SDLActivity {
     }
 
     /** Suelta todo lo que estuviera pulsado (al abrir el menú, por ejemplo). */
-    private static void releaseAllFuncs() {
+    private void releaseAllFuncs() {
         for (int i = 0; i < 64; i++) pressFunc(i, false);
+        // Y el estado del mando: si un gatillo, la cruceta o el stick derecho se soltaban con el
+        // menú abierto, al volver la cámara seguía girando sola y el primer disparo no salía.
+        triggerL = triggerR = false;
+        hatKey = -1;
+        padActive = false;
         try {
             nativeTouchMove(0, 0);
+            nativeStickLook(0, 0);
         } catch (UnsatisfiedLinkError ignored) {
         }
     }
@@ -566,6 +572,9 @@ public class GameActivity extends SDLActivity {
 
     @Override
     protected void onPause() {
+        // Al salir de la app en plena partida (llamada, Inicio...), al volver la partida espera
+        // en el menú rápido en vez de seguir de golpe con los enemigos disparando.
+        if (art != null && !menuOpen() && inGame()) openMenu();
         super.onPause();
         try {
             nativeAudioPause(true);
@@ -922,7 +931,7 @@ public class GameActivity extends SDLActivity {
         }
     }
 
-    private boolean triggerL, triggerR;
+    private boolean triggerL, triggerR, padActive;
     private float stickH = 1f, stickV = 1f, stickMoveSens = 1f;
 
     private void loadStickSens() {
@@ -964,8 +973,11 @@ public class GameActivity extends SDLActivity {
                 if (f >= 0) pressFunc(f, r);
             }
             razeHat(hx, hy, true);
+            padActive = true;
             return;
         }
+        // Fuera de la partida (menú del juego, fin de nivel...): nada se queda andando ni girando.
+        if (padActive) releaseAllFuncs();
         // Menús: stick izquierdo y cruceta (como ejes) = flechas.
         int k = -1;
         float x = Math.abs(hx) > 0.5f ? hx : lx, y = Math.abs(hy) > 0.5f ? hy : ly;
