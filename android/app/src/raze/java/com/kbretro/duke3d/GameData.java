@@ -734,7 +734,9 @@ final class GameData {
             // El mando lo gestiona la app (con «Configurar mando»): sin el de Raze, que duplicaba.
             args.add("+use_joystick");
             args.add("0");
-            for (String cmd : GraphicsSettings.razeCommands(ctx)) {
+            java.util.List<String> razeCmds = new java.util.ArrayList<>(GraphicsSettings.razeCommands(ctx));
+            razeCmds.addAll(ImageSettings.commands(ctx));
+            for (String cmd : razeCmds) {
                 int sp = cmd.indexOf(' ');
                 args.add("+" + cmd.substring(0, sp));
                 args.add(cmd.substring(sp + 1));

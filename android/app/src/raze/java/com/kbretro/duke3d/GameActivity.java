@@ -706,12 +706,31 @@ public class GameActivity extends SDLActivity {
         DukeMenuView.Page p = new DukeMenuView.Page();
         p.add(I18n.t("continue"), null, this::closeMenu);
         p.add(I18n.t("cheats"), null, () -> quickMenu.push(cheatsPage()));
-        p.add(I18n.t("graphics"), null, () -> quickMenu.push(graphicsPage()));
-        if (Motor.RAZE && getIntent().getStringExtra(EXTRA_DIR) != null)
-            p.add(I18n.t("mods"), null, () -> quickMenu.push(modsPage()));
-        p.add(I18n.t("controls"), null, () -> quickMenu.push(controlsPage()));
+        p.add(I18n.t("settings"), null, () -> quickMenu.push(settingsPage()));
         p.add(I18n.t("to_launcher"), null, () -> quitGame(false));
         p.add(I18n.t("quit_game"), null, () -> quitGame(true));
+        return p;
+    }
+
+    /** Ajustes: gráficos, imagen (HUD, retícula, FPS), controles y mods. */
+    private DukeMenuView.Page settingsPage() {
+        DukeMenuView.Page p = new DukeMenuView.Page();
+        p.add(I18n.t("graphics"), null, () -> quickMenu.push(graphicsPage()));
+        if (Motor.RAZE) p.add(I18n.t("image"), null, () -> quickMenu.push(imagePage()));
+        p.add(I18n.t("controls"), null, () -> quickMenu.push(controlsPage()));
+        if (Motor.RAZE && getIntent().getStringExtra(EXTRA_DIR) != null)
+            p.add(I18n.t("mods"), null, () -> quickMenu.push(modsPage()));
+        p.add(I18n.t("back"), null, () -> quickMenu.pop());
+        return p;
+    }
+
+    /** Imagen: tamaño de pantalla y HUD, escala, retícula y contador de FPS (al momento). */
+    private DukeMenuView.Page imagePage() {
+        DukeMenuView.Page p = new DukeMenuView.Page();
+        status = null;
+        ImageSettings.addTo(this, p, GameActivity::command, () -> status = I18n.t("img_reset_done"));
+        p.add(I18n.t("back"), null, () -> quickMenu.pop());
+        p.footer = () -> status != null ? status : "";
         return p;
     }
 

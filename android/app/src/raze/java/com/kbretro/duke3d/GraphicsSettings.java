@@ -172,8 +172,6 @@ final class GraphicsSettings {
             new RazeOpt("gfx_fov", "raze_campo", 2,
                     new String[]{"70°", "80°", "90°", "100°", "110°", "120°"},
                     new String[]{"r_fov 70", "r_fov 80", "r_fov 90", "r_fov 100", "r_fov 110", "r_fov 120"}),
-            new RazeOpt("gfx_fps_counter", "raze_contador", 0,
-                    new String[]{"no", "yes"}, new String[]{"vid_fps 0", "vid_fps 1"}),
     };
 
     // ---- Perfiles: cambian de una vez la resolución y las opciones que más pesan ----
