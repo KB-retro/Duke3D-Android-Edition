@@ -494,6 +494,15 @@ void *game_thread(void *p)
 
 extern "C" int SDL_main(int argc, char *argv[])
 {
+    // Raze no puede arrancar dos veces en el mismo proceso (sus tablas de clases ya están
+    // montadas y fallaba en FinalizeSetup). Si Android vuelve a abrir la pantalla del juego
+    // mientras se cerraba (al volver al lanzador), se termina sin más y se ve el lanzador.
+    static std::atomic<int> started{0};
+    if (started.fetch_add(1) > 0)
+    {
+        __android_log_print(ANDROID_LOG_WARN, "Duke3D", "El juego ya se arrancó en este proceso: se cierra");
+        _exit(0);
+    }
     redirect_output();
     install_crash_handler();
     atexit(quick_exit_handler);

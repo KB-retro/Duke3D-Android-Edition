@@ -1161,6 +1161,13 @@ public class GameActivity extends SDLActivity {
     protected void onDestroy() {
         watchdogRunning = false;
         instance = null;
+        // Saliendo: el juego ya guardó su configuración con «quit» (o lo hace ahora mismo).
+        if (quitting) {
+            try {
+                Thread.sleep(300);
+            } catch (InterruptedException ignored) {
+            }
+        }
         // Se cierra el proceso ANTES de super.onDestroy(): SDL esperaría a que el juego termine
         // y EDuke32 no termina con el aviso de SDL (pide confirmación). Esa espera bloqueaba la
         // app y salía el aviso de "no responde". Además EDuke32 no puede arrancar dos veces en
@@ -1181,6 +1188,12 @@ public class GameActivity extends SDLActivity {
         if (quickMenu != null) quickMenu.setVisibility(View.GONE);
         command("pausegame 0");
         command("quit");
+        // La pantalla del juego se marca como terminada: si el proceso acaba mientras está a la
+        // vista, Android no la vuelve a abrir (arrancaba el juego otra vez y fallaba).
+        quitting = true;
+        ui.postDelayed(this::finish, 600);
         ui.postDelayed(() -> android.os.Process.killProcess(android.os.Process.myPid()), 2000);
     }
+
+    private boolean quitting;
 }
