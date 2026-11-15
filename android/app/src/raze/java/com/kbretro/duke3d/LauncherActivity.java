@@ -112,7 +112,7 @@ public class LauncherActivity extends Activity {
             // El registro entero tarda (logcat): en otro hilo, para no congelar el lanzador al
             // volver del juego. Si hubo un fallo, se enseña cuando está listo.
             new Thread(() -> {
-                List<String> log = saveLog();
+                List<String> log = saveLog(getPreferences(MODE_PRIVATE).getString("inicio_partida", null));
                 runOnUiThread(() -> {
                     if (isFinishing() || isDestroyed()) return;
                     lastLog = log;
@@ -121,18 +121,27 @@ public class LauncherActivity extends Activity {
             }, "Registro").start();
         }
         refresh();
-        // «Reiniciar con los mods» del menú rápido: el juego ha terminado; se vuelve a lanzar.
+        // «Reiniciar con los mods» del menú rápido: el juego ha terminado; se vuelve a lanzar en
+        // cuanto el menú esté montado (si Android cerró el lanzador, aún se están cargando sus
+        // gráficos y lanzar ya fallaba).
         if (aj.getBoolean("relanzar", false)) {
             aj.edit().putBoolean("relanzar", false).apply();
-            String last = aj.getString("ultimo_juego", null);
-            File gameDir = hasStoragePermission() ? GameData.findGameDir(baseDir()) : null;
-            if (last != null && gameDir != null) {
-                for (GameData.Game g : GameData.games(gameDir)) {
-                    if (g.grp.getAbsolutePath().equals(last)) {
-                        launch(gameDir, g);
-                        break;
-                    }
-                }
+            pendingRelaunch = aj.getString("ultimo_juego", null);
+            if (menuView != null && assets != null && !loading) relaunchPending(GameData.findGameDir(baseDir()));
+        }
+    }
+
+    /** El juego a volver a lanzar con «Reiniciar con los mods» (su GRP), o null. */
+    private String pendingRelaunch;
+
+    private void relaunchPending(File gameDir) {
+        String last = pendingRelaunch;
+        pendingRelaunch = null;
+        if (last == null || gameDir == null || assets == null) return;
+        for (GameData.Game g : assets.games) {
+            if (g.grp.getAbsolutePath().equals(last)) {
+                launch(gameDir, g);
+                return;
             }
         }
     }
@@ -272,6 +281,7 @@ public class LauncherActivity extends Activity {
         menuView.requestFocus();
         hideSystemBars();
         startMusic(gameDir);
+        if (pendingRelaunch != null) relaunchPending(gameDir);
     }
 
     private DukeMenuView.Page rootPage(File gameDir) {
@@ -289,8 +299,7 @@ public class LauncherActivity extends Activity {
             e.coverTap = () -> penthouseTap(e);
         }
         root.add(I18n.t("options"), null, () -> menuView.push(optionsPage(gameDir)));
-        // Los mods (gráficos y sonido) van dentro de Extras, solo en esta sección.
-        root.add(I18n.t("extras"), null, () -> menuView.push(extrasPage(gameDir, true)));
+        root.add(I18n.t("extras"), null, () -> menuView.push(extrasPage(gameDir)));
         root.add(I18n.t("quit"), null, this::finishAffinity);
 
         // Secciones del menú principal (botón Y o tocando el pie): Legend (Duke 3D), Classic
@@ -419,7 +428,7 @@ public class LauncherActivity extends Activity {
         p.add(I18n.t("make_log"), null, () -> {
             logStatus = I18n.t("making_log");
             new Thread(() -> {
-                saveLog();
+                saveLog(null);
                 logStatus = I18n.t("log_saved") + new File(baseDir(), "registro.txt").getAbsolutePath();
             }, "Registro").start();
         });
@@ -504,10 +513,6 @@ public class LauncherActivity extends Activity {
     }
 
     private DukeMenuView.Page extrasPage(File gameDir) {
-        return extrasPage(gameDir, false);
-    }
-
-    private DukeMenuView.Page extrasPage(File gameDir, boolean mods) {
         DukeMenuView.Page p = new DukeMenuView.Page();
         p.add(I18n.t("guide"), null, () -> menuView.push(guidePage()));
         p.add(I18n.t("music"), null, () -> menuView.push(musicPage(gameDir)));
@@ -960,7 +965,7 @@ public class LauncherActivity extends Activity {
         p.add(I18n.t("make_log"), null, () -> {
             logStatus = I18n.t("making_log");
             new Thread(() -> {
-                saveLog();
+                saveLog(null);
                 logStatus = I18n.t("log_saved") + new File(baseDir(), "registro.txt").getAbsolutePath();
             }, "Registro").start();
         });
@@ -1191,7 +1196,8 @@ public class LauncherActivity extends Activity {
                 launching = false;
                 if (menuView.top() == wait) menuView.pop();
                 if (isFinishing() || isDestroyed()) return;
-                getPreferences(MODE_PRIVATE).edit().putBoolean("jugando", true).apply();
+                getPreferences(MODE_PRIVATE).edit().putBoolean("jugando", true)
+                        .putString("inicio_partida", logTime(System.currentTimeMillis() - 2000)).apply();
                 if (!alone) getSharedPreferences("ajustes", MODE_MULTI_PROCESS).edit()
                         .putString("ultimo_juego", game.grp.getAbsolutePath()).apply();
                 Intent intent = new Intent(this, GameActivity.class);
@@ -1210,7 +1216,17 @@ public class LauncherActivity extends Activity {
      * Guarda el registro del sistema de esta app (juego incluido) en /Duke3D/registro.txt y
      * devuelve las líneas del juego y de los errores, para enseñar las últimas en pantalla.
      */
-    private List<String> saveLog() {
+    /** Hora en el formato de «logcat -v time» (MM-dd HH:mm:ss.SSS), para comparar líneas. */
+    private static String logTime(long ms) {
+        return new java.text.SimpleDateFormat("MM-dd HH:mm:ss.SSS", java.util.Locale.ROOT).format(new java.util.Date(ms));
+    }
+
+    /**
+     * @param since solo cuentan (para enseñar y para detectar un fallo) las líneas desde esta
+     *              hora: el registro de Android guarda también las partidas anteriores, y un fallo
+     *              viejo salía otra vez al volver de una partida que había ido bien. null: todas.
+     */
+    private List<String> saveLog(String since) {
         List<String> important = new ArrayList<>();
         File out = new File(baseDir(), "registro.txt");
         try {
@@ -1221,6 +1237,7 @@ public class LauncherActivity extends Activity {
                 while ((line = r.readLine()) != null) {
                     w.write(line);
                     w.write('\n');
+                    if (since != null && (line.length() < 18 || line.substring(0, 18).compareTo(since) < 0)) continue;
                     if (line.contains("EDuke32") || line.contains("Duke3D") || line.contains("Raze") || line.contains("SDL")
                             || line.contains("AndroidRuntime") || line.contains("DEBUG")
                             || line.contains(" F/") || line.contains(" E/")) {

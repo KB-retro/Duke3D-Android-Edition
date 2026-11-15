@@ -160,7 +160,6 @@ final class I18n {
         put("gyro_invert_v", "Invertir giroscopio vertical", "Invert gyroscope vertical");
         put("gyro_none", "No hay giroscopio", "No gyroscope");
         put("gfx_lens", "Destellos de luz", "Lens flares");
-        put("game_menu", "Menú del juego", "Game menu");
         put("gfx_colors", "Colores", "Colors");
         put("gfx_truecolor", "Color real", "True color");
         put("stick_look", "Sensibilidad de giro (stick dcho.)", "Look sensitivity (right stick)");

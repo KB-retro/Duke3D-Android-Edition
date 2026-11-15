@@ -656,7 +656,7 @@ public class GameActivity extends SDLActivity {
         updateGyro();
         // Al salir de la app en plena partida (llamada, Inicio...), al volver la partida espera
         // en el menú rápido en vez de seguir de golpe con los enemigos disparando.
-        if (art != null && !menuOpen() && inGame()) openMenu();
+        if (!quitting && art != null && !menuOpen() && inGame()) openMenu();
         super.onPause();
         try {
             nativeAudioPause(true);
