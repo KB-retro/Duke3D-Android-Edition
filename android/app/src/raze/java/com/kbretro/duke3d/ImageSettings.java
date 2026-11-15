@@ -45,6 +45,10 @@ final class ImageSettings {
             new Opt("img_crosshair_size", "img_reticula_tam", 1,
                     new String[]{"img_small", "gfx_mid", "img_big", "img_huge"},
                     new String[]{"crosshairscale 0.35", "crosshairscale 0.5", "crosshairscale 0.75", "crosshairscale 1"}),
+            // Colores como el original de 8 bits (paleta de Build). Apagada de serie.
+            new Opt("img_palette", "img_paleta", 0,
+                    new String[]{"no", "yes"},
+                    new String[]{"hw_useindexedcolortextures 0", "hw_useindexedcolortextures 1"}),
             new Opt("gfx_fps_counter", "raze_contador", 0,
                     new String[]{"no", "yes"}, new String[]{"vid_fps 0", "vid_fps 1"}),
     };

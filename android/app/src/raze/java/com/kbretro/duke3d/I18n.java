@@ -55,6 +55,7 @@ final class I18n {
         put("img_full", "HUD completo", "Full HUD");
         put("img_althud", "HUD alternativo", "Alternative HUD");
         put("img_nothing", "Sin HUD", "No HUD");
+        put("img_palette", "Emulación de paleta", "Palette emulation");
         put("img_hud_scale", "Escala del HUD", "HUD scale");
         put("img_crosshair", "Retícula", "Crosshair");
         put("img_crosshair_type", "Tipo de retícula", "Crosshair type");
