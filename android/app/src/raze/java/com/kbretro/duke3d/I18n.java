@@ -99,6 +99,10 @@ final class I18n {
                 "Left/right: change   Start: default");
         put("gamepad_config", "Configurar mando", "Gamepad setup");
         put("mods", "Mods", "Mods");
+        put("mod_prefix", "Mod ", "Mod ");
+        put("mods_restart", "Reiniciar con los mods", "Restart with mods");
+        put("mods_restart_note", "Los mods se cargan al empezar: reinicia para aplicarlos (se pierde la partida sin guardar)",
+                "Mods load at start: restart to apply them (unsaved progress is lost)");
         put("mods_empty", "Pon los mods (.zip, .pk3, .grp o carpetas) en ", "Put mods (.zip, .pk3, .grp or folders) in ");
         put("gfx_filter", "Filtrado de texturas", "Texture filtering");
         put("gfx_pixel_smooth", "Píxel suave", "Smooth pixels");

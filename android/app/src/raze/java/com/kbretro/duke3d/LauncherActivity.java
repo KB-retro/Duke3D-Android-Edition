@@ -121,6 +121,20 @@ public class LauncherActivity extends Activity {
             }, "Registro").start();
         }
         refresh();
+        // «Reiniciar con los mods» del menú rápido: el juego ha terminado; se vuelve a lanzar.
+        if (aj.getBoolean("relanzar", false)) {
+            aj.edit().putBoolean("relanzar", false).apply();
+            String last = aj.getString("ultimo_juego", null);
+            File gameDir = hasStoragePermission() ? GameData.findGameDir(baseDir()) : null;
+            if (last != null && gameDir != null) {
+                for (GameData.Game g : GameData.games(gameDir)) {
+                    if (g.grp.getAbsolutePath().equals(last)) {
+                        launch(gameDir, g);
+                        break;
+                    }
+                }
+            }
+        }
     }
 
     private void refresh() {
@@ -495,7 +509,6 @@ public class LauncherActivity extends Activity {
 
     private DukeMenuView.Page extrasPage(File gameDir, boolean mods) {
         DukeMenuView.Page p = new DukeMenuView.Page();
-        if (mods) p.add(I18n.t("mods"), null, () -> menuView.push(modsPage(gameDir)));
         p.add(I18n.t("guide"), null, () -> menuView.push(guidePage()));
         p.add(I18n.t("music"), null, () -> menuView.push(musicPage(gameDir)));
         p.add(I18n.t("achievements"), null, () -> menuView.push(achievementsPage()));
@@ -905,6 +918,9 @@ public class LauncherActivity extends Activity {
 
     private DukeMenuView.Page optionsPage(File gameDir) {
         DukeMenuView.Page p = new DukeMenuView.Page();
+        // Los mods (el pack HD, el XXX...), directamente aquí: sin pestaña de mods aparte.
+        GameData.makeCategoryDirs(gameDir);
+        GameData.addModToggles(this, p, gameDir, null);
         p.addValue(I18n.t("language"), () -> I18n.t("language_value"), () -> {
             I18n.set(this, I18n.EN.equals(I18n.lang()) ? I18n.ES : I18n.EN);
             tracks = null; // los nombres de las pistas, en el idioma nuevo
@@ -1090,34 +1106,6 @@ public class LauncherActivity extends Activity {
                 .getStringSet("mods_activos", new java.util.HashSet<>()));
     }
 
-    private void setModEnabled(String name, boolean on) {
-        java.util.Set<String> set = enabledMods();
-        if (on) set.add(name);
-        else set.remove(name);
-        getSharedPreferences("ajustes", MODE_MULTI_PROCESS).edit().putStringSet("mods_activos", set).apply();
-    }
-
-    /** Mods: la caja de Gráficos y sonido (las campañas no van en el HD). */
-    private DukeMenuView.Page modsPage(File gameDir) {
-        DukeMenuView.Page p = new DukeMenuView.Page();
-        GameData.makeCategoryDirs(gameDir);
-        List<File> mods = new ArrayList<>();
-        for (File f : GameData.mods(gameDir)) if (!GameData.isCampaign(f)) mods.add(f);
-        p.addGame(I18n.t("mods_gfx"), box(R.drawable.caja_graficos), () -> menuView.push(modListPage(gameDir)));
-        p.add(I18n.t("back"), null, () -> menuView.pop());
-        File dir = GameData.findChild(gameDir, "mods");
-        String path = (dir != null ? dir : new File(gameDir, "mods")).getAbsolutePath();
-        p.footer = () -> p.selected == 0 ? countLabel(mods) : I18n.t("mods_where") + path;
-        return p;
-    }
-
-    private String countLabel(List<File> mods) {
-        int on = 0;
-        java.util.Set<String> enabled = enabledMods();
-        for (File f : mods) if (enabled.contains(f.getName())) on++;
-        return mods.size() + " " + I18n.t("mods_found") + ", " + on + " " + I18n.t("mods_active");
-    }
-
     private final java.util.Map<Integer, Bitmap> boxes = new java.util.HashMap<>();
 
     private Bitmap box(int res) {
@@ -1130,33 +1118,6 @@ public class LauncherActivity extends Activity {
             }
         }
         return b;
-    }
-
-    /**
-     * Mods de gráficos y sonido (en Extras de la sección Duke Nukem), con un interruptor por mod.
-     * Las campañas (TC) no van en el HD: usan el CON de EDuke32, que Raze no entiende.
-     */
-    private DukeMenuView.Page modListPage(File gameDir) {
-        DukeMenuView.Page p = new DukeMenuView.Page();
-        GameData.makeCategoryDirs(gameDir);
-        List<File> mods = new ArrayList<>();
-        for (File f : GameData.mods(gameDir)) if (!GameData.isCampaign(f)) mods.add(f);
-        for (File f : mods) {
-            String name = f.getName();
-            String label = name.replaceAll("(?i)\\.(zip|pk3|grp)$", "").replace('_', ' ');
-            p.addValue(label, () -> I18n.t(enabledMods().contains(name) ? "yes" : "no"),
-                    () -> setModEnabled(name, !enabledMods().contains(name)));
-            DukeMenuView.Entry e = p.entries.get(p.entries.size() - 1);
-            e.active = () -> enabledMods().contains(name);
-        }
-        p.add(I18n.t("back"), null, () -> menuView.pop());
-        File base = GameData.findChild(gameDir, "mods");
-        File dir = new File(base != null ? base : new File(gameDir, "mods"), GameData.GFX_DIR);
-        p.footer = () -> mods.isEmpty()
-                ? I18n.t("mods_empty") + dir.getAbsolutePath()
-                : p.selected < mods.size() ? mods.get(p.selected).getName() + " - " + I18n.t("mods_note")
-                : countLabel(mods) + " - " + I18n.t("mods_where") + dir.getAbsolutePath();
-        return p;
     }
 
     /** El próximo lanzamiento va solo: sin mods ni traducción (Penthouse Paradise trae sus .CON). */
@@ -1229,6 +1190,8 @@ public class LauncherActivity extends Activity {
                 if (menuView.top() == wait) menuView.pop();
                 if (isFinishing() || isDestroyed()) return;
                 getPreferences(MODE_PRIVATE).edit().putBoolean("jugando", true).apply();
+                if (!alone) getSharedPreferences("ajustes", MODE_MULTI_PROCESS).edit()
+                        .putString("ultimo_juego", game.grp.getAbsolutePath()).apply();
                 Intent intent = new Intent(this, GameActivity.class);
                 intent.putExtra(GameActivity.EXTRA_DIR, gameDir.getAbsolutePath());
                 intent.putExtra(GameActivity.EXTRA_ARGS, args.toArray(new String[0]));

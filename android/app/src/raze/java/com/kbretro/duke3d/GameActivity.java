@@ -693,6 +693,8 @@ public class GameActivity extends SDLActivity {
         p.add(I18n.t("continue"), null, this::closeMenu);
         p.add(I18n.t("cheats"), null, () -> quickMenu.push(cheatsPage()));
         p.add(I18n.t("graphics"), null, () -> quickMenu.push(graphicsPage()));
+        if (Motor.RAZE && getIntent().getStringExtra(EXTRA_DIR) != null)
+            p.add(I18n.t("mods"), null, () -> quickMenu.push(modsPage()));
         p.add(I18n.t("controls"), null, () -> quickMenu.push(controlsPage()));
         p.addValue(I18n.t("vibration"), () -> I18n.t(vibrationOn ? "yes" : "no"), () -> {
             vibrationOn = !vibrationOn;
@@ -701,6 +703,20 @@ public class GameActivity extends SDLActivity {
         });
         p.add(I18n.t("to_launcher"), null, () -> quitGame(false));
         p.add(I18n.t("quit_game"), null, () -> quitGame(true));
+        return p;
+    }
+
+    /** Mods (el pack HD, el XXX...): se cargan al empezar, así que se aplican reiniciando el juego. */
+    private DukeMenuView.Page modsPage() {
+        DukeMenuView.Page p = new DukeMenuView.Page();
+        File gameDir = new File(getIntent().getStringExtra(EXTRA_DIR));
+        GameData.addModToggles(this, p, gameDir, null);
+        p.add(I18n.t("mods_restart"), null, () -> {
+            prefs().edit().putBoolean("relanzar", true).commit();
+            quitGame(false);
+        });
+        p.add(I18n.t("back"), null, () -> quickMenu.pop());
+        p.footer = () -> I18n.t("mods_restart_note");
         return p;
     }
 

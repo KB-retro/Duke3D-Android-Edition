@@ -155,6 +155,41 @@ final class GameData {
     }
 
     /** Todos los mods (.zip, .pk3, .grp o carpetas) que hay, también en las subcarpetas, por nombre. */
+    /** Nombre de un mod para los menús (sin extensión ni guiones bajos). */
+    static String modLabel(String fileName) {
+        return fileName.replaceAll("(?i)\\.(zip|pk3|grp)$", "").replace('_', ' ');
+    }
+
+    /** Los mods de gráficos y sonido (los que se pueden activar en la HD; sin campañas). */
+    static List<File> gfxMods(File gameDir) {
+        List<File> out = new ArrayList<>();
+        for (File f : mods(gameDir)) if (!isCampaign(f)) out.add(f);
+        return out;
+    }
+
+    static java.util.Set<String> enabledMods(android.content.Context c) {
+        return new java.util.HashSet<>(c.getSharedPreferences("ajustes", android.content.Context.MODE_MULTI_PROCESS)
+                .getStringSet("mods_activos", new java.util.HashSet<>()));
+    }
+
+    static void setModEnabled(android.content.Context c, String name, boolean on) {
+        java.util.Set<String> set = enabledMods(c);
+        if (on) set.add(name);
+        else set.remove(name);
+        c.getSharedPreferences("ajustes", android.content.Context.MODE_MULTI_PROCESS).edit().putStringSet("mods_activos", set).apply();
+    }
+
+    /** Un interruptor (Sí/No) por cada mod de gráficos y sonido. */
+    static void addModToggles(android.content.Context c, DukeMenuView.Page p, File gameDir, Runnable onChange) {
+        for (File f : gfxMods(gameDir)) {
+            String name = f.getName();
+            p.addValue(I18n.t("mod_prefix") + modLabel(name), () -> I18n.t(enabledMods(c).contains(name) ? "yes" : "no"), () -> {
+                setModEnabled(c, name, !enabledMods(c).contains(name));
+                if (onChange != null) onChange.run();
+            });
+        }
+    }
+
     static List<File> mods(File gameDir) {
         List<File> mods = new ArrayList<>();
         for (File d : modDirs(gameDir)) addMods(d, mods, true);
