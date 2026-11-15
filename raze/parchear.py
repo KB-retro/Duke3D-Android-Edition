@@ -447,12 +447,16 @@ static void ModelAnimate(DCoreActor* act, ModelDescriptor* desc, ModelTileFrame*
 		// Fundido con la postura anterior. Si el .def no dice cuánto (smoothduration), lo que
 		// duró la anterior: los enemigos cambian de fotograma unas 8 veces por segundo y, sin
 		// esto, el modelo saltaba de una postura a otra (movimiento robótico).
-		float dur = pt->smoothduration;
-		if (dur <= 0 && !first) dur = clamp((now - ext.mdanimtims) / 1000.f, 0.06f, 0.2f);
+		// (Raze pone 0.1 s a todos los frames que no dicen nada: se fundía en una décima y luego
+		// se quedaba quieto hasta la siguiente postura.) Se funde durante lo que duró la anterior,
+		// así el modelo no para nunca entre una postura y la siguiente.
+		float dur = 0;
+		if (!first) dur = clamp(max(pt->smoothduration, (now - ext.mdanimtims) / 1000.f), 0.06f, 0.3f);
 		ext.mdanimcur = (int16_t)(target + 1);
 		ext.mdanimtims = now;
+		if (!first) sm.mdoldframe = sm.mdcurframe;
 		sm.mdsmooth = (!first && dur > 0) ? 1 : 0;
-		sm.smoothduration = dur;
+		sm.smoothduration = sm.mdsmooth ? dur : 0;
 	}
 	int d = (int)(now - ext.mdanimtims);
 	if (d < 0) { ext.mdanimtims = now; d = 0; }
@@ -465,12 +469,15 @@ static void ModelAnimate(DCoreActor* act, ModelDescriptor* desc, ModelTileFrame*
 			f1 = sm.mdoldframe;
 			f2 = target;
 			inter = k;
+			// Si cambia otra vez a mitad del fundido, se parte de la postura más cercana.
+			sm.mdcurframe = (int16_t)(k < 0.5f ? sm.mdoldframe : target);
 			return;
 		}
 		sm.mdsmooth = 0;
-		ext.mdanimtims = now;
-		elapsed = 0;
 	}
+	// mdanimtims se queda en el momento del cambio (para medir cuánto dura cada postura): la
+	// animación empieza al acabar el fundido.
+	elapsed = max(0.f, elapsed - sm.smoothduration);
 	if (anim && anim->fpssc > 0)
 	{
 		float fps = anim->fpssc / 65.536f;
@@ -490,7 +497,8 @@ static void ModelAnimate(DCoreActor* act, ModelDescriptor* desc, ModelTileFrame*
 		f1 = f2 = base;
 		inter = 0;
 	}
-	sm.mdoldframe = (int16_t)f1;
+	sm.mdoldframe = (int16_t)(inter >= 0.5f ? f2 : f1);
+	sm.mdcurframe = sm.mdoldframe;
 }
 
 bool HWSprite::ProcessModel(HWDrawInfo* di, ModelTileFrame* pt, tspritetype* spr, sectortype* sector)
