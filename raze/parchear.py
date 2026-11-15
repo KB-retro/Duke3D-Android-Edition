@@ -577,6 +577,8 @@ sub("source/core/textures/tiletexture.cpp",
     "static void AddArtFile(const FString& filename)\n{\n\tFileReader fr = fileSystem.OpenFileReader(filename.GetChars());",
     r'''static uint8_t gArtChanged[MAXUSERTILES];
 bool tileArtChanged(int tile) { return (unsigned)tile < MAXUSERTILES && gArtChanged[tile]; }
+// 2 = cambia la silueta (otro objeto); 1 = misma silueta con otros colores (sigue valiendo el modelo 3D)
+bool tileArtShapeChanged(int tile) { return (unsigned)tile < MAXUSERTILES && gArtChanged[tile] == 2; }
 
 // Tabla de un ART (sin la cabecera BUILDART): tile -> (ancho, alto, posición de los píxeles).
 static bool ArtTable(const TArray<uint8_t>& d, TMap<int, std::pair<uint32_t, uint32_t>>& out, TMap<int, uint32_t>& sizes)
@@ -627,7 +629,7 @@ static void MarkChangedArt(const FString& filename, const TArray<uint8_t>& artda
 		if (based.Size() > 8 && memcmp(based.Data(), "BUILDART", 8) == 0) based.Delete(0, 8);
 		ArtTable(based, bt, bs);
 	}
-	int changed = 0;
+	int changed = 0, shape = 0;
 	TMap<int, std::pair<uint32_t, uint32_t>>::Iterator it(nt);
 	TMap<int, std::pair<uint32_t, uint32_t>>::Pair* p;
 	while (it.NextPair(p))
@@ -636,9 +638,22 @@ static void MarkChangedArt(const FString& filename, const TArray<uint8_t>& artda
 		auto b = bt.CheckKey(t);
 		bool same = b && *bs.CheckKey(t) == *ns.CheckKey(t) && b->second == p->Value.second
 			&& (p->Value.second == 0 || memcmp(based.Data() + b->first, artdata.Data() + p->Value.first, p->Value.second) == 0);
-		if (!same && p->Value.second > 0) { gArtChanged[t] = 1; changed++; }
+		if (!same && p->Value.second > 0)
+		{
+			changed++;
+			bool sameshape = b && *bs.CheckKey(t) == *ns.CheckKey(t) && b->second == p->Value.second;
+			if (sameshape)
+			{
+				const uint8_t* x = based.Data() + b->first, *y = artdata.Data() + p->Value.first;
+				unsigned diff = 0, n = p->Value.second;
+				for (unsigned k = 0; k < n; k++) diff += ((x[k] == 255) != (y[k] == 255));
+				sameshape = diff * 10 <= n;
+			}
+			gArtChanged[t] = sameshape ? 1 : 2;
+			if (!sameshape) shape++;
+		}
 	}
-	if (changed) Printf("%s: %d tiles distintos de los del juego base (sin reemplazos HD)\n", filename.GetChars(), changed);
+	if (changed) Printf("%s: %d tiles distintos de los del juego base (sin texturas HD), %d con otra forma (sin modelo 3D)\n", filename.GetChars(), changed, shape);
 }
 
 static void AddArtFile(const FString& filename)
@@ -658,5 +673,5 @@ sub("source/core/textures/hightile.cpp",
     "\tif (tileArtChanged(tilenum)) return 0;")
 sub("source/core/models/modeldata.cpp",
     "    if (pal < 0 || pal >= MAXPALOOKUPS) pal = 0;\n    auto key = FrameMapKey(tilenum, pal);",
-    "    if (pal < 0 || pal >= MAXPALOOKUPS) pal = 0;\n    extern bool tileArtChanged(int tile);\n"
-    "    if (tileArtChanged(tilenum)) return 0;\n    auto key = FrameMapKey(tilenum, pal);")
+    "    if (pal < 0 || pal >= MAXPALOOKUPS) pal = 0;\n    extern bool tileArtShapeChanged(int tile);\n"
+    "    if (tileArtShapeChanged(tilenum)) return 0;\n    auto key = FrameMapKey(tilenum, pal);")
