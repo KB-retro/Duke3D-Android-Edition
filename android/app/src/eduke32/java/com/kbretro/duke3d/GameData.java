@@ -542,7 +542,7 @@ final class GameData {
         }
         if (mainCon != null) {
             args.add("-x");
-            args.add(mainCon);
+            args.add(campaignCon(modName, base, safe, outDir, mainCon, cons, rootNames));
         } else {
             for (String c : topCons) {
                 if (BASE_CONS.contains(c)) continue;
@@ -805,6 +805,70 @@ final class GameData {
             if (cur == null) return null;
         }
         return cur.isFile() ? cur : null;
+    }
+
+    /**
+     * Las campañas suelen cargar el guion del juego (con sus cuatro episodios) y añadir los suyos:
+     * en el menú salían también los episodios del Duke 3D normal, como pasaba con las expansiones.
+     * Se lanza un guion que incluye el de la campaña y oculta (definevolumeflags) los episodios sin
+     * mapas propios del mod. Si no se reconoce ninguno como suyo, se usa el de la campaña tal cual.
+     */
+    private static String campaignCon(String modName, File base, String safe, File outDir, String mainCon,
+                                      java.util.Map<String, String> cons, java.util.Map<String, String> rootNames) {
+        // Mapas del mod: sueltos (en cualquier carpeta) y dentro de sus .grp.
+        java.util.Set<String> own = new java.util.HashSet<>();
+        for (String n : rootNames.keySet()) if (n.endsWith(".map")) own.add(n.substring(n.lastIndexOf('/') + 1).toUpperCase(java.util.Locale.ROOT));
+        java.util.ArrayDeque<File> stack = new java.util.ArrayDeque<>();
+        stack.push(base);
+        int seen = 0;
+        while (!stack.isEmpty() && seen < 20000) {
+            File[] list = stack.pop().listFiles();
+            if (list == null) continue;
+            for (File k : list) {
+                seen++;
+                if (k.isDirectory()) stack.push(k);
+                else if (k.getName().toLowerCase(java.util.Locale.ROOT).endsWith(".map"))
+                    own.add(k.getName().toUpperCase(java.util.Locale.ROOT));
+            }
+        }
+        java.util.regex.Pattern lvl = java.util.regex.Pattern.compile(
+                "(?im)^[ \\t]*definelevelname[ \\t]+(\\d+)[ \\t]+\\d+[ \\t]+([^\\s]+)");
+        java.util.regex.Pattern vol = java.util.regex.Pattern.compile(
+                "(?im)^[ \\t]*definevolumename[ \\t]+(\\d+)([^\\r\\n]*)");
+        java.util.Map<Integer, int[]> count = new java.util.TreeMap<>(); // episodio -> {suyos, total}
+        java.util.Set<Integer> dukematch = new java.util.TreeSet<>();
+        for (String text : cons.values()) {
+            java.util.regex.Matcher m = vol.matcher(text);
+            while (m.find()) if (m.group(2).toUpperCase(java.util.Locale.ROOT).contains("DUKEMATCH")) dukematch.add(Integer.parseInt(m.group(1)));
+            m = lvl.matcher(text);
+            while (m.find()) {
+                int v = Integer.parseInt(m.group(1));
+                String map = m.group(2).replace('\\', '/');
+                map = map.substring(map.lastIndexOf('/') + 1).toUpperCase(java.util.Locale.ROOT);
+                int[] n = count.computeIfAbsent(v, k -> new int[2]);
+                n[1]++;
+                if (own.contains(map)) n[0]++;
+            }
+        }
+        java.util.Set<Integer> ownVols = new java.util.TreeSet<>();
+        StringBuilder detail = new StringBuilder();
+        for (java.util.Map.Entry<Integer, int[]> c : count.entrySet()) {
+            int[] n = c.getValue();
+            detail.append(c.getKey()).append('=').append(n[0]).append('/').append(n[1]).append(' ');
+            if (n[0] > 0 && n[0] * 2 >= n[1]) ownVols.add(c.getKey());
+        }
+        if (!dukematch.containsAll(ownVols)) ownVols.removeAll(dukematch);
+        android.util.Log.i("Duke3D", "Campaña " + modName + ": mapas propios por episodio " + detail + "-> suyos " + ownVols);
+        if (ownVols.isEmpty()) return mainCon;
+        // Los episodios del juego base vienen de su guion (no está en el mod): se ocultan todos
+        // los que no son de la campaña, estén definidos donde estén (EDuke32 admite 7).
+        StringBuilder sb = new StringBuilder("include ").append(mainCon).append("\n");
+        for (int v = 0; v < 7; v++) if (!ownVols.contains(v)) sb.append("definevolumeflags ").append(v).append(" 1\n");
+        //noinspection ResultOfMethodCallIgnored
+        outDir.mkdirs();
+        String name = "XPC_" + safe + ".con";
+        writeBytes(new File(outDir, name), sb.toString().getBytes(java.nio.charset.StandardCharsets.ISO_8859_1));
+        return "duke3d_android/mods/" + name;
     }
 
     private static byte[] readAll(File f) throws java.io.IOException {
