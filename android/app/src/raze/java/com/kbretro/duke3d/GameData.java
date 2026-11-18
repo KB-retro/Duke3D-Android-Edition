@@ -720,14 +720,19 @@ final class GameData {
         }
         if (Motor.RAZE) {
             args.add("-nosetup"); // sin la ventana de elegir juego de Raze
-            // Sin sincronía vertical: el límite de FPS del lanzador (60/120...) manda. Desde el
-            // arranque (Raze trae 500 y, hasta que llegaba el del lanzador, el título y la carga
-            // iban sin freno: calor y batería).
-            args.add("+vid_vsync");
-            args.add("0");
+            // Con 60 o 120 FPS, sincronía vertical (la pantalla se pone a esa frecuencia, ver
+            // GameActivity.applyRefreshRate): cada fotograma sale a su hora. Sin ella, el límite de
+            // FPS por tiempo daba fotogramas irregulares (tirones aunque marcara 60). Sin límite,
+            // sin sincronía. El límite va también desde el arranque (Raze trae 500: el título y la
+            // carga iban sin freno).
             int fps = ctx.getSharedPreferences("ajustes", android.content.Context.MODE_MULTI_PROCESS).getInt("fps", 60);
+            args.add("+vid_vsync");
+            args.add(fps > 0 ? "1" : "0");
             args.add("+vid_maxfps");
-            args.add(String.valueOf(fps <= 0 ? 1000 : fps));
+            // Con sincronía, el tope un 10 % por encima: si el límite y la pantalla van justos a la
+            // vez, a veces se perdía un refresco (salto a 30). Sigue frenando si la pantalla no
+            // baja a esa frecuencia.
+            args.add(String.valueOf(fps <= 0 ? 1000 : fps + fps / 10));
             // Resolución interna guardada (porcentaje de la pantalla).
             args.add("+vid_scalefactor");
             args.add(String.valueOf(GraphicsSettings.scale(ctx) / 100f));

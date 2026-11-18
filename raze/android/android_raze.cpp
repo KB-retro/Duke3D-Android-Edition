@@ -148,7 +148,10 @@ std::string translate(const std::string &c)
         return menuactive != MENU_Off ? "closemenu" : "menu_main";
     }
     if (sscanf(c.c_str(), "r_maxfps %d", &a) == 1)
-        return "vid_maxfps " + std::to_string(a <= 0 ? 1000 : a);
+    {
+        // Con límite (60/120), sincronía vertical: fotogramas a ritmo de la pantalla (ver GameData).
+        return std::string("vid_vsync ") + (a > 0 ? "1" : "0") + ";vid_maxfps " + std::to_string(a <= 0 ? 1000 : a + a / 10);
+    }
     if (sscanf(c.c_str(), "vidmode %d %d", &a, &b) == 2)
     {
         // Resolución interna: la app pide un tamaño; en Raze es una escala de la ventana.
