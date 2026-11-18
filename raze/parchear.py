@@ -966,3 +966,85 @@ sub("source/games/duke/src/gameloop.cpp",
     # El jugador dispara: sus armas ponen visibility a 0 (el fogonazo del original).
     "\t\t{\n\t\t\textern int gDukeMuzzleClock;\n\t\t\tauto mp = getPlayer(screenpeek);\n"
     "\t\t\tif (mp && mp->visibility == 0 && ud.const_visibility != 0) gDukeMuzzleClock = PlayClock;\n\t\t}\n")
+
+# 32. Caché de shaders en OpenGL ES (Android). El motor compila un programa de GPU por cada
+#     combinación de efectos la primera vez que aparece en pantalla; en las GPU Mali (RG477M)
+#     cada compilación tarda y el juego daba parones. Raze trae una caché en disco, pero en GLES
+#     no la usaba nunca (solo leía, sin glProgramBinary, y solo con gráficas Intel). Aquí se
+#     guarda cada programa ya compilado (glGetProgramBinary) y se carga en las partidas siguientes
+#     (glProgramBinary). Si el driver no acepta el guardado, se compila como siempre.
+sub("source/common/rendering/gles/gles_shader.cpp",
+    '\t\tactive = !(strstr(vendor, "Intel") == nullptr);',
+    '\t\tactive = !(strstr(vendor, "Intel") == nullptr);\n#ifdef __ANDROID__\n\t\tactive = true;\n#endif')
+sub("source/common/rendering/gles/gles_shader.cpp",
+    '#include <map>\n#include <memory>',
+    '#include <map>\n#include <memory>\n#ifdef __ANDROID__\n#include <EGL/egl.h>\n#include <chrono>\n'
+    'typedef void (*RazeProgramBinaryFn)(GLuint, GLenum, const void*, GLsizei);\n'
+    'typedef void (*RazeGetProgramBinaryFn)(GLuint, GLsizei, GLsizei*, GLenum*, void*);\n'
+    'typedef void (*RazeProgramParameteriFn)(GLuint, GLenum, GLint);\n#endif')
+sub("source/common/rendering/gles/gles_shader.cpp",
+    "\tbool linked = false;\n\n\tif (!linked)\n\t{\n\t\tshaderData->hVertProg = glCreateShader(GL_VERTEX_SHADER);",
+    "\tbool linked = false;\n"
+    "#ifdef __ANDROID__\n"
+    "\tstatic auto pProgramBinary = (RazeProgramBinaryFn)eglGetProcAddress(\"glProgramBinary\");\n"
+    "\tstatic auto pGetProgramBinary = (RazeGetProgramBinaryFn)eglGetProcAddress(\"glGetProgramBinary\");\n"
+    "\tstatic auto pProgramParameteri = (RazeProgramParameteriFn)eglGetProcAddress(\"glProgramParameteri\");\n"
+    "\tif (binary.Size() > 0 && pProgramBinary)\n\t{\n"
+    "\t\tpProgramBinary(shaderData->hShader, binaryFormat, binary.Data(), (GLsizei)binary.Size());\n"
+    "\t\tGLint ok = 0;\n\t\tglGetProgramiv(shaderData->hShader, GL_LINK_STATUS, &ok);\n"
+    "\t\tlinked = ok == GL_TRUE;\n"
+    "\t\tif (!linked) { glDeleteProgram(shaderData->hShader); shaderData->hShader = glCreateProgram(); binary.Clear(); }\n\t}\n"
+    "\tauto compileStart = std::chrono::steady_clock::now();\n"
+    "#endif\n\n"
+    "\tif (!linked)\n\t{\n"
+    "#ifdef __ANDROID__\n"
+    "\t\tif (pProgramParameteri) pProgramParameteri(shaderData->hShader, 0x8257 /* GL_PROGRAM_BINARY_RETRIEVABLE_HINT */, GL_TRUE);\n"
+    "#endif\n"
+    "\t\tshaderData->hVertProg = glCreateShader(GL_VERTEX_SHADER);")
+sub("source/common/rendering/gles/gles_shader.cpp",
+    "\t\tglGetProgramiv(shaderData->hShader, GL_LINK_STATUS, &status);\n\t\tlinked = (status == GL_TRUE);\n",
+    "\t\tglGetProgramiv(shaderData->hShader, GL_LINK_STATUS, &status);\n\t\tlinked = (status == GL_TRUE);\n"
+    "#ifdef __ANDROID__\n"
+    "\t\tif (linked)\n\t\t{\n"
+    "\t\t\tint ms = (int)std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - compileStart).count();\n"
+    "\t\t\tPrintf(\"Shader compilado: %s (%d ms)\\n\", name, ms);\n"
+    "\t\t\tGLint len = 0;\n"
+    "\t\t\tglGetProgramiv(shaderData->hShader, 0x8741 /* GL_PROGRAM_BINARY_LENGTH */, &len);\n"
+    "\t\t\tif (len > 0 && pGetProgramBinary && IsShaderCacheActive())\n\t\t\t{\n"
+    "\t\t\t\tTArray<uint8_t> out;\n\t\t\t\tout.Resize(len);\n\t\t\t\tGLenum fmt = 0;\n"
+    "\t\t\t\tpGetProgramBinary(shaderData->hShader, len, &len, &fmt, out.Data());\n"
+    "\t\t\t\tif (len > 0) { out.Resize(len); SaveCachedProgramBinary(vp_comb, fp_comb, out, fmt); }\n"
+    "\t\t\t}\n\t\t}\n"
+    "#endif\n")
+#  El archivo de la caché se reescribía entero con cada shader nuevo (con muchos, otro parón):
+#  en Android se añade cada uno al final (cabecera con recuento 0xFFFFFFFF = «hasta el final») y
+#  una entrada a medias (si se cerró el juego escribiendo) solo se descarta ella.
+sub("source/common/rendering/gles/gles_shader.cpp",
+    "\t\tuint32_t count = fr.ReadUInt32();\n\t\tif (count > 512)\n\t\t\tI_Error(\"Too many shaders cached\");\n\n"
+    "\t\tfor (uint32_t i = 0; i < count; i++)\n\t\t{\n\t\t\tchar hexdigest[33];\n\t\t\tif (fr.Read(hexdigest, 32) != 32)\n\t\t\t\tI_Error(\"Read error\");",
+    "\t\tuint32_t count = fr.ReadUInt32();\n\t\tbool appended = count == 0xFFFFFFFFu;\n"
+    "\t\tif (count > 512 && !appended)\n\t\t\tI_Error(\"Too many shaders cached\");\n\n"
+    "\t\tfor (uint32_t i = 0; appended || i < count; i++)\n\t\t{\n\t\t\tchar hexdigest[33];\n"
+    "\t\t\tif (fr.Read(hexdigest, 32) != 32)\n\t\t\t{\n\t\t\t\tif (appended) break;\n\t\t\t\tI_Error(\"Read error\");\n\t\t\t}")
+sub("source/common/rendering/gles/gles_shader.cpp",
+    "\t\t\tbinary->data.Resize(size);\n\t\t\tif (fr.Read(binary->data.Data(), binary->data.Size()) != binary->data.Size())\n\t\t\t\tI_Error(\"Read error\");",
+    "\t\t\tbinary->data.Resize(size);\n\t\t\tif (fr.Read(binary->data.Data(), binary->data.Size()) != binary->data.Size())\n\t\t\t{\n"
+    "\t\t\t\tif (appended) break;\n\t\t\t\tI_Error(\"Read error\");\n\t\t\t}")
+sub("source/common/rendering/gles/gles_shader.cpp",
+    "\tentry->format = binaryFormat;\n\tentry->data = binary;\n\n\tSaveShaders();",
+    "\tentry->format = binaryFormat;\n\tentry->data = binary;\n\n"
+    "#ifdef __ANDROID__\n"
+    "\t{\n\t\tFString path = CreateProgramCacheName(true);\n"
+    "\t\tFILE* f = fopen(path.GetChars(), \"r+b\");\n"
+    "\t\tbool fresh = false;\n"
+    "\t\tif (f)\n\t\t{\n\t\t\tchar magic[4] = {};\n\t\t\tuint32_t cnt = 0;\n"
+    "\t\t\tfresh = fread(magic, 1, 4, f) != 4 || memcmp(magic, ShaderMagic, 4) != 0 || fread(&cnt, 4, 1, f) != 1 || cnt != 0xFFFFFFFFu;\n"
+    "\t\t\tfclose(f);\n\t\t}\n\t\telse fresh = true;\n"
+    "\t\tf = fopen(path.GetChars(), fresh ? \"wb\" : \"ab\");\n"
+    "\t\tif (f)\n\t\t{\n"
+    "\t\t\tif (fresh) { uint32_t all = 0xFFFFFFFFu; fwrite(ShaderMagic, 1, 4, f); fwrite(&all, 4, 1, f); }\n"
+    "\t\t\tFString key = CalcProgramBinaryChecksum(vertex, fragment);\n"
+    "\t\t\tuint32_t size = binary.Size();\n"
+    "\t\t\tfwrite(key.GetChars(), 1, 32, f);\n\t\t\tfwrite(&binaryFormat, 4, 1, f);\n\t\t\tfwrite(&size, 4, 1, f);\n"
+    "\t\t\tfwrite(binary.Data(), 1, size, f);\n\t\t\tfclose(f);\n\t\t}\n\t\treturn;\n\t}\n"
+    "#endif\n\tSaveShaders();")
