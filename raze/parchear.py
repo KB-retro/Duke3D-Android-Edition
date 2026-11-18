@@ -1048,3 +1048,19 @@ sub("source/common/rendering/gles/gles_shader.cpp",
     "\t\t\tfwrite(key.GetChars(), 1, 32, f);\n\t\t\tfwrite(&binaryFormat, 4, 1, f);\n\t\t\tfwrite(&size, 4, 1, f);\n"
     "\t\t\tfwrite(binary.Data(), 1, size, f);\n\t\t\tfclose(f);\n\t\t}\n\t\treturn;\n\t}\n"
     "#endif\n\tSaveShaders();")
+
+# 33. Con «Modelos 3D» apagado (hw_models 0) no se leen los modelos de los .def: arranca antes y
+#     con menos memoria. Y, para el fallo del Caribe / Nuclear Winter con el pack HD, el registro
+#     apunta qué actor del guion se estaba creando.
+sub("source/core/defparser.cpp",
+    "static void parseModel(FScanner& sc, FScriptPosition& pos)\n{\n\tFScanner::SavedPos blockend;\n",
+    "EXTERN_CVAR(Bool, hw_models)\n"
+    "static void parseModel(FScanner& sc, FScriptPosition& pos)\n{\n\tFScanner::SavedPos blockend;\n"
+    "\tif (!hw_models)\n\t{\n"
+    "\t\tFString skipfn;\n\t\tif (!sc.GetString(skipfn)) return;\n"
+    "\t\tif (sc.StartBraces(&blockend)) return;\n"
+    "\t\tsc.RestorePos(blockend);\n\t\tsc.CheckString(\"}\");\n\t\treturn;\n\t}\n")
+sub("source/games/duke/src/game.cpp",
+    "\t\t\t\tauto newcls = (PClassActor*)RUNTIME_CLASS(DDukeActor)->CreateDerivedClass(FStringf(\"NewConActor%d\", i), RUNTIME_CLASS(DDukeActor)->Size);",
+    "\t\t\t\tPrintf(\"Clase nueva para el actor del guion %d\\n\", i);\n"
+    "\t\t\t\tauto newcls = (PClassActor*)RUNTIME_CLASS(DDukeActor)->CreateDerivedClass(FStringf(\"NewConActor%d\", i), RUNTIME_CLASS(DDukeActor)->Size);")
