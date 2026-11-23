@@ -501,12 +501,22 @@ static void ModelAnimate(DCoreActor* act, ModelDescriptor* desc, ModelTileFrame*
 	sm.mdcurframe = sm.mdoldframe;
 }
 
+CVAR(Int, hw_model_distance, 1024, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)	// 0 = sin límite
+
 bool HWSprite::ProcessModel(HWDrawInfo* di, ModelTileFrame* pt, tspritetype* spr, sectortype* sector)
 {
 	if (!pt || (unsigned)pt->modelid >= modelManager.modelDescs.Size() || pt->framenum < 0) return false;
 	auto desc = &modelManager.modelDescs[pt->modelid];
 	if (desc->deleted || desc->modelID >= Models.Size() || !Models[desc->modelID]) return false;
 	if ((spr->cstat & CSTAT_SPRITE_ALIGNMENT_MASK) == CSTAT_SPRITE_ALIGNMENT_FLOOR) return false;
+	// Lejos, sprite 2D (HD): cada modelo son varias órdenes a la GPU que prepara el procesador, y
+	// en zonas amplias con muchos a la vista se saturaba (Raze dibuja en un solo hilo).
+	if (hw_model_distance > 0)
+	{
+		auto& vpos = di->Viewpoint.Pos;
+		double ddx = spr->pos.X - vpos.X, ddy = -spr->pos.Y - vpos.Y;
+		if (ddx * ddx + ddy * ddy > (double)hw_model_distance * hw_model_distance) return false;
+	}
 	auto tex = TexMan.GetGameTexture(spr->spritetexture());
 	if (!tex) return false;
 
@@ -724,7 +734,33 @@ sub("source/core/textures/hightile.cpp",
 sub("source/core/models/modeldata.cpp",
     "    if (pal < 0 || pal >= MAXPALOOKUPS) pal = 0;\n    auto key = FrameMapKey(tilenum, pal);",
     "    if (pal < 0 || pal >= MAXPALOOKUPS) pal = 0;\n    extern bool tileArtShapeChanged(int tile);\n"
-    "    if (tileArtShapeChanged(tilenum)) return 0;\n    auto key = FrameMapKey(tilenum, pal);")
+    "    if (tileArtShapeChanged(tilenum)) { taintedModels.Insert(modelid, true); return 0; }\n    auto key = FrameMapKey(tilenum, pal);")
+# Si una expansión redibuja a un enemigo, su modelo entero queda fuera (también el cadáver, que
+# es un dibujo del juego base): en Nuclear Winter salían vivos en 2D y muertos en 3D genérico.
+sub("source/core/models/modeldata.cpp",
+    "ModelTileFrame* ModelManager::GetModel(FTextureID tilenum, int pal)\n{",
+    "TMap<int, bool> taintedModels;\n"
+    "void ModelManager::DropTaintedModels()\n{\n"
+    "\tif (taintedModels.CountUsed() == 0) return;\n"
+    "\tTArray<unsigned> drop;\n"
+    "\tTMap<unsigned, ModelTileFrame>::Iterator it(frameMap);\n"
+    "\tTMap<unsigned, ModelTileFrame>::Pair* pair;\n"
+    "\twhile (it.NextPair(pair)) if (taintedModels.CheckKey(pair->Value.modelid)) drop.Push(pair->Key);\n"
+    "\tfor (auto k : drop) frameMap.Remove(k);\n"
+    "\tPrintf(\"Modelos 3D de enemigos redibujados por la expansión: %u (sin modelo, %u sprites)\\n\", taintedModels.CountUsed(), drop.Size());\n"
+    "\ttaintedModels.Clear();\n}\n\n"
+    "ModelTileFrame* ModelManager::GetModel(FTextureID tilenum, int pal)\n{")
+sub("source/core/models/modeldata.cpp",
+    "int ModelManager::DefineFrame(int modelid, const char* framename, int tilenum, int skinnum, float smoothduration, int pal)\n{",
+    "extern TMap<int, bool> taintedModels;\n"
+    "int ModelManager::DefineFrame(int modelid, const char* framename, int tilenum, int skinnum, float smoothduration, int pal)\n{")
+sub("source/core/models/modeldata.h",
+    "\tModelTileFrame* GetModel(FTextureID tilenum, int pal);",
+    "\tModelTileFrame* GetModel(FTextureID tilenum, int pal);\n\tvoid DropTaintedModels();")
+sub("source/core/textures/tilesetbuilder.cpp",
+    "\tPrintf(\"Modelos 3D: %u, sprites con modelo: %u\\n\", modelManager.modelDescs.Size(), modelManager.frameMap.CountUsed());\n}",
+    "\tmodelManager.DropTaintedModels();\n"
+    "\tPrintf(\"Modelos 3D: %u, sprites con modelo: %u\\n\", modelManager.modelDescs.Size(), modelManager.frameMap.CountUsed());\n}")
 
 # 31. Luces dinámicas (como las de Polymer en EDuke32). Raze trae la parte del shader (luces por
 #     superficie en OpenGL ES), pero ningún juego las crea y la recogida estaba comentada. Cada

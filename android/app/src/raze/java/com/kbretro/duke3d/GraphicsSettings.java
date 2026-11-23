@@ -160,6 +160,11 @@ final class GraphicsSettings {
             // Raze trae los modelos apagados (hw_models false): con el HRP salían los sprites planos.
             new RazeOpt("gfx_models", "raze_modelos", 1,
                     new String[]{"no", "yes"}, new String[]{"hw_models 0", "hw_models 1"}),
+            // Hasta dónde se ven los modelos 3D (más lejos, sprite 2D HD): menos trabajo para el
+            // procesador en zonas amplias.
+            new RazeOpt("gfx_model_dist", "raze_dist_modelos", 1,
+                    new String[]{"gfx_near", "gfx_mid", "gfx_far", "gfx_unlimited"},
+                    new String[]{"hw_model_distance 512", "hw_model_distance 1024", "hw_model_distance 2048", "hw_model_distance 0"}),
             new RazeOpt("gfx_hightile", "raze_hightile", 1,
                     new String[]{"no", "yes"}, new String[]{"hw_hightile 0", "hw_hightile 1"}),
             new RazeOpt("gfx_voxels", "raze_voxels", 1,

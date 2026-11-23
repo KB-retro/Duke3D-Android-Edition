@@ -144,6 +144,10 @@ final class I18n {
         put("gfx_ssao", "Oclusión ambiental", "Ambient occlusion");
         put("gfx_hq", "Texturas suavizadas", "Smoothed textures");
         put("gfx_models", "Modelos 3D", "3D models");
+        put("gfx_model_dist", "Distancia de modelos 3D", "3D model distance");
+        put("gfx_near", "Cerca", "Near");
+        put("gfx_far", "Lejos", "Far");
+        put("gfx_unlimited", "Sin límite", "Unlimited");
         put("gfx_hightile", "Texturas HD", "HD textures");
         put("gfx_voxels", "Vóxeles", "Voxels");
         put("gfx_shadows", "Sombras", "Shadows");
