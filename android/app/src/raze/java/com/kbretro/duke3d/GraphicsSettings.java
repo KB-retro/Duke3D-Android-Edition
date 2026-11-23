@@ -142,8 +142,13 @@ final class GraphicsSettings {
     private static final RazeOpt[] RAZE_OPTS = {
             new RazeOpt("gfx_filter", "raze_filtro", 0,
                     new String[]{"gfx_pixel", "gfx_pixel_smooth", "gfx_bilinear", "gfx_trilinear"},
-                    new String[]{"gl_texture_filter 0", "gl_texture_filter 5", "gl_texture_filter 3", "gl_texture_filter 4"}),
-            new RazeOpt("gfx_aniso", "raze_aniso", 2,
+                    // «Píxel» con mipmaps (1): igual de pixelado de cerca, pero de lejos la GPU lee
+                    // la versión reducida de cada textura. Sin ellos (0), con las texturas HD (de
+                    // 1024-2048 px) las zonas amplias hundían los FPS en GPU con poco ancho de banda
+                    // de memoria (Mali de la RG477M) aunque el procesador fuera holgado.
+                    new String[]{"gl_texture_filter 1", "gl_texture_filter 5", "gl_texture_filter 3", "gl_texture_filter 4"}),
+            // De serie 4x: con mipmaps, 8x ya pesa en las GPU de gama media (Mali).
+            new RazeOpt("gfx_aniso", "raze_aniso", 1,
                     new String[]{"no", "4x", "8x", "16x"},
                     new String[]{"gl_texture_filter_anisotropic 1", "gl_texture_filter_anisotropic 4",
                             "gl_texture_filter_anisotropic 8", "gl_texture_filter_anisotropic 16"}),
@@ -176,7 +181,7 @@ final class GraphicsSettings {
     private static final String[] PRESET_KEYS = {"gfx_preset_perf", "gfx_preset_bal", "gfx_preset_quality"};
     private static final int[][] PRESETS = {
             {75, 0, 0, 0, 1, 0},
-            {100, 0, 2, 0, 1, 1},
+            {100, 0, 1, 0, 1, 1},
             {100, 3, 3, 1, 1, 1},
     };
     private static final String[] PRESET_PREFS = {"raze_filtro", "raze_aniso", "raze_hq", "raze_modelos", "raze_sombras"};
