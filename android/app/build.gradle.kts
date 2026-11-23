@@ -87,6 +87,9 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
+            // Compilación de diagnóstico de memoria (HWASan, raze.yml): wrap.sh solo se usa en
+            // apps depurables.
+            isDebuggable = System.getenv("RAZE_DIAG") == "1"
             signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
         }
     }

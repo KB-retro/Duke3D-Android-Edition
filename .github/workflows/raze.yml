@@ -5,6 +5,11 @@ name: Raze
 # errores de una vez en el resumen del run.
 on:
   workflow_dispatch:
+    inputs:
+      diagnostico:
+        description: "Diagnóstico de memoria (HWASan): más lento; para cazar escrituras fuera de sitio"
+        type: boolean
+        default: false
 
 env:
   SDL_VERSION: "2.30.9"
@@ -88,6 +93,9 @@ jobs:
 
       - name: Raze para Android (todos los errores)
         run: |
+          # Diagnóstico de memoria: HWASan (Android 14+) marca la escritura fuera de sitio en el acto.
+          SAN=""; SANLD=""
+          if [ "${{ inputs.diagnostico }}" = "true" ]; then SAN="-fsanitize=hwaddress -fno-omit-frame-pointer"; SANLD="-fsanitize=hwaddress"; fi
           cmake -S raze-src -B raze-a -G Ninja -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_TOOLCHAIN_FILE=$NDK/build/cmake/android.toolchain.cmake \
             -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=$API -DANDROID_STL=c++_shared \
@@ -95,7 +103,8 @@ jobs:
             -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DIMPORT_EXECUTABLES=$PWD/raze-pc/ImportExecutables.cmake \
             -DSDL2_INCLUDE_DIR=$PWD/prefijo/include/SDL2 -DSDL2_LIBRARY=$PWD/prefijo/lib/libSDL2.so \
-            -DCMAKE_C_FLAGS="-I$PWD/prefijo/include" -DCMAKE_CXX_FLAGS="-I$PWD/prefijo/include" \
+            -DCMAKE_C_FLAGS="-I$PWD/prefijo/include $SAN" -DCMAKE_CXX_FLAGS="-I$PWD/prefijo/include $SAN" \
+            -DCMAKE_SHARED_LINKER_FLAGS="$SANLD" \
             -DOPENAL_INCLUDE_DIR=$PWD/prefijo/include/AL -DOPENAL_LIBRARY=$PWD/prefijo/lib/libopenal.so \
             -DZMUSIC_INCLUDE_DIR=$PWD/prefijo/include -DZMUSIC_LIBRARIES=$PWD/prefijo/lib/libzmusic.so \
             -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
@@ -139,6 +148,13 @@ jobs:
           cp prefijo/lib/libSDL2.so prefijo/lib/libopenal.so prefijo/lib/libzmusic.so $J/
           cp $NDK/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/libc++_shared.so $J/
           cp "$(find psx-build -name 'swanstation_libretro*.so' | head -1)" $J/libpsxcore.so
+          if [ "${{ inputs.diagnostico }}" = "true" ]; then
+            cp "$(find $NDK -name 'libclang_rt.hwasan-aarch64-android.so' | head -1)" $J/
+            mkdir -p android/app/src/raze/resources/lib/arm64-v8a
+            printf '#!/system/bin/sh\nLD_HWASAN=1 exec "$@"\n' > android/app/src/raze/resources/lib/arm64-v8a/wrap.sh
+            chmod +x android/app/src/raze/resources/lib/arm64-v8a/wrap.sh
+            echo "RAZE_DIAG=1" >> "$GITHUB_ENV"
+          fi
           find raze-a -name '*.pk3' -exec cp {} $D/ \;
           mkdir -p $D/soundfonts
           cp raze-src/soundfont/*.sf2 $D/soundfonts/
@@ -179,7 +195,8 @@ jobs:
           for L in libpsx.so libpsxcore.so; do
             unzip -l app/build/outputs/apk/raze/release/app-raze-release.apk | grep -q "lib/arm64-v8a/$L" || { echo "Falta $L"; exit 1; }
           done
-          cp app/build/outputs/apk/raze/release/app-raze-release.apk "../salida/Duke-Legacy-0.1.${VERSION_CODE}.apk"
+          SUF=""; if [ "$RAZE_DIAG" = "1" ]; then SUF="-diagnostico"; fi
+          cp app/build/outputs/apk/raze/release/app-raze-release.apk "../salida/Duke-Legacy-0.1.${VERSION_CODE}${SUF}.apk"
 
       - uses: actions/upload-artifact@v4
         if: always()
