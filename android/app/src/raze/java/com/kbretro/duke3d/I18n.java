@@ -70,6 +70,8 @@ final class I18n {
         put("img_small", "Pequeña", "Small");
         put("img_big", "Grande", "Large");
         put("img_huge", "Muy grande", "Huge");
+        put("bench", "Medir rendimiento (5 s)", "Measure performance (5 s)");
+        put("bench_done", "Medición guardada: genera el registro en el lanzador", "Measurement saved: save the log in the launcher");
         put("img_reset", "Restablecer imagen", "Reset image settings");
         put("img_reset_done", "Ajustes de imagen restablecidos", "Image settings reset");
         put("game_menu", "Menú del juego", "Game menu");

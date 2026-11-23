@@ -738,6 +738,13 @@ public class GameActivity extends SDLActivity {
         DukeMenuView.Page p = new DukeMenuView.Page();
         status = null;
         ImageSettings.addTo(this, p, GameActivity::command, () -> status = I18n.t("img_reset_done"));
+        // Medición: se cierra el menú y a los 5 s el juego apunta en el registro lo que dibuja y
+        // cuánto tarda (para ver por qué una zona va lenta).
+        p.add(I18n.t("bench"), null, () -> {
+            closeMenu();
+            command("bench");
+            ui.postDelayed(() -> android.widget.Toast.makeText(this, I18n.t("bench_done"), android.widget.Toast.LENGTH_LONG).show(), 7000);
+        });
         p.add(I18n.t("back"), null, () -> quickMenu.pop());
         p.footer = () -> status != null ? status : "";
         return p;

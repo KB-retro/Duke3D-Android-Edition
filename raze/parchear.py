@@ -1100,3 +1100,10 @@ sub("source/games/duke/src/game.cpp",
     "\t\t\t\tauto newcls = (PClassActor*)RUNTIME_CLASS(DDukeActor)->CreateDerivedClass(FStringf(\"NewConActor%d\", i), RUNTIME_CLASS(DDukeActor)->Size);",
     "\t\t\t\tPrintf(\"Clase nueva para el actor del guion %d\\n\", i);\n"
     "\t\t\t\tauto newcls = (PClassActor*)RUNTIME_CLASS(DDukeActor)->CreateDerivedClass(FStringf(\"NewConActor%d\", i), RUNTIME_CLASS(DDukeActor)->Size);")
+
+# 34. «Medir rendimiento» (menú rápido): la orden bench de Raze guarda en benchmarks.txt lo que
+#     dibuja (paredes, suelos, sprites, portales) y cuánto tarda cada fase; también al registro.
+sub("source/common/rendering/hwrenderer/data/hw_clock.cpp",
+    "\t\tFILE *f = fopen(\"benchmarks.txt\", \"at\");",
+    "\t\tPrintf(\"Medición de rendimiento:\\n%s\\n\", compose.GetChars());\n"
+    "\t\tFILE *f = fopen(\"benchmarks.txt\", \"at\");")
