@@ -479,18 +479,18 @@ final class DukeMenuView extends View {
         // flecha o las letras) también cambia. Se mueve un poco hacia la derecha.
         arrowRect.setEmpty();
         if (stack.size() == 1 && p.otherSide != null && !coverRect.isEmpty()) {
-            float aw = Math.max(36, coverRect.width() * 0.26f), ah = aw * 0.72f;
-            float bob = (float) Math.sin(now / 260.0) * aw * 0.08f;
-            float right = coverRect.right - aw * 0.12f + bob, acx = right - aw / 2f, acy = coverRect.centerY();
-            drawSectionArrow(c, right - aw, acy - ah / 2f, aw, ah);
+            float arW = Math.max(36, coverRect.width() * 0.26f), arH = arW * 0.72f;
+            float arBob = (float) Math.sin(now / 260.0) * arW * 0.08f;
+            float arRight = coverRect.right - arW * 0.12f + arBob, arCx = arRight - arW / 2f, arCy = coverRect.centerY();
+            drawSectionArrow(c, arRight - arW, arCy - arH / 2f, arW, arH);
             // «Y/X» encima, con las letras grandes del juego.
-            float ts = 0.55f, tw = bigWidth("Y/X") * ts;
-            float lineH = art.height(DukeArt.BIGALPHANUM) > 0 ? art.height(DukeArt.BIGALPHANUM) : 15;
-            float tcy = (acy - ah / 2f - ah * 0.1f - ay) / sy - lineH * ts / 2f;
-            drawBig(c, "Y/X", (acx - ax) / sx - tw / 2f, tcy, ts, pixel);
-            float top = vy(tcy - lineH * ts / 2f);
+            float arTs = 0.55f, arTw = bigWidth("Y/X") * arTs;
+            float arLineH = art.height(DukeArt.BIGALPHANUM) > 0 ? art.height(DukeArt.BIGALPHANUM) : 15;
+            float arTcy = (arCy - arH / 2f - arH * 0.1f - ay) / sy - arLineH * arTs / 2f;
+            drawBig(c, "Y/X", (arCx - ax) / sx - arTw / 2f, arTcy, arTs, pixel);
+            float arTop = vy(arTcy - arLineH * arTs / 2f);
             // Zona que se puede tocar: flecha y letras, con margen para el dedo.
-            arrowRect.set(right - aw * 1.25f, top - ah * 0.25f, right + aw * 0.25f, acy + ah * 0.75f);
+            arrowRect.set(arRight - arW * 1.25f, arTop - arH * 0.25f, arRight + arW * 0.25f, arCy + arH * 0.75f);
         }
         footerRect.set(0, vy(183), w, h);
 
