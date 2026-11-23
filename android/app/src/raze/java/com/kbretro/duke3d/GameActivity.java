@@ -93,7 +93,41 @@ public class GameActivity extends SDLActivity {
      */
     static void quitRequest(int all) {
         GameActivity act = instance;
-        if (act != null) act.ui.post(() -> act.quitGame(all != 0));
+        if (act == null) return;
+        if (all == 2) act.ui.post(act::openSettings); // «Opciones» del menú del juego
+        else act.ui.post(() -> act.quitGame(all != 0));
+    }
+
+    /**
+     * «Opciones» del menú del juego: los Ajustes de la app (también fuera de partida). Atrás
+     * vuelve al menú del juego.
+     */
+    private void openSettings() {
+        if (art == null) return;
+        if (quickMenu == null) {
+            quickMenu = new DukeMenuView(this, art);
+            quickMenu.setOverlay(true);
+            addContentView(quickMenu, new ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        }
+        status = null;
+        settingsMode = true;
+        quickMenu.setRoot(settingsPage(), this::closeSettings);
+        quickMenu.setVisibility(View.VISIBLE);
+        quickMenu.bringToFront();
+        quickMenu.requestFocus();
+        releaseAllFuncs();
+        hideSystemBars();
+    }
+
+    /** El menú abierto son los Ajustes desde el menú del juego (sin la pausa del menú rápido). */
+    private boolean settingsMode;
+
+    private void closeSettings() {
+        settingsMode = false;
+        if (quickMenu != null) quickMenu.setVisibility(View.GONE);
+        if (mSurface != null) mSurface.requestFocus();
+        hideSystemBars();
     }
 
     private android.widget.TextView banner;
@@ -366,8 +400,6 @@ public class GameActivity extends SDLActivity {
             String lang = getIntent().getStringExtra(EXTRA_LANG);
             Os.setenv("DUKE3D_LANG", lang != null ? lang : "en", true);
             if (Motor.RAZE) {
-                // Motor gráfico elegido (raze/parchear.py, cambio 13): 1 Vulkan, 2 OpenGL ES.
-                Os.setenv("RAZE_BACKEND", GraphicsSettings.vulkan(this) ? "1" : "2", true);
                 Os.setenv("RAZE_PROGDIR", Motor.prepareRazeData(this).getAbsolutePath(), true);
                 // Carpetas donde Raze busca los juegos: las expansiones de la Megaton (addons/dc...).
                 if (dir != null) {
@@ -696,6 +728,7 @@ public class GameActivity extends SDLActivity {
                     ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         }
         status = null;
+        settingsMode = false;
         quickMenu.setRoot(rootPage(), this::closeMenu);
         quickMenu.setVisibility(View.VISIBLE);
         quickMenu.bringToFront();
@@ -728,6 +761,12 @@ public class GameActivity extends SDLActivity {
         DukeMenuView.Page p = new DukeMenuView.Page();
         p.add(I18n.t("graphics"), null, () -> quickMenu.push(graphicsPage()));
         if (Motor.RAZE) p.add(I18n.t("image"), null, () -> quickMenu.push(imagePage()));
+        if (Motor.RAZE) p.add(I18n.t("sound"), null, () -> {
+            DukeMenuView.Page s = new DukeMenuView.Page();
+            SoundSettings.addTo(this, s, GameActivity::command);
+            s.add(I18n.t("back"), null, () -> quickMenu.pop());
+            quickMenu.push(s);
+        });
         p.add(I18n.t("controls"), null, () -> quickMenu.push(controlsPage()));
         if (Motor.RAZE && getIntent().getStringExtra(EXTRA_DIR) != null)
             p.add(I18n.t("mods"), null, () -> quickMenu.push(modsPage()));
@@ -874,11 +913,8 @@ public class GameActivity extends SDLActivity {
 
     private DukeMenuView.Page graphicsPage() {
         DukeMenuView.Page p = new DukeMenuView.Page();
-        status = null;
-        GraphicsSettings.onBackend = () -> status = I18n.t("gfx_backend_note");
         GraphicsSettings.addTo(this, p, this::applyScale, Motor.RAZE ? this::applyRazeGraphics : this::applyPostFx);
         if (!Motor.RAZE) p.footer = () -> I18n.t("gfx_soft_note");
-        else p.footer = () -> status != null ? status : "";
         p.addValue("FPS", () -> fpsLabel(fps()), () -> {
             int i = indexOf(FPS_VALUES, fps());
             int next = FPS_VALUES[(i + 1) % FPS_VALUES.length];
@@ -916,7 +952,10 @@ public class GameActivity extends SDLActivity {
         if (menuOpen()) {
             // Con el menú abierto, el mando y las teclas son para el menú, no para el juego.
             if (e.getAction() == KeyEvent.ACTION_DOWN) {
-                if (key == KeyEvent.KEYCODE_BACK || key == KeyEvent.KEYCODE_BUTTON_SELECT) closeMenu();
+                if (key == KeyEvent.KEYCODE_BACK || key == KeyEvent.KEYCODE_BUTTON_SELECT) {
+                    if (settingsMode) closeSettings();
+                    else closeMenu();
+                }
                 else quickMenu.onKeyDown(key, e);
             }
             return true;

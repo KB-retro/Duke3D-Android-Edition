@@ -287,7 +287,8 @@ __attribute__((visibility("default"))) void android_raze_event(int type, int a, 
     if (env->ExceptionCheck()) env->ExceptionClear();
 }
 
-// «Volver al lanzador» (all = 0) y «Salir» (all = 1) del menú del juego: los hace la app.
+// Del menú del juego: «Volver al lanzador» (0), «Salir» (1) y «Opciones» (2, los Ajustes de la
+// app). Los hace la app.
 __attribute__((visibility("default"))) void android_raze_quit(int all)
 {
     JNIEnv *env = game_env();

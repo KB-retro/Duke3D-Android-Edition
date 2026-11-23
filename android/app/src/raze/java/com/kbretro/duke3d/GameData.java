@@ -748,6 +748,7 @@ final class GameData {
             args.add("0");
             java.util.List<String> razeCmds = new java.util.ArrayList<>(GraphicsSettings.razeCommands(ctx));
             razeCmds.addAll(ImageSettings.commands(ctx));
+            razeCmds.addAll(SoundSettings.commands(ctx));
             for (String cmd : razeCmds) {
                 int sp = cmd.indexOf(' ');
                 args.add("+" + cmd.substring(0, sp));

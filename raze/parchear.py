@@ -124,14 +124,11 @@ sub("source/common/rendering/v_video.cpp",
     "#ifdef __ANDROID__\nCUSTOM_CVAR (Bool, vid_vsync, true, CVAR_ARCHIVE|CVAR_GLOBALCONFIG)\n#else\n"
     "CUSTOM_CVAR (Bool, vid_vsync, false, CVAR_ARCHIVE|CVAR_GLOBALCONFIG)\n#endif")
 
-# 13. Motor gráfico que elige la app (RAZE_BACKEND: 1 Vulkan, 2 OpenGL ES; de serie OpenGL ES),
-#     diga lo que diga la configuración. Vulkan gasta mucho menos procesador por cada dibujo: con
-#     el driver OpenGL ES de las GPU Mali (RG477M) algunas vistas iban a 20-25 FPS con un núcleo
-#     al 100 %.
+# 13. En Android solo OpenGL ES, diga lo que diga la configuración (Vulkan, probado otra vez en
+#     la Mali de la RG477M, daba parpadeos en el HUD y sin modelos 3D).
 sub("source/common/rendering/v_video.cpp",
     "int V_GetBackend()\n{",
-    "#ifdef __ANDROID__\n#include <stdlib.h>\n#endif\nint V_GetBackend()\n{\n#ifdef __ANDROID__\n"
-    "\tconst char* b = getenv(\"RAZE_BACKEND\");\n\treturn (b && atoi(b) == 1) ? 1 : 2;\n#endif")
+    "int V_GetBackend()\n{\n#ifdef __ANDROID__\n\treturn 2;\n#endif")
 
 # 14. Errores graves: en Android se escriben en el registro (no hay kdialog ni GTK) y se
 #     enseñan con el cuadro de SDL.
@@ -335,6 +332,12 @@ sub("source/core/menu/razemenu.cpp",
     "\t}\n}\n#endif\n\n"
     "void BuildGameMenus()\n{\n#ifdef __ANDROID__\n\tandroid_menu_texts(NAME_Mainmenu);\n"
     "\tandroid_menu_texts(NAME_IngameMenu);\n#endif\n\tBuildEpisodeMenu();")
+# «Opciones» del menú del juego abre los Ajustes de la app (gráficos, imagen, controles, mods)
+# en vez de las opciones de Raze.
+sub("wadsrc/static/menudef.txt",
+    '\t\tDukeTextItem "$MNU_OPTIONS", "o", "OptionsMenu"\n',
+    '\t\tDukeTextItem "$MNU_OPTIONS", "o", "AndroidOptions"\n',
+    count=2)
 sub("source/core/menu/razemenu.cpp",
     "bool M_SetSpecialMenu(FName& menu, int param)\n{",
     "#ifdef __ANDROID__\nextern \"C\" void android_raze_quit(int all);\n#endif\n"
@@ -342,6 +345,7 @@ sub("source/core/menu/razemenu.cpp",
     "#ifdef __ANDROID__\n"
     "\tif (menu == FName(\"AndroidLauncher\") || menu == FName(\"AndroidQuit\"))\n\t{\n"
     "\t\tandroid_raze_quit(menu == FName(\"AndroidQuit\") ? 1 : 0);\n\t\treturn false;\n\t}\n"
+    "\tif (menu == FName(\"AndroidOptions\"))\n\t{\n\t\tandroid_raze_quit(2);\n\t\treturn false;\n\t}\n"
     "#endif")
 
 # 26. Sin consola en Android: no se puede usar sin teclado y, fuera de partida, dejaba la

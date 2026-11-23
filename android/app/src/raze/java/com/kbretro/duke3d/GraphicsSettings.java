@@ -58,14 +58,6 @@ final class GraphicsSettings {
      * @param onScale    al cambiar la resolución interna (o null)
      * @param onChange   al cambiar cualquier otra (o null)
      */
-    /** ¿Vulkan elegido como motor gráfico? (si no, OpenGL ES) */
-    static boolean vulkan(Context c) {
-        return prefs(c).getInt("raze_motor", 0) == 1;
-    }
-
-    /** Se llama al cambiar el motor gráfico (p. ej. para avisar de que hace falta reiniciar). */
-    static Runnable onBackend;
-
     static void addTo(Context c, DukeMenuView.Page p, IntConsumer onScale, Runnable onChange) {
         p.addValue(I18n.t("resolution"), () -> scaleLabel(scale(c)), () -> {
             int next = next(SCALE_VALUES, scale(c));
@@ -83,17 +75,6 @@ final class GraphicsSettings {
             if (onScale != null) onScale.accept(SCALE_VALUES[j]);
         };
         if (Motor.RAZE) {
-            // Motor gráfico: se aplica al lanzar el juego (no se puede cambiar en marcha).
-            p.addValue(I18n.t("gfx_backend"), () -> I18n.t(vulkan(c) ? "gfx_vulkan" : "gfx_gles"), () -> {
-                prefs(c).edit().putInt("raze_motor", vulkan(c) ? 0 : 1).apply();
-                if (onBackend != null) onBackend.run();
-            });
-            lastEntry(p).step = d -> {
-                boolean want = d > 0;
-                if (want == vulkan(c)) return;
-                prefs(c).edit().putInt("raze_motor", want ? 1 : 0).apply();
-                if (onBackend != null) onBackend.run();
-            };
             p.addValue(I18n.t("gfx_preset"), () -> {
                 int cur = currentPreset(c);
                 return I18n.t(cur >= 0 ? PRESET_KEYS[cur] : "gfx_preset_custom");
@@ -184,8 +165,6 @@ final class GraphicsSettings {
             new RazeOpt("gfx_model_dist", "raze_dist_modelos", 1,
                     new String[]{"gfx_near", "gfx_mid", "gfx_far", "gfx_unlimited"},
                     new String[]{"hw_model_distance 512", "hw_model_distance 1024", "hw_model_distance 2048", "hw_model_distance 0"}),
-            new RazeOpt("gfx_hightile", "raze_hightile", 1,
-                    new String[]{"no", "yes"}, new String[]{"hw_hightile 0", "hw_hightile 1"}),
             new RazeOpt("gfx_voxels", "raze_voxels", 1,
                     new String[]{"no", "yes"}, new String[]{"r_voxels 0", "r_voxels 1"}),
             new RazeOpt("gfx_shadows", "raze_sombras", 1,
@@ -244,6 +223,9 @@ final class GraphicsSettings {
         out.add("gl_bloom 0");
         out.add("gl_ssao 0");
         out.add("gl_lens 0");
+        // Las texturas HD se quitan o ponen con su mod (Opciones / Mods): aquí siempre activadas
+        // (antes había una opción y Raze guardaba el valor).
+        out.add("hw_hightile 1");
         for (RazeOpt o : RAZE_OPTS) {
             for (String cmd : o.commands[razeIndex(c, o)].split(";")) out.add(cmd.trim());
         }

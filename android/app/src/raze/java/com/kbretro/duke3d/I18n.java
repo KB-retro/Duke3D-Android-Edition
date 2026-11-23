@@ -43,6 +43,11 @@ final class I18n {
         put("graphics", "Gráficos", "Graphics");
         put("settings", "Ajustes", "Settings");
         put("image", "Imagen", "Image");
+        put("sound", "Sonido", "Sound");
+        put("snd_master", "Volumen general", "Master volume");
+        put("snd_music", "Volumen de la música", "Music volume");
+        put("snd_sfx", "Volumen de los efectos", "Effects volume");
+        put("snd_music_on", "Música", "Music");
         put("img_screen", "Tamaño de pantalla", "Screen size");
         put("img_frame50", "Marco 50%", "Frame 50%");
         put("img_frame60", "Marco 60%", "Frame 60%");
@@ -146,15 +151,10 @@ final class I18n {
         put("gfx_ssao", "Oclusión ambiental", "Ambient occlusion");
         put("gfx_hq", "Texturas suavizadas", "Smoothed textures");
         put("gfx_models", "Modelos 3D", "3D models");
-        put("gfx_backend", "Motor gráfico", "Graphics API");
-        put("gfx_vulkan", "Vulkan", "Vulkan");
-        put("gfx_gles", "OpenGL ES", "OpenGL ES");
-        put("gfx_backend_note", "El motor gráfico cambia al volver a lanzar el juego", "The graphics API changes the next time the game starts");
         put("gfx_model_dist", "Distancia de modelos 3D", "3D model distance");
         put("gfx_near", "Cerca", "Near");
         put("gfx_far", "Lejos", "Far");
         put("gfx_unlimited", "Sin límite", "Unlimited");
-        put("gfx_hightile", "Texturas HD", "HD textures");
         put("gfx_voxels", "Vóxeles", "Voxels");
         put("gfx_shadows", "Sombras", "Shadows");
         put("gfx_lights", "Luces dinámicas", "Dynamic lights");
