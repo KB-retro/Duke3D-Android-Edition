@@ -628,6 +628,13 @@ final class GameData {
             if (!low.endsWith(".def") || defIncluded.contains(low) || low.equals("duke3d.def")) continue;
             if (mainDef != null && normName(mainDef).equals(low)) continue;
             if (!kidsHas(base, low)) continue; // los de dentro de un .grp los carga su def principal
+            // Pack HD (HRP): trae una versión de sus .def para cada motor (Megaton, Polymost,
+            // Polymer y DukeGDX). Cargarlas todas definía cada textura y modelo tres veces (1.298
+            // modelos en vez de unos 430) y la de DukeGDX lleva órdenes de otro motor: el
+            // Caribe y Nuclear Winter fallaban a veces al arrancar. Solo una: la de la Megaton
+            // (la de este juego) o, si no está, la de Polymost.
+            if (low.equals("dukegdx.def") || low.endsWith("_polymer.def")) continue;
+            if (low.endsWith("_hrp_polymost.def") && rootNames.containsKey(low.replace("_polymost.def", "_megaton.def"))) continue;
             args.add("-mh");
             args.add(rootNames.get(low));
         }
