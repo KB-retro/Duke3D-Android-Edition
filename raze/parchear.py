@@ -1117,6 +1117,6 @@ sub("source/common/rendering/hwrenderer/data/hw_clock.cpp",
 #     compilación de diagnóstico de memoria se paraba ahí al arrancar. Se excluye también.
 sub("source/common/thirdparty/stb/stb_sprintf.h",
     "#if defined(__clang__)\n #if defined(__has_feature) && defined(__has_attribute)\n  #if __has_feature(address_sanitizer)",
-    "#if defined(__clang__) && defined(__has_feature) && __has_feature(hwaddress_sanitizer)\n"
-    " #define STBSP__ASAN __attribute__((__no_sanitize__(\"hwaddress\")))\n"
-    "#elif defined(__clang__)\n #if defined(__has_feature) && defined(__has_attribute)\n  #if __has_feature(address_sanitizer)")
+    "#if defined(__clang__) && defined(__has_feature)\n #if __has_feature(hwaddress_sanitizer)\n"
+    "  #define STBSP__ASAN __attribute__((__no_sanitize__(\"hwaddress\")))\n #endif\n#endif\n"
+    "#if defined(STBSP__ASAN)\n#elif defined(__clang__)\n #if defined(__has_feature) && defined(__has_attribute)\n  #if __has_feature(address_sanitizer)")
