@@ -473,28 +473,24 @@ final class DukeMenuView extends View {
         // Pie: una línea de información si la hay (carpeta, pista que suena...).
         String ft = p.footer != null ? p.footer.get() : "";
         if (!ft.isEmpty()) drawSmall(c, ft, 160, 191, 0.6f, true);
-        // Menú principal con secciones: abajo en el centro, el símbolo nuclear (como el del
-        // juego: aspas rojas sobre blanco, aro gris) girando y, en su eje, el botón para cambiar de
-        // sección (Y/X: el de arriba en mandos tipo Xbox y Nintendo). Dibujado con vectores: nítido
-        // y redondo a cualquier resolución. Tocarlo también cambia. Si hay un aviso, el aviso.
-        if (stack.size() == 1 && p.otherSide != null && ft.isEmpty()) {
-            // El diseño propio: el aro con las aspas gira entero (360°, suave) y el centro con la
-            // Y/X queda fijo encima.
-            if (sectionRing == null) {
-                sectionRing = android.graphics.BitmapFactory.decodeResource(getResources(), R.drawable.icono_seccion_aro);
-                sectionHub = android.graphics.BitmapFactory.decodeResource(getResources(), R.drawable.icono_seccion_centro);
-            }
-            if (sectionRing != null && sectionHub != null) {
-                float hpx = 27 * sy, cx = vx(160), cy = vy(186);
-                dst.set(cx - hpx / 2f, cy - hpx / 2f, cx + hpx / 2f, cy + hpx / 2f);
-                c.save();
-                c.rotate((now % 4000) * 360f / 4000f, cx, cy);
-                c.drawBitmap(sectionRing, null, dst, smooth);
-                c.restore();
-                c.drawBitmap(sectionHub, null, dst, smooth);
-            } else {
-                drawSectionIcon(c, vx(160), vy(186), 13 * sy, (now % 3000) * 360f / 3000f);
-            }
+        // Menú principal con secciones: encima del póster, a su derecha, una flecha con el estilo
+        // de las letras de Duke Nukem 3D (su degradado rojo-amarillo y borde oscuro) y «Y/X» encima
+        // con las letras del propio juego: el botón que pasa a la siguiente sección. Tocarla (la
+        // flecha o las letras) también cambia. Se mueve un poco hacia la derecha.
+        arrowRect.setEmpty();
+        if (stack.size() == 1 && p.otherSide != null && !coverRect.isEmpty()) {
+            float aw = Math.max(36, coverRect.width() * 0.26f), ah = aw * 0.72f;
+            float bob = (float) Math.sin(now / 260.0) * aw * 0.08f;
+            float right = coverRect.right - aw * 0.12f + bob, acx = right - aw / 2f, acy = coverRect.centerY();
+            drawSectionArrow(c, right - aw, acy - ah / 2f, aw, ah);
+            // «Y/X» encima, con las letras grandes del juego.
+            float ts = 0.55f, tw = bigWidth("Y/X") * ts;
+            float lineH = art.height(DukeArt.BIGALPHANUM) > 0 ? art.height(DukeArt.BIGALPHANUM) : 15;
+            float tcy = (acy - ah / 2f - ah * 0.1f - ay) / sy - lineH * ts / 2f;
+            drawBig(c, "Y/X", (acx - ax) / sx - tw / 2f, tcy, ts, pixel);
+            float top = vy(tcy - lineH * ts / 2f);
+            // Zona que se puede tocar: flecha y letras, con margen para el dedo.
+            arrowRect.set(right - aw * 1.25f, top - ah * 0.25f, right + aw * 0.25f, acy + ah * 0.75f);
         }
         footerRect.set(0, vy(183), w, h);
 
@@ -506,8 +502,69 @@ final class DukeMenuView extends View {
             float right = -ax / sx + w / sx - 4;
             drawSmall(c, versionText, right - wsum * scale, 6, scale, false);
         }
-        // Con el icono de sección girando, a 60 fps para que el giro sea suave.
+        // Con la flecha de sección moviéndose, a 60 fps para que vaya suave.
         postInvalidateDelayed(stack.size() == 1 && p.otherSide != null ? 16 : 50);
+    }
+
+    private final RectF arrowRect = new RectF();
+    private final Paint arrowFill = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final android.graphics.Path arrowPath = new android.graphics.Path();
+
+    {
+        arrowFill.setStrokeJoin(Paint.Join.ROUND);
+    }
+
+    /** Colores de arriba abajo de una letra grande del juego (para pintar la flecha como ellas). */
+    private int[] duke3dColors;
+
+    private int[] dukeLetterColors() {
+        if (duke3dColors != null) return duke3dColors;
+        Bitmap b = art.tile(bigTile('I'));
+        java.util.List<Integer> cols = new ArrayList<>();
+        if (b != null) {
+            int x = b.getWidth() / 2;
+            for (int y = 0; y < b.getHeight(); y++) {
+                int px = b.getPixel(x, y);
+                if (Color.alpha(px) > 200) cols.add(px);
+            }
+        }
+        if (cols.size() < 3) {
+            cols.clear();
+            cols.add(Color.rgb(255, 230, 90));
+            cols.add(Color.rgb(250, 140, 30));
+            cols.add(Color.rgb(200, 30, 15));
+            cols.add(Color.rgb(110, 10, 5));
+        }
+        duke3dColors = new int[cols.size()];
+        for (int i = 0; i < duke3dColors.length; i++) duke3dColors[i] = cols.get(i);
+        return duke3dColors;
+    }
+
+    /** Flecha gruesa hacia la derecha, como las letras de Duke Nukem 3D, en (x, y, w, h). */
+    private void drawSectionArrow(Canvas c, float x, float y, float w, float h) {
+        arrowPath.reset();
+        float shaftH = h * 0.46f, headW = w * 0.45f;
+        arrowPath.moveTo(x, y + (h - shaftH) / 2f);
+        arrowPath.lineTo(x + w - headW, y + (h - shaftH) / 2f);
+        arrowPath.lineTo(x + w - headW, y);
+        arrowPath.lineTo(x + w, y + h / 2f);
+        arrowPath.lineTo(x + w - headW, y + h);
+        arrowPath.lineTo(x + w - headW, y + (h + shaftH) / 2f);
+        arrowPath.lineTo(x, y + (h + shaftH) / 2f);
+        arrowPath.close();
+        int[] cols = dukeLetterColors();
+        // Borde oscuro (como el contorno de las letras) y sombra.
+        arrowFill.setShader(null);
+        arrowFill.setStyle(Paint.Style.STROKE);
+        arrowFill.setStrokeWidth(Math.max(4, h * 0.14f));
+        arrowFill.setColor(Color.argb(230, 25, 0, 0));
+        c.drawPath(arrowPath, arrowFill);
+        // Relleno con el degradado de las letras, de arriba abajo.
+        arrowFill.setStyle(Paint.Style.FILL);
+        arrowFill.setShader(new android.graphics.LinearGradient(0, y, 0, y + h, cols, null,
+                android.graphics.Shader.TileMode.CLAMP));
+        c.drawPath(arrowPath, arrowFill);
+        arrowFill.setShader(null);
     }
 
     /** Dónde está la caja grande en pantalla (para tocarla). */
@@ -849,9 +906,10 @@ final class DukeMenuView extends View {
                 if (!dragged && idx < 0 && touched < 0) {
                     if (tabRects[0].contains(ev.getX(), ev.getY())) switchSide(-1);
                     else if (tabRects[1].contains(ev.getX(), ev.getY())) switchSide(1);
-                    else if (footerRect.contains(ev.getX(), ev.getY())) nextSection();
+                    else if (arrowRect.contains(ev.getX(), ev.getY())) nextSection();
                 }
-                if (!dragged && idx < 0 && touched < 0 && coverRect.contains(ev.getX(), ev.getY())) {
+                if (!dragged && idx < 0 && touched < 0 && !arrowRect.contains(ev.getX(), ev.getY())
+                        && coverRect.contains(ev.getX(), ev.getY())) {
                     Page p = page();
                     Entry e = p.entries.isEmpty() ? null : p.entries.get(p.selected);
                     if (e != null && e.coverTap != null) e.coverTap.run();
