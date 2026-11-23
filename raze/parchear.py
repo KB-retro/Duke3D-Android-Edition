@@ -1120,3 +1120,25 @@ sub("source/common/thirdparty/stb/stb_sprintf.h",
     "#if defined(__clang__) && defined(__has_feature)\n #if __has_feature(hwaddress_sanitizer)\n"
     "  #define STBSP__ASAN __attribute__((__no_sanitize__(\"hwaddress\")))\n #endif\n#endif\n"
     "#if defined(STBSP__ASAN)\n#elif defined(__clang__)\n #if defined(__has_feature) && defined(__has_attribute)\n  #if __has_feature(address_sanitizer)")
+
+# 36. Lector de sonidos VOC: la primera pasada (la que mide) se salta un bloque cortado al final
+#     del archivo, pero la segunda lo copiaba igual y escribía fuera del búfer (HWASan: 2036 bytes
+#     de más). Esa memoria pisada hacía caer el juego más tarde, al crear los actores del Caribe y
+#     Nuclear Winter (con los VOC del mod de audio o de las expansiones). La segunda pasada se
+#     para igual que la primera y nunca copia más de lo medido.
+sub("source/common/audio/sound/i_sound.cpp",
+    "\t\t\t\tblocksize = sfxdata[i+1] + (sfxdata[i+2]<<8) + (sfxdata[i+3]<<16);\n\t\t\t\ti += 4;\n\t\t\t\tswitch (blocktype)\n\t\t\t\t{\n"
+    "\t\t\t\tcase 1: memcpy(data+j, sfxdata+i+2,  blocksize-2 ); j += blocksize-2;\tbreak;\n"
+    "\t\t\t\tcase 2: memcpy(data+j, sfxdata+i,    blocksize   ); j += blocksize;\t\tbreak;\n"
+    "\t\t\t\tcase 9: memcpy(data+j, sfxdata+i+12, blocksize-12); j += blocksize-12;\tbreak;\n",
+    "\t\t\t\tblocksize = sfxdata[i+1] + (sfxdata[i+2]<<8) + (sfxdata[i+3]<<16);\n\t\t\t\ti += 4;\n"
+    "\t\t\t\tif (i + blocksize > length) break;\n"
+    "\t\t\t\tauto vocCopy = [&](int from, int n) { n = std::min(n, len - j); if (n > 0) { memcpy(data + j, sfxdata + i + from, n); j += n; } };\n"
+    "\t\t\t\tswitch (blocktype)\n\t\t\t\t{\n"
+    "\t\t\t\tcase 1: vocCopy(2, blocksize - 2);\tbreak;\n"
+    "\t\t\t\tcase 2: vocCopy(0, blocksize);\t\tbreak;\n"
+    "\t\t\t\tcase 9: vocCopy(12, blocksize - 12);\tbreak;\n")
+sub("source/common/audio/sound/i_sound.cpp",
+    "\t\t\t\t\t\tif (bits == 8)\n\t\t\t\t\t\t{\n\t\t\t\t\t\t\tmemset(data+j, 128, silength);",
+    "\t\t\t\t\t\tsilength = std::min(silength, len - j);\n\t\t\t\t\t\tif (silength <= 0) break;\n"
+    "\t\t\t\t\t\tif (bits == 8)\n\t\t\t\t\t\t{\n\t\t\t\t\t\t\tmemset(data+j, 128, silength);")
