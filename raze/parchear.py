@@ -1111,3 +1111,12 @@ sub("source/common/rendering/hwrenderer/data/hw_clock.cpp",
     "\t\tFILE *f = fopen(\"benchmarks.txt\", \"at\");",
     "\t\tPrintf(\"Medición de rendimiento:\\n%s\\n\", compose.GetChars());\n"
     "\t\tFILE *f = fopen(\"benchmarks.txt\", \"at\");")
+
+# 35. stb_sprintf lee las cadenas de 4 en 4 bytes a propósito (puede pasarse del final dentro
+#     de la misma palabra; inofensivo) y se excluye de AddressSanitizer, pero no de HWASan: la
+#     compilación de diagnóstico de memoria se paraba ahí al arrancar. Se excluye también.
+sub("source/common/thirdparty/stb/stb_sprintf.h",
+    "#if defined(__clang__)\n #if defined(__has_feature) && defined(__has_attribute)\n  #if __has_feature(address_sanitizer)",
+    "#if defined(__clang__) && defined(__has_feature) && __has_feature(hwaddress_sanitizer)\n"
+    " #define STBSP__ASAN __attribute__((__no_sanitize__(\"hwaddress\")))\n"
+    "#elif defined(__clang__)\n #if defined(__has_feature) && defined(__has_attribute)\n  #if __has_feature(address_sanitizer)")
