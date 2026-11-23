@@ -54,6 +54,9 @@ std::atomic<float> moveX{0}, moveY{0};
 std::atomic<float> stickX{0}, stickY{0}; // stick derecho del mando (giro continuo)
 std::mutex lookLock;
 float lookX = 0, lookY = 0;
+// Ajustes de la app abiertos desde «Opciones» del menú del juego: el menú del juego se cierra
+// mientras tanto (solo se ven los Ajustes) y no se vuelve a abrir solo en el título.
+std::atomic<bool> settingsOpen{false};
 
 void queue(const std::string &cmd)
 {
@@ -129,6 +132,12 @@ std::string translate(const std::string &c)
         }
         return "";
     }
+    if (c == "android_settings 0")
+    {
+        // Se cierran los Ajustes: vuelve el menú del juego, como estaba.
+        settingsOpen = false;
+        return "menu_main";
+    }
     if (c == "android_start")
     {
         // Start del mando: en los vídeos y pantallas intermedias los salta (antes los pausaba
@@ -181,7 +190,7 @@ void android_raze_tick()
     // Solo si no hay nada en camino: al empezar partida el menú se cierra un momento antes de que
     // cargue el nivel, y volver a abrirlo aquí dejaba el menú principal encima de la partida.
     if ((gamestate == GS_MENUSCREEN || gamestate == GS_FULLCONSOLE) && menuactive == MENU_Off
-        && gameaction == ga_nothing)
+        && gameaction == ga_nothing && !settingsOpen)
     {
         if (gamestate == GS_FULLCONSOLE) gamestate = GS_MENUSCREEN;
         AddCommandString("menu_main");
@@ -291,6 +300,7 @@ __attribute__((visibility("default"))) void android_raze_event(int type, int a, 
 // app). Los hace la app.
 __attribute__((visibility("default"))) void android_raze_quit(int all)
 {
+    if (all == 2) settingsOpen = true;
     JNIEnv *env = game_env();
     if (!env || !quit_method) return;
     env->CallStaticVoidMethod(game_class, quit_method, all);

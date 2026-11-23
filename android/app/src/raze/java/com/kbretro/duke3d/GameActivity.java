@@ -103,7 +103,12 @@ public class GameActivity extends SDLActivity {
      * vuelve al menú del juego.
      */
     private void openSettings() {
-        if (art == null) return;
+        if (art == null) {
+            command("android_settings 0"); // sin gráficos del juego aún: vuelve su menú
+            return;
+        }
+        // El juego cerró su menú para que solo se vean los Ajustes: en partida, en pausa.
+        command("pausegame 1");
         if (quickMenu == null) {
             quickMenu = new DukeMenuView(this, art);
             quickMenu.setOverlay(true);
@@ -112,7 +117,10 @@ public class GameActivity extends SDLActivity {
         }
         status = null;
         settingsMode = true;
-        quickMenu.setRoot(settingsPage(), this::closeSettings);
+        quickMenu.setNativeStyle(true);
+        DukeMenuView.Page root = settingsPage();
+        root.header = I18n.t("options");
+        quickMenu.setRoot(root, this::closeSettings);
         quickMenu.setVisibility(View.VISIBLE);
         quickMenu.bringToFront();
         quickMenu.requestFocus();
@@ -126,6 +134,9 @@ public class GameActivity extends SDLActivity {
     private void closeSettings() {
         settingsMode = false;
         if (quickMenu != null) quickMenu.setVisibility(View.GONE);
+        // Vuelve el menú del juego (que deja la partida en pausa él mismo).
+        command("pausegame 0");
+        command("android_settings 0");
         if (mSurface != null) mSurface.requestFocus();
         hideSystemBars();
     }
@@ -729,6 +740,7 @@ public class GameActivity extends SDLActivity {
         }
         status = null;
         settingsMode = false;
+        quickMenu.setNativeStyle(false);
         quickMenu.setRoot(rootPage(), this::closeMenu);
         quickMenu.setVisibility(View.VISIBLE);
         quickMenu.bringToFront();

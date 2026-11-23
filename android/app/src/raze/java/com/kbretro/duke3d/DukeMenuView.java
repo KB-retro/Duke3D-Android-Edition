@@ -63,6 +63,8 @@ final class DukeMenuView extends View {
         /** Página de texto (la guía): título arriba y párrafos en letra pequeña; las opciones, abajo. */
         String title;
         String[] body;
+        /** Título grande arriba (como los menús del juego: «OPCIONES»...), o null. */
+        String header;
         int selected;
         /** Fondo propio de esta página (sección del menú principal); si no, el del menú. */
         Bitmap background;
@@ -189,7 +191,28 @@ final class DukeMenuView extends View {
         invalidate();
     }
 
+    /**
+     * Como un menú del propio juego (los Ajustes abiertos desde su «Opciones»): la partida
+     * oscurecida detrás y cada página con su título grande arriba (el de la opción que la abre).
+     */
+    private boolean nativeStyle;
+    private final Paint nativeDim = new Paint();
+
+    {
+        nativeDim.setColor(Color.argb(160, 0, 0, 0));
+    }
+
+    void setNativeStyle(boolean on) {
+        nativeStyle = on;
+        invalidate();
+    }
+
     void push(Page page) {
+        if (nativeStyle && page.header == null && !stack.isEmpty()) {
+            Page parent = stack.get(stack.size() - 1);
+            if (parent.selected >= 0 && parent.selected < parent.entries.size())
+                page.header = parent.entries.get(parent.selected).label;
+        }
         stack.add(page);
         invalidate();
     }
@@ -318,6 +341,7 @@ final class DukeMenuView extends View {
             c.drawBitmap(bg, null, dst, pixel);
         }
         if (!overlay) c.drawRect(0, 0, w, h, dim);
+        else if (nativeStyle) c.drawRect(0, 0, w, h, nativeDim);
 
         // Zona 4:3 para el contenido.
         float aw = w, ah = w * 3f / 4f;
@@ -360,6 +384,17 @@ final class DukeMenuView extends View {
         // Lista centrada en vertical (en el lanzador y en el menú rápido, que ya no lleva logo).
         float block = Math.min(19f, 156f / Math.max(1, visible)) * visible;
         float top = 100 - block / 2f;
+        if (nativeStyle && p.header != null && p.body == null) {
+            // Título grande arriba y la lista centrada en el hueco de debajo.
+            float hs = 1f, hw = bigWidth(p.header) * hs;
+            if (hw > 280) {
+                hs *= 280 / hw;
+                hw = 280;
+            }
+            drawBig(c, p.header, 160 - hw / 2f, 20, hs, pixel);
+            block = Math.min(19f, 148f / Math.max(1, visible)) * visible;
+            top = 38 + (148 - block) / 2f;
+        }
         if (p.body != null) {
             drawBody(c, p);
             block = 13f * visible;

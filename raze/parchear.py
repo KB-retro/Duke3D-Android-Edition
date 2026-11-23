@@ -345,7 +345,7 @@ sub("source/core/menu/razemenu.cpp",
     "#ifdef __ANDROID__\n"
     "\tif (menu == FName(\"AndroidLauncher\") || menu == FName(\"AndroidQuit\"))\n\t{\n"
     "\t\tandroid_raze_quit(menu == FName(\"AndroidQuit\") ? 1 : 0);\n\t\treturn false;\n\t}\n"
-    "\tif (menu == FName(\"AndroidOptions\"))\n\t{\n\t\tandroid_raze_quit(2);\n\t\treturn false;\n\t}\n"
+    "\tif (menu == FName(\"AndroidOptions\"))\n\t{\n\t\tM_ClearMenus();\n\t\tandroid_raze_quit(2);\n\t\treturn false;\n\t}\n"
     "#endif")
 
 # 26. Sin consola en Android: no se puede usar sin teclado y, fuera de partida, dejaba la
