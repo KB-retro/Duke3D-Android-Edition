@@ -41,6 +41,7 @@ final class I18n {
         put("quickload", "Carga rápida", "Quick load");
         put("cheats", "Trucos", "Cheats");
         put("graphics", "Gráficos", "Graphics");
+        put("fps_limit", "Límite de FPS", "FPS limit");
         put("settings", "Ajustes", "Settings");
         put("image", "Imagen", "Image");
         put("sound", "Sonido", "Sound");
@@ -75,8 +76,6 @@ final class I18n {
         put("img_small", "Pequeña", "Small");
         put("img_big", "Grande", "Large");
         put("img_huge", "Muy grande", "Huge");
-        put("bench", "Medir rendimiento (5 s)", "Measure performance (5 s)");
-        put("bench_done", "Medición guardada: genera el registro en el lanzador", "Measurement saved: save the log in the launcher");
         put("img_reset", "Restablecer imagen", "Reset image settings");
         put("img_reset_done", "Ajustes de imagen restablecidos", "Image settings reset");
         put("game_menu", "Menú del juego", "Game menu");

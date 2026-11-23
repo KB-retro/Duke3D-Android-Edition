@@ -508,24 +508,21 @@ final class DukeMenuView extends View {
         // Pie: una línea de información si la hay (carpeta, pista que suena...).
         String ft = p.footer != null ? p.footer.get() : "";
         if (!ft.isEmpty()) drawSmall(c, ft, 160, 191, 0.6f, true);
-        // Menú principal con secciones: abajo a la derecha (sin tapar el póster), una flecha con el
-        // estilo de las letras de Duke Nukem 3D y, dentro, «Y/X» con las letras del juego en
-        // dorado: el botón que pasa a la siguiente sección. Tocarla también cambia. Se mueve un poco
-        // hacia la derecha.
+        // Menú principal con secciones: abajo a la derecha (sin tapar el póster), una flecha hecha
+        // con los píxeles y colores de las letras grandes del juego (su degradado, su borde y su
+        // relieve): el botón que pasa a la siguiente sección (Y/X en el mando). Se puede tocar y se
+        // mueve un poco hacia la derecha.
         arrowRect.setEmpty();
         if (stack.size() == 1 && p.otherSide != null) {
-            float arH = 22 * sy, arW = arH * 2.3f;
-            float arBob = (float) Math.sin(now / 260.0) * arH * 0.12f;
-            float arRight = w - 8 * sx + arBob - arH * 0.15f, arBottom = h - 3 * sy;
-            float arLeft = arRight - arW, arTopY = arBottom - arH;
-            drawSectionArrow(c, arLeft, arTopY, arW, arH);
-            // «Y/X» dentro, centrado en la flecha (un poco a la izquierda, en el cuerpo).
-            float arLineH = art.height(DukeArt.BIGALPHANUM) > 0 ? art.height(DukeArt.BIGALPHANUM) : 15;
-            float arTs = (arH * 0.5f / sy) / arLineH, arTw = bigWidth("Y/X") * arTs;
-            float arCx = (arLeft + arW * 0.44f - ax) / sx, arCy = (arTopY + arH / 2f - ay) / sy;
-            drawBig(c, "Y/X", arCx - arTw / 2f, arCy, arTs, goldText);
-            // Zona que se puede tocar, con margen para el dedo.
-            arrowRect.set(arLeft - arH * 0.4f, arTopY - arH * 0.4f, w, h);
+            Bitmap ab = sectionArrowBitmap();
+            if (ab != null) {
+                float arBob = (float) Math.sin(now / 260.0) * 1.5f;
+                float arRightV = (w - ax) / sx - 6 + arBob, arBottomV = (h - ay) / sy - 3;
+                float arLeftV = arRightV - ab.getWidth(), arTopV = arBottomV - ab.getHeight();
+                dst.set(vx(arLeftV), vy(arTopV), vx(arRightV), vy(arBottomV));
+                c.drawBitmap(ab, null, dst, pixel);
+                arrowRect.set(dst.left - 10 * sx, dst.top - 10 * sy, w, h);
+            }
         }
         footerRect.set(0, vy(183), w, h);
 
@@ -542,76 +539,80 @@ final class DukeMenuView extends View {
     }
 
     private final RectF arrowRect = new RectF();
-    /** Las letras del juego (rojas) en dorado: a escala de grises y teñidas de oro. */
-    private final Paint goldText = new Paint();
 
-    {
-        android.graphics.ColorMatrix gold = new android.graphics.ColorMatrix(new float[]{
-                0.45f, 0.75f, 0.15f, 0, 40,
-                0.36f, 0.60f, 0.12f, 0, 25,
-                0.05f, 0.09f, 0.02f, 0, 0,
-                0, 0, 0, 1, 0});
-        goldText.setColorFilter(new android.graphics.ColorMatrixColorFilter(gold));
-        goldText.setFilterBitmap(false);
-    }
-    private final Paint arrowFill = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private final android.graphics.Path arrowPath = new android.graphics.Path();
+    /** La flecha de sección, en píxeles del juego (se dibuja escalada sin suavizar, como las letras). */
+    private Bitmap sectionArrow;
 
-    {
-        arrowFill.setStrokeJoin(Paint.Join.ROUND);
-    }
-
-    /** Colores de arriba abajo de una letra grande del juego (para pintar la flecha como ellas). */
-    private int[] duke3dColors;
-
-    private int[] dukeLetterColors() {
-        if (duke3dColors != null) return duke3dColors;
-        Bitmap b = art.tile(bigTile('I'));
-        java.util.List<Integer> cols = new ArrayList<>();
-        if (b != null) {
-            int x = b.getWidth() / 2;
-            for (int y = 0; y < b.getHeight(); y++) {
-                int px = b.getPixel(x, y);
-                if (Color.alpha(px) > 200) cols.add(px);
+    /**
+     * Flecha hacia la derecha hecha como las letras grandes del juego (BIGALPHANUM): misma altura,
+     * los colores de cada fila de una letra (degradado de arriba abajo), el borde oscuro de su
+     * contorno y la luz arriba a la izquierda y la sombra abajo a la derecha.
+     */
+    private Bitmap sectionArrowBitmap() {
+        if (sectionArrow != null) return sectionArrow;
+        Bitmap glyph = art.tile(bigTile('I'));
+        if (glyph == null) glyph = art.tile(bigTile('H'));
+        if (glyph == null) return null;
+        int gh = glyph.getHeight(), gw = glyph.getWidth();
+        // Color de cada fila (columna central de la letra) y el del borde (el primer píxel
+        // opaco desde la izquierda en la fila del medio).
+        int[] rows = new int[gh];
+        int cx = gw / 2, outline = Color.rgb(60, 0, 0);
+        for (int y = 0; y < gh; y++) rows[y] = glyph.getPixel(cx, y);
+        for (int x = 0; x < gw; x++) {
+            int px = glyph.getPixel(x, gh / 2);
+            if (Color.alpha(px) > 200) {
+                outline = px;
+                break;
             }
         }
-        if (cols.size() < 3) {
-            cols.clear();
-            cols.add(Color.rgb(255, 230, 90));
-            cols.add(Color.rgb(250, 140, 30));
-            cols.add(Color.rgb(200, 30, 15));
-            cols.add(Color.rgb(110, 10, 5));
+        // Filas útiles: las opacas de la columna central (sin el borde de arriba y abajo).
+        int y0 = 0, y1 = gh - 1;
+        while (y0 < gh && Color.alpha(rows[y0]) < 200) y0++;
+        while (y1 > y0 && Color.alpha(rows[y1]) < 200) y1--;
+        if (y1 - y0 < 4) return null;
+        int H = gh, W = Math.round(gh * 1.6f);
+        int[] px = new int[W * H];
+        boolean[] in = new boolean[W * H];
+        float shaft = H * 0.24f; // medio grosor del cuerpo
+        int headStart = Math.round(W * 0.48f);
+        for (int y = 0; y < H; y++) {
+            float dy = Math.abs(y + 0.5f - H / 2f);
+            for (int x = 0; x < W; x++) {
+                boolean inside;
+                if (x < headStart) inside = dy <= shaft && x >= 1;
+                else inside = dy <= (H / 2f - 0.5f) * (W - 1 - x) / (float) (W - 1 - headStart);
+                in[y * W + x] = inside;
+            }
         }
-        duke3dColors = new int[cols.size()];
-        for (int i = 0; i < duke3dColors.length; i++) duke3dColors[i] = cols.get(i);
-        return duke3dColors;
+        for (int y = 0; y < H; y++) {
+            // Fila de la letra que corresponde a esta altura (el degradado de arriba abajo).
+            int gy = y0 + Math.round((y1 - y0) * (y / (float) (H - 1)));
+            int base = rows[Math.max(y0, Math.min(y1, gy))];
+            for (int x = 0; x < W; x++) {
+                int i = y * W + x;
+                if (!in[i]) continue;
+                boolean edge = x == 0 || y == 0 || x == W - 1 || y == H - 1
+                        || !in[i - 1] || !in[i + 1] || !in[i - W] || !in[i + W];
+                if (edge) {
+                    px[i] = outline;
+                    continue;
+                }
+                // Relieve: más claro junto al borde de arriba/izquierda, más oscuro abajo/derecha.
+                int c = base;
+                if (!in[i - W] || !in[i - 1]) c = mix(c, Color.WHITE, 0.35f);
+                else if (!in[i + W] || !in[i + 1]) c = mix(c, Color.BLACK, 0.35f);
+                px[i] = c | 0xFF000000;
+            }
+        }
+        sectionArrow = Bitmap.createBitmap(px, W, H, Bitmap.Config.ARGB_8888);
+        return sectionArrow;
     }
 
-    /** Flecha gruesa hacia la derecha, como las letras de Duke Nukem 3D, en (x, y, w, h). */
-    private void drawSectionArrow(Canvas c, float x, float y, float w, float h) {
-        arrowPath.reset();
-        float shaftH = h * 0.46f, headW = w * 0.45f;
-        arrowPath.moveTo(x, y + (h - shaftH) / 2f);
-        arrowPath.lineTo(x + w - headW, y + (h - shaftH) / 2f);
-        arrowPath.lineTo(x + w - headW, y);
-        arrowPath.lineTo(x + w, y + h / 2f);
-        arrowPath.lineTo(x + w - headW, y + h);
-        arrowPath.lineTo(x + w - headW, y + (h + shaftH) / 2f);
-        arrowPath.lineTo(x, y + (h + shaftH) / 2f);
-        arrowPath.close();
-        int[] cols = dukeLetterColors();
-        // Borde oscuro (como el contorno de las letras) y sombra.
-        arrowFill.setShader(null);
-        arrowFill.setStyle(Paint.Style.STROKE);
-        arrowFill.setStrokeWidth(Math.max(4, h * 0.14f));
-        arrowFill.setColor(Color.argb(230, 25, 0, 0));
-        c.drawPath(arrowPath, arrowFill);
-        // Relleno con el degradado de las letras, de arriba abajo.
-        arrowFill.setStyle(Paint.Style.FILL);
-        arrowFill.setShader(new android.graphics.LinearGradient(0, y, 0, y + h, cols, null,
-                android.graphics.Shader.TileMode.CLAMP));
-        c.drawPath(arrowPath, arrowFill);
-        arrowFill.setShader(null);
+    private static int mix(int a, int b, float t) {
+        return Color.rgb((int) (Color.red(a) + (Color.red(b) - Color.red(a)) * t),
+                (int) (Color.green(a) + (Color.green(b) - Color.green(a)) * t),
+                (int) (Color.blue(a) + (Color.blue(b) - Color.blue(a)) * t));
     }
 
     /** Dónde está la caja grande en pantalla (para tocarla). */

@@ -4,8 +4,8 @@ import android.content.Context;
 import android.content.SharedPreferences;
 
 /**
- * Ajustes de imagen de Raze (menú rápido → Ajustes → Imagen): tamaño de pantalla y estilo del
- * HUD, su escala, la retícula y el contador de FPS. Izquierda/derecha cambian el valor; se
+ * Ajustes de imagen de Raze (menú rápido → Ajustes → Imagen): campo de visión, tamaño de pantalla
+ * y estilo del HUD, su escala, la retícula, la emulación de paleta y el contador de FPS. Izquierda/derecha cambian el valor; se
  * guardan en "ajustes" y se aplican al momento y en cada arranque.
  */
 final class ImageSettings {
@@ -25,6 +25,10 @@ final class ImageSettings {
     }
 
     private static final Opt[] OPTS = {
+            // Campo de visión (antes en Gráficos; misma clave): de serie 90°.
+            new Opt("gfx_fov", "raze_campo", 2,
+                    new String[]{"70°", "80°", "90°", "100°", "110°", "120°"},
+                    new String[]{"r_fov 70", "r_fov 80", "r_fov 90", "r_fov 100", "r_fov 110", "r_fov 120"}),
             // hud_size de Raze: 0-4 marco (pantalla reducida), 5 barra de estado, ... 10 sin HUD.
             new Opt("img_screen", "img_pantalla", 5,
                     new String[]{"img_frame50", "img_frame60", "img_frame70", "img_frame80", "img_frame90",

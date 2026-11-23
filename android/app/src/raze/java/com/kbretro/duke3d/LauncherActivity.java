@@ -937,16 +937,6 @@ public class LauncherActivity extends Activity {
             getSharedPreferences("ajustes", MODE_PRIVATE).edit().putBoolean("musica_menu", !musicOn()).apply();
             startMusic(gameDir);
         });
-        p.addValue("FPS", () -> {
-            int f = getSharedPreferences("ajustes", MODE_MULTI_PROCESS).getInt("fps", 60);
-            return f <= 0 ? I18n.t("unlimited") : f + " FPS";
-        }, () -> {
-            SharedPreferences sp = getSharedPreferences("ajustes", MODE_MULTI_PROCESS);
-            int[] values = {60, 120, 0};
-            int cur = sp.getInt("fps", 60), i = 0;
-            for (int k = 0; k < values.length; k++) if (values[k] == cur) i = k;
-            sp.edit().putInt("fps", values[(i + 1) % values.length]).apply();
-        });
         p.addValue(I18n.t("vibration"), () -> I18n.t(
                 getSharedPreferences("ajustes", MODE_MULTI_PROCESS).getBoolean("vibracion_v2", true) ? "yes" : "no"), () -> {
             SharedPreferences sp = getSharedPreferences("ajustes", MODE_MULTI_PROCESS);

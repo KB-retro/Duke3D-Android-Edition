@@ -59,6 +59,39 @@ final class GraphicsSettings {
      * @param onChange   al cambiar cualquier otra (o null)
      */
     static void addTo(Context c, DukeMenuView.Page p, IntConsumer onScale, Runnable onChange) {
+        addTo(c, p, onScale, onChange, null);
+    }
+
+    private static final int[] FPS_VALUES = {60, 120, 0};
+
+    static int fps(Context c) {
+        return prefs(c).getInt("fps", 60);
+    }
+
+    /** Límite de FPS (60, 120 o sin límite): izquierda/derecha bajan y suben. */
+    private static void addFps(Context c, DukeMenuView.Page p, IntConsumer onFps) {
+        p.addValue(I18n.t("fps_limit"), () -> fps(c) <= 0 ? I18n.t("unlimited") : fps(c) + " FPS", () -> {
+            int next = next(FPS_VALUES, fps(c));
+            prefs(c).edit().putInt("fps", next).apply();
+            if (onFps != null) onFps.accept(next);
+        });
+        lastEntry(p).step = d -> {
+            int i = 0;
+            for (int k = 0; k < FPS_VALUES.length; k++) if (FPS_VALUES[k] == fps(c)) i = k;
+            int j = Math.max(0, Math.min(FPS_VALUES.length - 1, i + d));
+            if (j == i) return;
+            prefs(c).edit().putInt("fps", FPS_VALUES[j]).apply();
+            if (onFps != null) onFps.accept(FPS_VALUES[j]);
+        };
+    }
+
+    /**
+     * Orden: perfil (cambia varias a la vez), resolución y FPS; texturas; modelos y vóxeles; luces
+     * y sombras. (El campo de visión va en Imagen.)
+     * @param onFps al cambiar el límite de FPS (o null: solo se guarda)
+     */
+    static void addTo(Context c, DukeMenuView.Page p, IntConsumer onScale, Runnable onChange, IntConsumer onFps) {
+        if (Motor.RAZE) addPreset(c, p, onScale, onChange);
         p.addValue(I18n.t("resolution"), () -> scaleLabel(scale(c)), () -> {
             int next = next(SCALE_VALUES, scale(c));
             prefs(c).edit().putInt("escala", next).apply();
@@ -75,23 +108,7 @@ final class GraphicsSettings {
             if (onScale != null) onScale.accept(SCALE_VALUES[j]);
         };
         if (Motor.RAZE) {
-            p.addValue(I18n.t("gfx_preset"), () -> {
-                int cur = currentPreset(c);
-                return I18n.t(cur >= 0 ? PRESET_KEYS[cur] : "gfx_preset_custom");
-            }, () -> {
-                int next = (currentPreset(c) + 1) % PRESETS.length;
-                applyPreset(c, next);
-                if (onScale != null) onScale.accept(PRESETS[next][0]);
-                if (onChange != null) onChange.run();
-            });
-            lastEntry(p).step = d -> {
-                int cur = currentPreset(c);
-                int next = cur < 0 ? (d > 0 ? 0 : PRESETS.length - 1) : Math.max(0, Math.min(PRESETS.length - 1, cur + d));
-                if (next == cur) return;
-                applyPreset(c, next);
-                if (onScale != null) onScale.accept(PRESETS[next][0]);
-                if (onChange != null) onChange.run();
-            };
+            addFps(c, p, onFps);
             // Raze dibuja con OpenGL ES: en vez de los filtros de EDuke32, sus propias opciones.
             for (RazeOpt o : RAZE_OPTS) {
                 p.addValue(I18n.t(o.label), () -> I18n.t(o.labels[razeIndex(c, o)]), () -> {
@@ -172,11 +189,6 @@ final class GraphicsSettings {
             // Luces de explosiones, disparos, fuego... (parche 31 de raze/parchear.py).
             new RazeOpt("gfx_lights", "raze_luces", 1,
                     new String[]{"no", "yes"}, new String[]{"hw_dynlights 0", "hw_dynlights 1"}),
-            // Más campo de visión en pantallas panorámicas (Raze lo corrige según la proporción).
-            // (Clave nueva: en «raze_fov» el 0 era 90°.) De serie 90°, también con los perfiles.
-            new RazeOpt("gfx_fov", "raze_campo", 2,
-                    new String[]{"70°", "80°", "90°", "100°", "110°", "120°"},
-                    new String[]{"r_fov 70", "r_fov 80", "r_fov 90", "r_fov 100", "r_fov 110", "r_fov 120"}),
     };
 
     // ---- Perfiles: cambian de una vez la resolución y las opciones que más pesan ----
@@ -234,6 +246,26 @@ final class GraphicsSettings {
 
     private static DukeMenuView.Entry lastEntry(DukeMenuView.Page p) {
         return p.entries.get(p.entries.size() - 1);
+    }
+
+    private static void addPreset(Context c, DukeMenuView.Page p, IntConsumer onScale, Runnable onChange) {
+            p.addValue(I18n.t("gfx_preset"), () -> {
+                int cur = currentPreset(c);
+                return I18n.t(cur >= 0 ? PRESET_KEYS[cur] : "gfx_preset_custom");
+            }, () -> {
+                int next = (currentPreset(c) + 1) % PRESETS.length;
+                applyPreset(c, next);
+                if (onScale != null) onScale.accept(PRESETS[next][0]);
+                if (onChange != null) onChange.run();
+            });
+            lastEntry(p).step = d -> {
+                int cur = currentPreset(c);
+                int next = cur < 0 ? (d > 0 ? 0 : PRESETS.length - 1) : Math.max(0, Math.min(PRESETS.length - 1, cur + d));
+                if (next == cur) return;
+                applyPreset(c, next);
+                if (onScale != null) onScale.accept(PRESETS[next][0]);
+                if (onChange != null) onChange.run();
+            };
     }
 
     interface IntConsumer {
