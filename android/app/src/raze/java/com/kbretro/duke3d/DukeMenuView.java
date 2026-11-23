@@ -473,24 +473,24 @@ final class DukeMenuView extends View {
         // Pie: una línea de información si la hay (carpeta, pista que suena...).
         String ft = p.footer != null ? p.footer.get() : "";
         if (!ft.isEmpty()) drawSmall(c, ft, 160, 191, 0.6f, true);
-        // Menú principal con secciones: encima del póster, a su derecha, una flecha con el estilo
-        // de las letras de Duke Nukem 3D (su degradado rojo-amarillo y borde oscuro) y «Y/X» encima
-        // con las letras del propio juego: el botón que pasa a la siguiente sección. Tocarla (la
-        // flecha o las letras) también cambia. Se mueve un poco hacia la derecha.
+        // Menú principal con secciones: abajo a la derecha (sin tapar el póster), una flecha con el
+        // estilo de las letras de Duke Nukem 3D y, dentro, «Y/X» con las letras del juego en
+        // dorado: el botón que pasa a la siguiente sección. Tocarla también cambia. Se mueve un poco
+        // hacia la derecha.
         arrowRect.setEmpty();
-        if (stack.size() == 1 && p.otherSide != null && !coverRect.isEmpty()) {
-            float arW = Math.max(36, coverRect.width() * 0.26f), arH = arW * 0.72f;
-            float arBob = (float) Math.sin(now / 260.0) * arW * 0.08f;
-            float arRight = coverRect.right - arW * 0.12f + arBob, arCx = arRight - arW / 2f, arCy = coverRect.centerY();
-            drawSectionArrow(c, arRight - arW, arCy - arH / 2f, arW, arH);
-            // «Y/X» encima, con las letras grandes del juego.
-            float arTs = 0.55f, arTw = bigWidth("Y/X") * arTs;
+        if (stack.size() == 1 && p.otherSide != null) {
+            float arH = 22 * sy, arW = arH * 2.3f;
+            float arBob = (float) Math.sin(now / 260.0) * arH * 0.12f;
+            float arRight = w - 8 * sx + arBob - arH * 0.15f, arBottom = h - 3 * sy;
+            float arLeft = arRight - arW, arTopY = arBottom - arH;
+            drawSectionArrow(c, arLeft, arTopY, arW, arH);
+            // «Y/X» dentro, centrado en la flecha (un poco a la izquierda, en el cuerpo).
             float arLineH = art.height(DukeArt.BIGALPHANUM) > 0 ? art.height(DukeArt.BIGALPHANUM) : 15;
-            float arTcy = (arCy - arH / 2f - arH * 0.1f - ay) / sy - arLineH * arTs / 2f;
-            drawBig(c, "Y/X", (arCx - ax) / sx - arTw / 2f, arTcy, arTs, pixel);
-            float arTop = vy(arTcy - arLineH * arTs / 2f);
-            // Zona que se puede tocar: flecha y letras, con margen para el dedo.
-            arrowRect.set(arRight - arW * 1.25f, arTop - arH * 0.25f, arRight + arW * 0.25f, arCy + arH * 0.75f);
+            float arTs = (arH * 0.5f / sy) / arLineH, arTw = bigWidth("Y/X") * arTs;
+            float arCx = (arLeft + arW * 0.44f - ax) / sx, arCy = (arTopY + arH / 2f - ay) / sy;
+            drawBig(c, "Y/X", arCx - arTw / 2f, arCy, arTs, goldText);
+            // Zona que se puede tocar, con margen para el dedo.
+            arrowRect.set(arLeft - arH * 0.4f, arTopY - arH * 0.4f, w, h);
         }
         footerRect.set(0, vy(183), w, h);
 
@@ -507,6 +507,18 @@ final class DukeMenuView extends View {
     }
 
     private final RectF arrowRect = new RectF();
+    /** Las letras del juego (rojas) en dorado: a escala de grises y teñidas de oro. */
+    private final Paint goldText = new Paint();
+
+    {
+        android.graphics.ColorMatrix gold = new android.graphics.ColorMatrix(new float[]{
+                0.45f, 0.75f, 0.15f, 0, 40,
+                0.36f, 0.60f, 0.12f, 0, 25,
+                0.05f, 0.09f, 0.02f, 0, 0,
+                0, 0, 0, 1, 0});
+        goldText.setColorFilter(new android.graphics.ColorMatrixColorFilter(gold));
+        goldText.setFilterBitmap(false);
+    }
     private final Paint arrowFill = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final android.graphics.Path arrowPath = new android.graphics.Path();
 
