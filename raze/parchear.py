@@ -124,10 +124,14 @@ sub("source/common/rendering/v_video.cpp",
     "#ifdef __ANDROID__\nCUSTOM_CVAR (Bool, vid_vsync, true, CVAR_ARCHIVE|CVAR_GLOBALCONFIG)\n#else\n"
     "CUSTOM_CVAR (Bool, vid_vsync, false, CVAR_ARCHIVE|CVAR_GLOBALCONFIG)\n#endif")
 
-# 13. En Android solo OpenGL ES, diga lo que diga la configuración.
+# 13. Motor gráfico que elige la app (RAZE_BACKEND: 1 Vulkan, 2 OpenGL ES; de serie OpenGL ES),
+#     diga lo que diga la configuración. Vulkan gasta mucho menos procesador por cada dibujo: con
+#     el driver OpenGL ES de las GPU Mali (RG477M) algunas vistas iban a 20-25 FPS con un núcleo
+#     al 100 %.
 sub("source/common/rendering/v_video.cpp",
     "int V_GetBackend()\n{",
-    "int V_GetBackend()\n{\n#ifdef __ANDROID__\n\treturn 2;\n#endif")
+    "#ifdef __ANDROID__\n#include <stdlib.h>\n#endif\nint V_GetBackend()\n{\n#ifdef __ANDROID__\n"
+    "\tconst char* b = getenv(\"RAZE_BACKEND\");\n\treturn (b && atoi(b) == 1) ? 1 : 2;\n#endif")
 
 # 14. Errores graves: en Android se escriben en el registro (no hay kdialog ni GTK) y se
 #     enseñan con el cuadro de SDL.

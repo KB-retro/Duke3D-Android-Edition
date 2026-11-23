@@ -58,6 +58,14 @@ final class GraphicsSettings {
      * @param onScale    al cambiar la resolución interna (o null)
      * @param onChange   al cambiar cualquier otra (o null)
      */
+    /** ¿Vulkan elegido como motor gráfico? (si no, OpenGL ES) */
+    static boolean vulkan(Context c) {
+        return prefs(c).getInt("raze_motor", 0) == 1;
+    }
+
+    /** Se llama al cambiar el motor gráfico (p. ej. para avisar de que hace falta reiniciar). */
+    static Runnable onBackend;
+
     static void addTo(Context c, DukeMenuView.Page p, IntConsumer onScale, Runnable onChange) {
         p.addValue(I18n.t("resolution"), () -> scaleLabel(scale(c)), () -> {
             int next = next(SCALE_VALUES, scale(c));
@@ -75,6 +83,17 @@ final class GraphicsSettings {
             if (onScale != null) onScale.accept(SCALE_VALUES[j]);
         };
         if (Motor.RAZE) {
+            // Motor gráfico: se aplica al lanzar el juego (no se puede cambiar en marcha).
+            p.addValue(I18n.t("gfx_backend"), () -> I18n.t(vulkan(c) ? "gfx_vulkan" : "gfx_gles"), () -> {
+                prefs(c).edit().putInt("raze_motor", vulkan(c) ? 0 : 1).apply();
+                if (onBackend != null) onBackend.run();
+            });
+            lastEntry(p).step = d -> {
+                boolean want = d > 0;
+                if (want == vulkan(c)) return;
+                prefs(c).edit().putInt("raze_motor", want ? 1 : 0).apply();
+                if (onBackend != null) onBackend.run();
+            };
             p.addValue(I18n.t("gfx_preset"), () -> {
                 int cur = currentPreset(c);
                 return I18n.t(cur >= 0 ? PRESET_KEYS[cur] : "gfx_preset_custom");

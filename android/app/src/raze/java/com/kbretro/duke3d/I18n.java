@@ -146,6 +146,10 @@ final class I18n {
         put("gfx_ssao", "Oclusión ambiental", "Ambient occlusion");
         put("gfx_hq", "Texturas suavizadas", "Smoothed textures");
         put("gfx_models", "Modelos 3D", "3D models");
+        put("gfx_backend", "Motor gráfico", "Graphics API");
+        put("gfx_vulkan", "Vulkan", "Vulkan");
+        put("gfx_gles", "OpenGL ES", "OpenGL ES");
+        put("gfx_backend_note", "El motor gráfico cambia al volver a lanzar el juego", "The graphics API changes the next time the game starts");
         put("gfx_model_dist", "Distancia de modelos 3D", "3D model distance");
         put("gfx_near", "Cerca", "Near");
         put("gfx_far", "Lejos", "Far");

@@ -366,6 +366,8 @@ public class GameActivity extends SDLActivity {
             String lang = getIntent().getStringExtra(EXTRA_LANG);
             Os.setenv("DUKE3D_LANG", lang != null ? lang : "en", true);
             if (Motor.RAZE) {
+                // Motor gráfico elegido (raze/parchear.py, cambio 13): 1 Vulkan, 2 OpenGL ES.
+                Os.setenv("RAZE_BACKEND", GraphicsSettings.vulkan(this) ? "1" : "2", true);
                 Os.setenv("RAZE_PROGDIR", Motor.prepareRazeData(this).getAbsolutePath(), true);
                 // Carpetas donde Raze busca los juegos: las expansiones de la Megaton (addons/dc...).
                 if (dir != null) {
@@ -872,8 +874,11 @@ public class GameActivity extends SDLActivity {
 
     private DukeMenuView.Page graphicsPage() {
         DukeMenuView.Page p = new DukeMenuView.Page();
+        status = null;
+        GraphicsSettings.onBackend = () -> status = I18n.t("gfx_backend_note");
         GraphicsSettings.addTo(this, p, this::applyScale, Motor.RAZE ? this::applyRazeGraphics : this::applyPostFx);
         if (!Motor.RAZE) p.footer = () -> I18n.t("gfx_soft_note");
+        else p.footer = () -> status != null ? status : "";
         p.addValue("FPS", () -> fpsLabel(fps()), () -> {
             int i = indexOf(FPS_VALUES, fps());
             int next = FPS_VALUES[(i + 1) % FPS_VALUES.length];
