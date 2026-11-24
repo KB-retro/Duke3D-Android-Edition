@@ -1000,10 +1000,10 @@ static void DukeSceneLights(TArray<HWSceneLight>& out, double interpfrac)
 	double mt = PlayClock - gDukeMuzzleClock + interpfrac;
 	if (pact && pact->sector() && mt >= 0 && mt < 8)
 	{
-		float f = (float)(1. - mt / 8.);
-		f *= f;
+		// Fuerte al principio y se apaga rápido al final (sin el corte de golpe).
+		float f = (float)(1. - (mt / 8.) * (mt / 8.));
 		auto pos = pact->getRenderPos(interpfrac) + DVector3(pact->spr.Angles.Yaw.ToVector() * 16, 8);
-		hw_AddSceneLight(out, pos, pact->sector(), 80, 0.85f * f, 0.65f * f, 0.38f * f);
+		hw_AddSceneLight(out, pos, pact->sector(), 140, 1.3f * f, 1.0f * f, 0.6f * f);
 	}
 }
 
@@ -1232,3 +1232,12 @@ sub("source/games/duke/src/animatesprites_d.cpp",
     "\t\tif (h->spr.statnum != STAT_DUMMYPLAYER && !badguy(h) && !h->isPlayer())\n"
     "\t\t\tdrawobjectshadow(tsprites, t, h);\n"
     "\t\tif (h->spr.statnum == STAT_DUMMYPLAYER || badguy(h) || (h->isPlayer() && h->GetOwner()))\n\t\t{\n\t\t\tdrawshadows(tsprites, t, h);")
+
+# 40. Las sombras, siempre como la silueta aplastada del sprite (la de siempre de Duke), también
+#     con modelos 3D: el modelo aplastado no salía (y lejos, sin modelo, desaparecía del todo).
+sub("source/games/duke/src/animatesprites.cpp",
+    "\t\t\tshadowspr->pal = 4;\n\n\t\t\tif (hw_models && modelManager.CheckModel(t->spritetexture(), t->pal))\n",
+    "\t\t\tshadowspr->pal = 4;\n\t\t\tshadowspr->cstat2 |= CSTAT2_SPRITE_NOMODEL;\n\n\t\t\tif (false)\n")
+sub("source/games/duke/src/animatesprites.cpp",
+    "\tshadowspr->pal = 4;\n\tif (hw_models && modelManager.CheckModel(t->spritetexture(), t->pal))\n",
+    "\tshadowspr->pal = 4;\n\tshadowspr->cstat2 |= CSTAT2_SPRITE_NOMODEL;\n\tif (false)\n")
