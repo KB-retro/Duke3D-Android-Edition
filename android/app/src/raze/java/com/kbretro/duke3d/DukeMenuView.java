@@ -247,6 +247,18 @@ final class DukeMenuView extends View {
         return true;
     }
 
+    /** En el menú principal con secciones: vuelve a la anterior (flecha de la izquierda). */
+    boolean prevSection() {
+        if (stack.size() != 1 || page().otherSide == null) return false;
+        Page cur = page(), q = cur;
+        // Las secciones van en círculo: la anterior es la que tiene a esta como siguiente.
+        for (int i = 0; i < 8 && q.otherSide != null && q.otherSide != cur; i++) q = q.otherSide;
+        if (q.otherSide != cur) return false;
+        stack.set(0, q);
+        invalidate();
+        return true;
+    }
+
     /** En el menú principal con secciones: pasa a la siguiente (botón Y o tocando el pie). */
     boolean nextSection() {
         if (stack.size() != 1 || page().otherSide == null) return false;
@@ -512,16 +524,26 @@ final class DukeMenuView extends View {
         // con los píxeles y colores de las letras grandes del juego (su degradado, su borde y su
         // relieve): el botón que pasa a la siguiente sección (Y/X en el mando). Se puede tocar y se
         // mueve un poco hacia la derecha.
+        // Y otra igual hacia la izquierda, abajo a la izquierda: la sección anterior.
         arrowRect.setEmpty();
+        arrowBackRect.setEmpty();
         if (stack.size() == 1 && p.otherSide != null) {
             Bitmap ab = sectionArrowBitmap();
             if (ab != null) {
                 float arBob = (float) Math.sin(now / 260.0) * 1.5f;
-                float arRightV = (w - ax) / sx - 6 + arBob, arBottomV = (h - ay) / sy - 3;
-                float arLeftV = arRightV - ab.getWidth(), arTopV = arBottomV - ab.getHeight();
-                dst.set(vx(arLeftV), vy(arTopV), vx(arRightV), vy(arBottomV));
+                float arBottomV = (h - ay) / sy - 3, arTopV = arBottomV - ab.getHeight();
+                float arRightV = (w - ax) / sx - 6 + arBob;
+                dst.set(vx(arRightV - ab.getWidth()), vy(arTopV), vx(arRightV), vy(arBottomV));
                 c.drawBitmap(ab, null, dst, pixel);
                 arrowRect.set(dst.left - 10 * sx, dst.top - 10 * sy, w, h);
+                // La de atrás: la misma, en espejo.
+                float arLeftV = -ax / sx + 6 - arBob;
+                dst.set(vx(arLeftV), vy(arTopV), vx(arLeftV + ab.getWidth()), vy(arBottomV));
+                c.save();
+                c.scale(-1, 1, dst.centerX(), dst.centerY());
+                c.drawBitmap(ab, null, dst, pixel);
+                c.restore();
+                arrowBackRect.set(0, dst.top - 10 * sy, dst.right + 10 * sx, h);
             }
         }
         footerRect.set(0, vy(183), w, h);
@@ -538,7 +560,7 @@ final class DukeMenuView extends View {
         postInvalidateDelayed(stack.size() == 1 && p.otherSide != null ? 16 : 50);
     }
 
-    private final RectF arrowRect = new RectF();
+    private final RectF arrowRect = new RectF(), arrowBackRect = new RectF();
 
     /** La flecha de sección, en píxeles del juego (se dibuja escalada sin suavizar, como las letras). */
     private Bitmap sectionArrow;
@@ -955,6 +977,7 @@ final class DukeMenuView extends View {
                     if (tabRects[0].contains(ev.getX(), ev.getY())) switchSide(-1);
                     else if (tabRects[1].contains(ev.getX(), ev.getY())) switchSide(1);
                     else if (arrowRect.contains(ev.getX(), ev.getY())) nextSection();
+                    else if (arrowBackRect.contains(ev.getX(), ev.getY())) prevSection();
                 }
                 if (!dragged && idx < 0 && touched < 0 && !arrowRect.contains(ev.getX(), ev.getY())
                         && coverRect.contains(ev.getX(), ev.getY())) {
