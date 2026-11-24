@@ -19,6 +19,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+#include <atomic>
 #include <chrono>
 #include <condition_variable>
 #include <deque>
@@ -32,6 +33,9 @@
 #define LOG_TAG "Duke3D-DOS"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
+
+/** Imágenes nuevas del juego (para el contador de FPS del menú rápido). */
+static std::atomic<int> g_frames_drawn{0};
 
 extern "C" {
 void android_postfx_attributes(void);
@@ -161,8 +165,10 @@ static bool environment(unsigned cmd, void *data)
     }
 }
 
+/** Imágenes nuevas del juego (para el contador de FPS del menú rápido). */
 static void video_refresh(const void *data, unsigned w, unsigned h, size_t pitch)
 {
+    if (data) g_frames_drawn.fetch_add(1, std::memory_order_relaxed);
     if (data && w && h)
     {
         if ((int)w != g_frame_w || (int)h != g_frame_h) g_frame.assign((size_t)w * h, 0);
@@ -354,6 +360,11 @@ JNIEXPORT jint JNICALL Java_com_kbretro_duke3d_DosActivity_nativeCommand(JNIEnv 
     (void)env;
     (void)cls;
     return post_command(cmd, 0, 0, cmd == CMD_SAVE || cmd == CMD_LOAD);
+}
+
+JNIEXPORT jint JNICALL Java_com_kbretro_duke3d_DosActivity_nativeFrames(JNIEnv *, jclass)
+{
+    return g_frames_drawn.load(std::memory_order_relaxed);
 }
 
 }  // extern "C"

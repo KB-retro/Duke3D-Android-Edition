@@ -422,6 +422,8 @@ public class LauncherActivity extends Activity {
             p.addValue(I18n.t(f[i][0]), () -> I18n.t(k[secPref(prefix, key, def, k.length)]),
                     () -> cycleSecPref(prefix, key, def, k.length));
         }
+        p.addValue(I18n.t("gfx_fps_counter"), () -> I18n.t(secPref(prefix, "fps", 0, 2) == 1 ? "yes" : "no"),
+                () -> cycleSecPref(prefix, "fps", 0, 2));
     }
 
     private void addLogEntry(DukeMenuView.Page p) {
@@ -459,8 +461,6 @@ public class LauncherActivity extends Activity {
                 () -> cycleSecPref("psx_", "resolucion3", 2, PSX_RES_LABELS.length));
         p.addValue(I18n.t("psx_oc"), () -> I18n.t(PsxActivity.OC_LABELS[secPref("psx_", "oc", 0, PsxActivity.OC_VALUES.length)]),
                 () -> cycleSecPref("psx_", "oc", 0, PsxActivity.OC_VALUES.length));
-        p.addValue(I18n.t("psx_render"), () -> I18n.t(secPref("psx_", "render", 0, 2) == 1 ? "psx_render_cpu" : "psx_render_gpu"),
-                () -> cycleSecPref("psx_", "render", 0, 2));
         p.addValue(I18n.t("psx_pgxp"), () -> I18n.t(secPref("psx_", "pgxp2", 0, 2) == 1 ? "yes" : "no"),
                 () -> cycleSecPref("psx_", "pgxp2", 0, 2));
         p.addValue(I18n.t("psx_pal60"), () -> I18n.t(secPref("psx_", "pal60", 0, 2) == 1 ? "yes" : "no"),

@@ -38,6 +38,9 @@
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 
+/** Imágenes nuevas del juego (para el contador de FPS del menú rápido). */
+static std::atomic<int> g_frames_drawn{0};
+
 extern "C" {
 void android_postfx_attributes(void);
 int android_postfx_init(SDL_Window *window);
@@ -425,8 +428,10 @@ static void present(void)
     }
 }
 
+/** Imágenes nuevas del juego (para el contador de FPS del menú rápido). */
 static void video_refresh(const void *data, unsigned w, unsigned h, size_t pitch)
 {
+    if (data) g_frames_drawn.fetch_add(1, std::memory_order_relaxed);
     {
         // Cada cambio de tamaño de la imagen, al registro (vídeos, menús, resolución...).
         static unsigned lw, lh;
@@ -678,6 +683,11 @@ JNIEXPORT void JNICALL Java_com_kbretro_duke3d_PsxActivity_nativeOption(JNIEnv *
 JNIEXPORT jint JNICALL Java_com_kbretro_duke3d_PsxActivity_nativeCommand(JNIEnv *, jclass, jint cmd)
 {
     return post_command(cmd, cmd == CMD_SAVE || cmd == CMD_LOAD);
+}
+
+JNIEXPORT jint JNICALL Java_com_kbretro_duke3d_PsxActivity_nativeFrames(JNIEnv *, jclass)
+{
+    return g_frames_drawn.load(std::memory_order_relaxed);
 }
 
 }  // extern "C"

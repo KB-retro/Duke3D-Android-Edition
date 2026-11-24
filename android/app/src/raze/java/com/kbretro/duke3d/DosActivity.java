@@ -35,6 +35,11 @@ public class DosActivity extends SDLActivity {
     /** 1 pausa, 2 seguir, 3 guardado rápido, 4 carga rápida, 5 salir. 0 = bien, 1 = no hay guardado. */
     static native int nativeCommand(int cmd);
 
+    /** Imágenes nuevas del juego desde el arranque (para el contador de FPS). */
+    static native int nativeFrames();
+
+    private FpsOverlay fpsOverlay;
+
     static native void nativePostFx(int scaler, int fxaa, int sharp, int crt, int color, int bloom);
 
     private static final int CMD_PAUSE = 1, CMD_RESUME = 2, CMD_SAVE = 3, CMD_LOAD = 4, CMD_QUIT = 5;
@@ -96,6 +101,8 @@ public class DosActivity extends SDLActivity {
         if (mSurface != null) mSurface.setDefaultFocusHighlightEnabled(false);
         getWindow().getDecorView().setDefaultFocusHighlightEnabled(false);
         applyPostFx();
+        fpsOverlay = new FpsOverlay(this, DosActivity::nativeFrames);
+        ui.post(() -> fpsOverlay.set(gfx("fps", 0, 2) == 1)); // encima de los controles táctiles
 
         touch = new DosTouchView(this, new DosTouchView.Host() {
             @Override
@@ -301,6 +308,10 @@ public class DosActivity extends SDLActivity {
                 () -> cycleGfx("color", 0, COLOR_KEYS.length));
         p.addValue(I18n.t("gfx_effect"), () -> I18n.t(CRT_KEYS[gfx("crt", 0, CRT_KEYS.length)]),
                 () -> cycleGfx("crt", 0, CRT_KEYS.length));
+        p.addValue(I18n.t("gfx_fps_counter"), () -> I18n.t(gfx("fps", 0, 2) == 1 ? "yes" : "no"), () -> {
+            cycleGfx("fps", 0, 2);
+            if (fpsOverlay != null) fpsOverlay.set(gfx("fps", 0, 2) == 1);
+        });
         p.add(I18n.t("back"), null, () -> quickMenu.pop());
         return p;
     }

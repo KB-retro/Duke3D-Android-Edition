@@ -43,6 +43,11 @@ public class PsxActivity extends SDLActivity {
     /** 1 pausa, 2 seguir, 3 guardado rápido, 4 carga rápida, 5 salir. 0 = bien, 1 = no hay guardado. */
     static native int nativeCommand(int cmd);
 
+    /** Imágenes nuevas del juego desde el arranque (para el contador de FPS). */
+    static native int nativeFrames();
+
+    private FpsOverlay fpsOverlay;
+
     static native void nativePostFx(int scaler, int fxaa, int sharp, int crt, int color, int bloom);
 
     private static final int CMD_PAUSE = 1, CMD_RESUME = 2, CMD_SAVE = 3, CMD_LOAD = 4, CMD_QUIT = 5;
@@ -95,6 +100,8 @@ public class PsxActivity extends SDLActivity {
         if (mSurface != null) mSurface.setDefaultFocusHighlightEnabled(false);
         getWindow().getDecorView().setDefaultFocusHighlightEnabled(false);
         applyPostFx();
+        fpsOverlay = new FpsOverlay(this, PsxActivity::nativeFrames);
+        ui.post(() -> fpsOverlay.set(gfx("fps", 0, 2) == 1)); // encima de los controles táctiles
         lockRefreshRate(); // la pantalla a ~60 Hz: a 120 Hz el ritmo de la consola daba tirones
         new Handler(Looper.getMainLooper()).postDelayed(this::lockRefreshRate, 3000); // ya con la superficie
 
@@ -229,8 +236,8 @@ public class PsxActivity extends SDLActivity {
         o.add(new String[]{"swanstation_GPU_PGXPEnable", gfx("pgxp2", 0, 2) == 1 ? "true" : "false"});
         // CPU de la consola más rápida: en juegos que iban justos (Time to Kill) sube la fluidez.
         o.add(new String[]{"swanstation_CPU_Overclock", OC_VALUES[gfx("oc", 0, OC_VALUES.length)]});
-        // Dibujado: con la gráfica (OpenGL ES) o con el procesador (como la consola, a 1x).
-        o.add(new String[]{"swanstation_GPU_Renderer", gfx("render", 0, 2) == 1 ? "Software" : "OpenGL"});
+        // Siempre con la gráfica (OpenGL ES): con el procesador iba a 1x, lento y con los colores mal.
+        o.add(new String[]{"swanstation_GPU_Renderer", "OpenGL"});
         // Versiones PAL (europeas, a 50 Hz) a 60 Hz, como la americana. Solo afecta a discos PAL.
         o.add(new String[]{"swanstation_GPU_ForceNTSCTimings", gfx("pal60", 0, 2) == 1 ? "true" : "false"});
         return o;
@@ -331,10 +338,6 @@ public class PsxActivity extends SDLActivity {
             cycleGfx("oc", 0, OC_VALUES.length);
             applyCoreOptions();
         });
-        p.addValue(I18n.t("psx_render"), () -> I18n.t(gfx("render", 0, 2) == 1 ? "psx_render_cpu" : "psx_render_gpu"), () -> {
-            cycleGfx("render", 0, 2);
-            status = I18n.t("psx_restart");
-        });
         p.addValue(I18n.t("psx_pgxp"), () -> I18n.t(gfx("pgxp2", 0, 2) == 1 ? "yes" : "no"), () -> {
             cycleGfx("pgxp2", 0, 2);
             applyCoreOptions();
@@ -354,6 +357,10 @@ public class PsxActivity extends SDLActivity {
                 () -> cycleGfx("color", 0, COLOR_KEYS.length));
         p.addValue(I18n.t("gfx_effect"), () -> I18n.t(CRT_KEYS[gfx("crt", 0, CRT_KEYS.length)]),
                 () -> cycleGfx("crt", 0, CRT_KEYS.length));
+        p.addValue(I18n.t("gfx_fps_counter"), () -> I18n.t(gfx("fps", 0, 2) == 1 ? "yes" : "no"), () -> {
+            cycleGfx("fps", 0, 2);
+            if (fpsOverlay != null) fpsOverlay.set(gfx("fps", 0, 2) == 1);
+        });
         p.add(I18n.t("back"), null, () -> quickMenu.pop());
         p.footer = () -> status != null ? status : "";
         return p;
