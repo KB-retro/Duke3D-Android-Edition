@@ -232,9 +232,6 @@ final class I18n {
         put("psx_stretch", "Estirada", "Stretched");
         put("psx_res", "Resolución", "Resolution");
         put("psx_pgxp", "Polígonos estables", "Stable polygons");
-        put("psx_pal60", "PAL a 60 Hz", "PAL at 60 Hz");
-        put("psx_oc", "CPU de la consola", "Console CPU");
-        put("psx_oc_normal", "Normal", "Normal");
         put("psx_restart", "Si no cambia, vuelve a entrar en el juego", "If nothing changes, restart the game");
         put("psx_cross", "Cruz", "Cross");
         put("psx_circle", "Círculo", "Circle");

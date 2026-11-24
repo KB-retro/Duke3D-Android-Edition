@@ -40,6 +40,8 @@
 
 /** Imágenes nuevas del juego (para el contador de FPS del menú rápido). */
 static std::atomic<int> g_frames_drawn{0};
+/** Imágenes por segundo de la consola, para que Java ajuste la pantalla (0 hasta cargar el juego). */
+static std::atomic<float> g_core_fps{0.f};
 
 extern "C" {
 void android_postfx_attributes(void);
@@ -690,6 +692,11 @@ JNIEXPORT jint JNICALL Java_com_kbretro_duke3d_PsxActivity_nativeFrames(JNIEnv *
     return g_frames_drawn.load(std::memory_order_relaxed);
 }
 
+JNIEXPORT jfloat JNICALL Java_com_kbretro_duke3d_PsxActivity_nativeCoreFps(JNIEnv *, jclass)
+{
+    return g_core_fps.load(std::memory_order_relaxed);
+}
+
 }  // extern "C"
 
 // ---- Ventana y sonido ----
@@ -884,6 +891,7 @@ extern "C" int SDL_main(int argc, char *argv[])
         // espera algo más y, si se queda corto, no se espera. (Solo con la cola de sonido, si el
         // núcleo no la llenaba a tiempo el juego corría sin freno y rascaba.)
         double fps = g_av.timing.fps > 1 ? g_av.timing.fps : 60.0;
+        g_core_fps.store((float)g_av.timing.fps, std::memory_order_relaxed);
         double period = (double)freq / fps;
         // Sonido: un colchón de unos 80 ms. El núcleo dice 50/60 fps pero su sonido va al ritmo
         // de la consola de verdad (p. ej. 49,76): la cola crecía poco a poco hasta vaciarse de

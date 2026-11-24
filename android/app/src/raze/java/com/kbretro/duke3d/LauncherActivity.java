@@ -459,12 +459,8 @@ public class LauncherActivity extends Activity {
                 () -> cycleSecPref("psx_", "pantalla", 0, 4));
         p.addValue(I18n.t("psx_res"), () -> PSX_RES_LABELS[secPref("psx_", "resolucion3", 2, PSX_RES_LABELS.length)],
                 () -> cycleSecPref("psx_", "resolucion3", 2, PSX_RES_LABELS.length));
-        p.addValue(I18n.t("psx_oc"), () -> I18n.t(PsxActivity.OC_LABELS[secPref("psx_", "oc", 0, PsxActivity.OC_VALUES.length)]),
-                () -> cycleSecPref("psx_", "oc", 0, PsxActivity.OC_VALUES.length));
         p.addValue(I18n.t("psx_pgxp"), () -> I18n.t(secPref("psx_", "pgxp2", 0, 2) == 1 ? "yes" : "no"),
                 () -> cycleSecPref("psx_", "pgxp2", 0, 2));
-        p.addValue(I18n.t("psx_pal60"), () -> I18n.t(secPref("psx_", "pal60", 0, 2) == 1 ? "yes" : "no"),
-                () -> cycleSecPref("psx_", "pal60", 0, 2));
         addFilters(p, "psx_");
         addLogEntry(p);
         p.add(I18n.t("back"), null, () -> menuView.pop());

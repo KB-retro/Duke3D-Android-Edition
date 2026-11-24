@@ -46,6 +46,9 @@ public class PsxActivity extends SDLActivity {
     /** Imágenes nuevas del juego desde el arranque (para el contador de FPS). */
     static native int nativeFrames();
 
+    /** Imágenes por segundo de la consola (50 PAL, 60 NTSC); 0 si el juego aún no ha arrancado. */
+    static native float nativeCoreFps();
+
     private FpsOverlay fpsOverlay;
 
     static native void nativePostFx(int scaler, int fxaa, int sharp, int crt, int color, int bloom);
@@ -103,7 +106,9 @@ public class PsxActivity extends SDLActivity {
         fpsOverlay = new FpsOverlay(this, PsxActivity::nativeFrames);
         ui.post(() -> fpsOverlay.set(gfx("fps", 0, 2) == 1)); // encima de los controles táctiles
         lockRefreshRate(); // la pantalla a ~60 Hz: a 120 Hz el ritmo de la consola daba tirones
-        new Handler(Looper.getMainLooper()).postDelayed(this::lockRefreshRate, 3000); // ya con la superficie
+        // Otra vez ya con la superficie y con el juego cargado (PAL a 50 Hz, NTSC a 60 Hz).
+        new Handler(Looper.getMainLooper()).postDelayed(this::lockRefreshRate, 3000);
+        new Handler(Looper.getMainLooper()).postDelayed(this::lockRefreshRate, 8000);
 
         // Gráficos del Duke 3D (letras) para el menú rápido.
         String grp = getIntent().getStringExtra(EXTRA_BASE_GRP);
@@ -162,8 +167,6 @@ public class PsxActivity extends SDLActivity {
     /** Pantalla: automática (según la de la consola), 4:3 o panorámica. */
     /** Pantalla: automática, 4:3, panorámica (truco de pantalla ancha) o estirada (4:3 a pantalla completa). */
     private static final String[] SCREEN_KEYS = {"psx_auto", "4:3", "psx_wide", "psx_stretch"};
-    static final String[] OC_VALUES = {"100", "200", "300", "400"};
-    static final String[] OC_LABELS = {"psx_oc_normal", "x2", "x3", "x4"};
 
     // Resolución interna (con la GPU): de 1x a 6x.
     private static final String[] RES_LABELS = {"1x", "2x", "3x", "4x", "5x", "6x"};
@@ -234,12 +237,12 @@ public class PsxActivity extends SDLActivity {
         o.add(new String[]{"swanstation_Display_AspectRatio", aspect});
         o.add(new String[]{"swanstation_GPU_ResolutionScale", RES_VALUES[gfx("resolucion3", 2, RES_VALUES.length)]});
         o.add(new String[]{"swanstation_GPU_PGXPEnable", gfx("pgxp2", 0, 2) == 1 ? "true" : "false"});
-        // CPU de la consola más rápida: en juegos que iban justos (Time to Kill) sube la fluidez.
-        o.add(new String[]{"swanstation_CPU_Overclock", OC_VALUES[gfx("oc", 0, OC_VALUES.length)]});
+        // La CPU de la consola a su velocidad de siempre (más rápida aceleraba el juego).
+        o.add(new String[]{"swanstation_CPU_Overclock", "100"});
         // Siempre con la gráfica (OpenGL ES): con el procesador iba a 1x, lento y con los colores mal.
         o.add(new String[]{"swanstation_GPU_Renderer", "OpenGL"});
-        // Versiones PAL (europeas, a 50 Hz) a 60 Hz, como la americana. Solo afecta a discos PAL.
-        o.add(new String[]{"swanstation_GPU_ForceNTSCTimings", gfx("pal60", 0, 2) == 1 ? "true" : "false"});
+        // Las versiones PAL, a sus 50 Hz (forzarlas a 60 aceleraba el juego).
+        o.add(new String[]{"swanstation_GPU_ForceNTSCTimings", "false"});
         return o;
     }
 
@@ -334,18 +337,9 @@ public class PsxActivity extends SDLActivity {
             cycleGfx("resolucion3", 2, RES_VALUES.length);
             applyCoreOptions();
         });
-        p.addValue(I18n.t("psx_oc"), () -> I18n.t(OC_LABELS[gfx("oc", 0, OC_VALUES.length)]), () -> {
-            cycleGfx("oc", 0, OC_VALUES.length);
-            applyCoreOptions();
-        });
         p.addValue(I18n.t("psx_pgxp"), () -> I18n.t(gfx("pgxp2", 0, 2) == 1 ? "yes" : "no"), () -> {
             cycleGfx("pgxp2", 0, 2);
             applyCoreOptions();
-        });
-        p.addValue(I18n.t("psx_pal60"), () -> I18n.t(gfx("pal60", 0, 2) == 1 ? "yes" : "no"), () -> {
-            cycleGfx("pal60", 0, 2);
-            applyCoreOptions();
-            status = I18n.t("psx_restart");
         });
         p.addValue(I18n.t("gfx_scaler"), () -> I18n.t(SCALER_KEYS[gfx("escalado", 1, SCALER_KEYS.length)]),
                 () -> cycleGfx("escalado", 1, SCALER_KEYS.length));
@@ -477,16 +471,26 @@ public class PsxActivity extends SDLActivity {
         if (!menuOpen()) command(CMD_RESUME);
     }
 
-    /** Pide el modo de pantalla más cercano a 60 Hz (la PlayStation va a 50/60 imágenes por segundo):
-     *  a 120 Hz cada imagen duraba a veces uno y a veces dos refrescos y el ritmo bailaba. */
+    /** Pide el modo de pantalla que encaja con la consola (50 Hz los juegos PAL, 60 Hz los NTSC, o un
+     *  múltiplo exacto): si no encaja, cada imagen dura a veces uno y a veces dos refrescos y da tirones. */
     private void lockRefreshRate() {
         try {
             android.view.Display d = getWindowManager().getDefaultDisplay();
             android.view.Display.Mode cur = d.getMode(), best = cur;
+            float core = 0f;
+            try {
+                core = nativeCoreFps();
+            } catch (Throwable ignored) {
+            }
+            float want = core > 1f ? core : 60f;
             float bestDiff = Float.MAX_VALUE;
             for (android.view.Display.Mode m : d.getSupportedModes()) {
                 if (m.getPhysicalWidth() != cur.getPhysicalWidth() || m.getPhysicalHeight() != cur.getPhysicalHeight()) continue;
-                float diff = Math.abs(m.getRefreshRate() - 60f);
+                // Error relativo con el múltiplo más cercano (50 encaja con 50 y 100; 60 con 60 y 120),
+                // y a igualdad la frecuencia más baja (gasta menos).
+                float r = m.getRefreshRate();
+                int k = Math.max(1, Math.round(r / want));
+                float diff = Math.abs(r - k * want) / (k * want) + 0.0001f * k;
                 if (diff < bestDiff) {
                     bestDiff = diff;
                     best = m;
@@ -506,7 +510,7 @@ public class PsxActivity extends SDLActivity {
                         surf.setFrameRate(best.getRefreshRate(), android.view.Surface.FRAME_RATE_COMPATIBILITY_FIXED_SOURCE);
                 }
             }
-            Log.i("Duke3D", "PSX: pantalla a " + best.getRefreshRate() + " Hz");
+            Log.i("Duke3D", "PSX: pantalla a " + best.getRefreshRate() + " Hz (consola a " + want + ")");
         } catch (Exception e) {
             Log.w("Duke3D", "PSX: no se pudo fijar la frecuencia", e);
         }
