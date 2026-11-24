@@ -1193,7 +1193,8 @@ public class LauncherActivity extends Activity {
                 Intent intent = new Intent(this, GameActivity.class);
                 intent.putExtra(GameActivity.EXTRA_DIR, gameDir.getAbsolutePath());
                 intent.putExtra(GameActivity.EXTRA_ARGS, args.toArray(new String[0]));
-                intent.putExtra(GameActivity.EXTRA_LANG, defFile != null || (Motor.RAZE && spanish) ? "es" : "en");
+                // En Raze la traducción es la del motor: también con Penthouse (que va «solo», sin mods).
+                intent.putExtra(GameActivity.EXTRA_LANG, defFile != null || (Motor.RAZE && I18n.ES.equals(I18n.lang())) ? "es" : "en");
                 if (!all.isEmpty()) intent.putExtra(GameActivity.EXTRA_BASE_GRP, all.get(0).grp.getAbsolutePath());
                 startActivity(intent);
             });
