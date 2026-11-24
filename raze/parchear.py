@@ -1250,12 +1250,12 @@ sub("wadsrc/static/shaders_gles/glsl/material_normal.fp",
     "\tfloat attenuation = clamp((lightpos.w - lightdistance) / lightpos.w, 0.0, 1.0);\n"
     "\tattenuation *= attenuation;\n")
 
-# 42. Dibujo 2D (armas en la mano, HUD, menús): cada imagen a píxeles enteros de la pantalla.
-#     Algunas armas (la ametralladora) son varias piezas pegadas; con la escala de la pantalla
-#     sus bordes caían en medio píxel y entre pieza y pieza quedaba una raya.
-sub("source/common/2d/v_2ddrawer.cpp",
-    "\t\tdouble w = parms.destwidth;\n\t\tdouble h = parms.destheight;\n\n",
-    "\t\tdouble w = parms.destwidth;\n\t\tdouble h = parms.destheight;\n"
-    "\t\tif (!img->isWarped())\n\t\t{\n"
-    "\t\t\tdouble x0 = floor(x + 0.5), y0 = floor(y + 0.5);\n"
-    "\t\t\tw = floor(x + w + 0.5) - x0; h = floor(y + h + 0.5) - y0; x = x0; y = y0;\n\t\t}\n\n")
+# 42. Armas en la mano con filtrado bilineal o trilineal: algunas (la ametralladora) son varias
+#     piezas pegadas y el filtro mezclaba el borde de cada pieza con lo transparente de fuera,
+#     dejando una raya entre pieza y pieza. Se toma la imagen un cuarto de píxel hacia dentro
+#     por cada lado (un píxel del pack HD): el filtro ya no llega a salirse de la pieza.
+sub("source/core/gamehud.cpp",
+    "\t\tDTA_ScaleX, sz, DTA_ScaleY, sz,\n",
+    "\t\tDTA_ScaleX, sz, DTA_ScaleY, sz,\n"
+    "\t\tDTA_SrcX, 0.25, DTA_SrcY, 0.25,\n"
+    "\t\tDTA_SrcWidth, tex->GetDisplayWidth() - 0.5, DTA_SrcHeight, tex->GetDisplayHeight() - 0.5,\n")
