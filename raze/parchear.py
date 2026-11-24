@@ -951,31 +951,31 @@ static void DukeSceneLights(TArray<HWSceneLight>& out, double interpfrac)
 	if (!isDuke()) return;
 	struct LightDef { const char* cls; float radius, r, g, b; bool flicker; };
 	static const LightDef defs[] = {
-		{ "DukeExplosion2", 170, 1.0f, 0.6f, 0.25f, false },
-		{ "DukeExplosion2Bot", 170, 1.0f, 0.6f, 0.25f, false },
+		{ "DukeExplosion2", 128, 1.0f, 0.6f, 0.25f, false },
+		{ "DukeExplosion2Bot", 128, 1.0f, 0.6f, 0.25f, false },
 		{ "DukeSeenine", 0, 0, 0, 0, false },
-		{ "DukeRPG", 72, 1.0f, 0.6f, 0.25f, false },
-		{ "DukeFireball", 90, 1.0f, 0.55f, 0.2f, true },
-		{ "DukeFreezeBlast", 64, 0.3f, 0.55f, 1.0f, false },
-		{ "DukeShrinkSpark", 64, 0.35f, 1.0f, 0.35f, false },
-		{ "DukeShrinkerExplosion", 128, 0.35f, 1.0f, 0.35f, false },
-		{ "DukeGrowSpark", 64, 1.0f, 0.35f, 0.35f, false },
-		{ "DukeCoolExplosion1", 96, 0.8f, 0.35f, 1.0f, false },
-		{ "DukeFirelaser", 48, 1.0f, 0.3f, 0.15f, false },
-		{ "DukeDevastatorBlast", 72, 1.0f, 0.6f, 0.25f, false },
+		{ "DukeRPG", 54, 1.0f, 0.6f, 0.25f, false },
+		{ "DukeFireball", 68, 1.0f, 0.55f, 0.2f, true },
+		{ "DukeFreezeBlast", 48, 0.3f, 0.55f, 1.0f, false },
+		{ "DukeShrinkSpark", 48, 0.35f, 1.0f, 0.35f, false },
+		{ "DukeShrinkerExplosion", 96, 0.35f, 1.0f, 0.35f, false },
+		{ "DukeGrowSpark", 48, 1.0f, 0.35f, 0.35f, false },
+		{ "DukeCoolExplosion1", 72, 0.8f, 0.35f, 1.0f, false },
+		{ "DukeFirelaser", 36, 1.0f, 0.3f, 0.15f, false },
+		{ "DukeDevastatorBlast", 54, 1.0f, 0.6f, 0.25f, false },
 		// (sin luz en las chispas de las balas: cada disparo encendía las paredes lejanas donde daba)
-		{ "DukeBurning", 72, 1.0f, 0.5f, 0.15f, true },
-		{ "DukeBurning2", 72, 1.0f, 0.5f, 0.15f, true },
-		{ "DukeFire", 72, 1.0f, 0.5f, 0.15f, true },
-		{ "DukeFire2", 72, 1.0f, 0.5f, 0.15f, true },
-		{ "DukeOnFire", 56, 1.0f, 0.5f, 0.15f, true },
-		{ "DukeFloorFlame", 72, 1.0f, 0.5f, 0.15f, true },
-		{ "DukeFlamethrowerFlame", 64, 1.0f, 0.5f, 0.15f, true },
-		{ "DukeAtomicHealth", 48, 0.3f, 0.55f, 1.0f, false },
-		{ "DukeTransporterStar", 56, 0.4f, 0.6f, 1.0f, false },
-		{ "DukeTransporterBeam", 80, 0.4f, 0.6f, 1.0f, false },
-		{ "DukeReactorSpark", 64, 0.6f, 0.8f, 1.0f, false },
-		{ "DukeReactor2Spark", 64, 0.6f, 0.8f, 1.0f, false },
+		{ "DukeBurning", 54, 1.0f, 0.5f, 0.15f, true },
+		{ "DukeBurning2", 54, 1.0f, 0.5f, 0.15f, true },
+		{ "DukeFire", 54, 1.0f, 0.5f, 0.15f, true },
+		{ "DukeFire2", 54, 1.0f, 0.5f, 0.15f, true },
+		{ "DukeOnFire", 42, 1.0f, 0.5f, 0.15f, true },
+		{ "DukeFloorFlame", 54, 1.0f, 0.5f, 0.15f, true },
+		{ "DukeFlamethrowerFlame", 48, 1.0f, 0.5f, 0.15f, true },
+		{ "DukeAtomicHealth", 36, 0.3f, 0.55f, 1.0f, false },
+		{ "DukeTransporterStar", 42, 0.4f, 0.6f, 1.0f, false },
+		{ "DukeTransporterBeam", 60, 0.4f, 0.6f, 1.0f, false },
+		{ "DukeReactorSpark", 48, 0.6f, 0.8f, 1.0f, false },
+		{ "DukeReactor2Spark", 48, 0.6f, 0.8f, 1.0f, false },
 	};
 	static TMap<FName, int> map;
 	if (map.CountUsed() == 0)
@@ -1241,3 +1241,11 @@ sub("source/games/duke/src/animatesprites.cpp",
 sub("source/games/duke/src/animatesprites.cpp",
     "\tshadowspr->pal = 4;\n\tif (hw_models && modelManager.CheckModel(t->spritetexture(), t->pal))\n",
     "\tshadowspr->pal = 4;\n\tshadowspr->cstat2 |= CSTAT2_SPRITE_NOMODEL;\n\tif (false)\n")
+
+# 41. Luces dinámicas: la luz cae con el cuadrado de la distancia (antes en línea recta, así que
+#     una explosión o el fuego aclaraban casi igual todas las paredes a su alcance, de punta a
+#     punta del tejado). Ahora alumbra fuerte cerca y se apaga suave antes de llegar lejos.
+sub("wadsrc/static/shaders_gles/glsl/material_normal.fp",
+    "\tfloat attenuation = clamp((lightpos.w - lightdistance) / lightpos.w, 0.0, 1.0);\n",
+    "\tfloat attenuation = clamp((lightpos.w - lightdistance) / lightpos.w, 0.0, 1.0);\n"
+    "\tattenuation *= attenuation;\n")
