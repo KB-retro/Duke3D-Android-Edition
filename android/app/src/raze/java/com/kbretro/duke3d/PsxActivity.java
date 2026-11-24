@@ -468,7 +468,6 @@ public class PsxActivity extends SDLActivity {
             }
             float want = core > 1f ? core : 60f;
             float bestDiff = Float.MAX_VALUE;
-            StringBuilder modes = new StringBuilder();
             for (android.view.Display.Mode m : d.getSupportedModes()) {
                 if (m.getPhysicalWidth() != cur.getPhysicalWidth() || m.getPhysicalHeight() != cur.getPhysicalHeight()) continue;
                 // Error relativo con el múltiplo más cercano (50 encaja con 50 y 100; 60 con 60 y 120),
@@ -480,18 +479,7 @@ public class PsxActivity extends SDLActivity {
                     bestDiff = diff;
                     best = m;
                 }
-                modes.append(' ').append(Math.round(r));
             }
-            // Ninguna encaja (p. ej. un juego PAL a 50 en una pantalla de 60/120 Hz): la más alta.
-            // A 60 Hz una de cada cinco imágenes dura el doble (un saltito cada 0,1 s); a 120 Hz
-            // las imágenes duran 16 o 25 ms, una diferencia mucho menor y que casi no se nota.
-            if (bestDiff > 0.01f) {
-                for (android.view.Display.Mode m : d.getSupportedModes()) {
-                    if (m.getPhysicalWidth() != cur.getPhysicalWidth() || m.getPhysicalHeight() != cur.getPhysicalHeight()) continue;
-                    if (m.getRefreshRate() > best.getRefreshRate()) best = m;
-                }
-            }
-            Log.i("Duke3D", "PSX: modos de pantalla:" + modes);
             android.view.WindowManager.LayoutParams lp = getWindow().getAttributes();
             lp.preferredDisplayModeId = best.getModeId();
             lp.preferredRefreshRate = best.getRefreshRate();
