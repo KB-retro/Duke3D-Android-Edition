@@ -1172,3 +1172,63 @@ sub("source/core/rendering/scene/hw_sprites.cpp",
     "\tz = -zpos;\n\ty = -(float)(spr->pos.Y + ownerActor->sprext.position_offset.Y);\n",
     "\tz = -zpos;\n\ty = -(float)(spr->pos.Y + ownerActor->sprext.position_offset.Y);\n"
     "\tif (mdshadow) { z += 0.15f; up = 0; }\n")
+
+# 39. Sombras también para los objetos que se recogen, la decoración suelta y los cadáveres y
+#     restos (el original solo se las ponía a los enemigos y a Duke). Solo lo que está de pie
+#     sobre el suelo; nada de efectos (fuego, explosiones, humo, chispas), ni lo pegado a paredes
+#     o suelos, ni lo que flota.
+sub("source/games/duke/src/funct.h",
+    "void drawshadows(tspriteArray& tsprites, tspritetype* t, DDukeActor* h);",
+    "void drawshadows(tspriteArray& tsprites, tspritetype* t, DDukeActor* h);\n"
+    "void drawobjectshadow(tspriteArray& tsprites, tspritetype* t, DDukeActor* h);")
+sub("source/games/duke/src/animatesprites.cpp",
+    "\t\t\t\tauto look = (shadowspr->pos.XY() - spactpos.XY()).Angle();\n"
+    "\t\t\t\tshadowspr->pos += look.ToVector() * 2;\n\t\t\t}\n\t\t}\n\t}\n}\n",
+    "\t\t\t\tauto look = (shadowspr->pos.XY() - spactpos.XY()).Angle();\n"
+    "\t\t\t\tshadowspr->pos += look.ToVector() * 2;\n\t\t\t}\n\t\t}\n\t}\n}\n" + r'''
+void drawobjectshadow(tspriteArray& tsprites, tspritetype* t, DDukeActor* h)
+{
+	if (!r_shadows || (h->flags1 & SFLAG_NOSHADOW) || (h->spr.cstat2 & CSTAT2_SPRITE_NOSHADOW)) return;
+	int st = h->spr.statnum;
+	if (st != STAT_DEFAULT && st != STAT_ACTOR && st != STAT_ZOMBIEACTOR && st != STAT_STANDABLE && st != STAT_MISC) return;
+	if ((t->cstat & CSTAT_SPRITE_ALIGNMENT_MASK) != CSTAT_SPRITE_ALIGNMENT_FACING) return;
+	if (t->cstat & (CSTAT_SPRITE_TRANSLUCENT | CSTAT_SPRITE_INVISIBLE)) return;
+	if (t->scale.X <= 0 || t->scale.Y <= 0 || t->shade < -8 || !t->sectp) return;	// muy brillante: efecto o luz
+	{
+		// Efectos por su nombre (fuego, llamas, explosiones, humo, chispas, rayos...).
+		static const char* const fx[] = { "Fire", "Flame", "Burning", "Explosion", "Smoke", "Spark",
+			"Blast", "Laser", "Beam", "Star", "Steam", "Bubble", "Water", "Blood", "Scrap", "Shell", "Bullet" };
+		const char* cn = h->GetClass()->TypeName.GetChars();
+		for (auto f : fx) if (strstr(cn, f)) return;
+	}
+	double floorz = getflorzofslopeptr(t->sectp, t->pos);
+	if (t->pos.Z > floorz + 1 || floorz - t->pos.Z > 4) return;	// solo lo que está en el suelo
+	const auto spactpos = getPlayer(screenpeek)->GetActor()->getPosWithOffsetZ();
+	if (spactpos.Z >= floorz) return;
+
+	auto shadowspr = tsprites.newTSprite();
+	*shadowspr = *t;
+	shadowspr->statnum = STAT_TEMP;
+	shadowspr->scale.Y = (max(t->scale.Y * 0.125, 0.0625));
+	shadowspr->shade = 127;
+	shadowspr->cstat |= CSTAT_SPRITE_TRANSLUCENT;
+	shadowspr->pos.Z = floorz;
+	shadowspr->pal = 4;
+	if (hw_models && modelManager.CheckModel(t->spritetexture(), t->pal))
+	{
+		shadowspr->scale.Y = (0);
+		shadowspr->clipdist |= TSPR_FLAGS_MDHACK;
+		shadowspr->cstat |= CSTAT_SPRITE_TRANS_FLIP;
+	}
+	else
+	{
+		auto look = (shadowspr->pos.XY() - spactpos.XY()).Angle();
+		shadowspr->pos += look.ToVector() * 2;
+	}
+}
+''')
+sub("source/games/duke/src/animatesprites_d.cpp",
+    "\t\tif (h->spr.statnum == STAT_DUMMYPLAYER || badguy(h) || (h->isPlayer() && h->GetOwner()))\n\t\t{\n\t\t\tdrawshadows(tsprites, t, h);",
+    "\t\tif (h->spr.statnum != STAT_DUMMYPLAYER && !badguy(h) && !h->isPlayer())\n"
+    "\t\t\tdrawobjectshadow(tsprites, t, h);\n"
+    "\t\tif (h->spr.statnum == STAT_DUMMYPLAYER || badguy(h) || (h->isPlayer() && h->GetOwner()))\n\t\t{\n\t\t\tdrawshadows(tsprites, t, h);")
