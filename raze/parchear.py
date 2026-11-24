@@ -817,11 +817,29 @@ static double LightSegDistSq(const DVector2& p, const DVector2& a, const DVector
 	return (a + ab * t - p).LengthSquared();
 }
 
+// Diagnóstico al registro, cada 5 s: luces creadas y superficies alumbradas.
+static int diagFrames, diagLights, diagMaxLights, diagLit, diagTried;
+static uint64_t diagTime;
+
 void hw_CollectSceneLights(double interpfrac)
 {
+	{
+		uint64_t now = I_msTime();
+		if (diagTime == 0) diagTime = now;
+		if (now - diagTime >= 5000)
+		{
+			Printf("Luces dinámicas: %s, juego %s, %d fotogramas, %d luces (máx. %d a la vez), %d de %d superficies alumbradas\n",
+				hw_dynlights ? "sí" : "no", hw_gamelights ? "sí" : "no", diagFrames, diagLights, diagMaxLights, diagLit, diagTried);
+			diagFrames = diagLights = diagMaxLights = diagLit = diagTried = 0;
+			diagTime = now;
+		}
+		diagFrames++;
+	}
 	hw_scenelights.Clear();
 	if (!hw_dynlights || !hw_gamelights) return;
 	hw_gamelights(hw_scenelights, interpfrac);
+	diagLights += hw_scenelights.Size();
+	diagMaxLights = max(diagMaxLights, (int)hw_scenelights.Size());
 	for (auto& l : hw_scenelights)
 	{
 		// Sectores a los que llega: el suyo y, por huecos abiertos que estén a su alcance, los de al lado.
@@ -850,6 +868,7 @@ void hw_CollectSceneLights(double interpfrac)
 int hw_GetLights(sectortype* sec, const FVector3& mins, const FVector3& maxs, bool attenuate)
 {
 	if (hw_scenelights.Size() == 0 || !sec) return -1;
+	diagTried++;
 	static thread_local FDynLightData lightdata;	// (la «lightdata» global de Raze no está definida)
 	lightdata.Clear();
 	int n = 0;
@@ -873,7 +892,9 @@ int hw_GetLights(sectortype* sec, const FVector3& mins, const FVector3& maxs, bo
 		if (++n >= 8) break;
 	}
 	if (n == 0) return -1;
-	return screen->mLights->UploadLights(lightdata);
+	int idx = screen->mLights->UploadLights(lightdata);
+	if (idx >= 0) diagLit++;
+	return idx;
 }
 
 int hw_GetFlatLights(sectortype* sec)
