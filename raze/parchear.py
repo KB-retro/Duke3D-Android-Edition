@@ -1254,6 +1254,10 @@ sub("wadsrc/static/shaders_gles/glsl/material_normal.fp",
 #     piezas pegadas y el filtro mezclaba el borde de cada pieza con lo transparente de fuera,
 #     dejando una raya entre pieza y pieza. Se toma la imagen un cuarto de píxel hacia dentro
 #     por cada lado (un píxel del pack HD): el filtro ya no llega a salirse de la pieza.
+# (Sin imagen, nada: el juego pide a veces piezas que no existen y DrawTexture ya lo ignoraba.)
+sub("source/core/gamehud.cpp",
+    "\tauto tex = TexMan.GetGameTexture(texid, true);\n",
+    "\tauto tex = TexMan.GetGameTexture(texid, true);\n\tif (!tex || !tex->isValid()) return;\n")
 sub("source/core/gamehud.cpp",
     "\t\tDTA_ScaleX, sz, DTA_ScaleY, sz,\n",
     "\t\tDTA_ScaleX, sz, DTA_ScaleY, sz,\n"
