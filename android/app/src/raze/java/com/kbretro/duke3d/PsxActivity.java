@@ -95,6 +95,8 @@ public class PsxActivity extends SDLActivity {
         if (mSurface != null) mSurface.setDefaultFocusHighlightEnabled(false);
         getWindow().getDecorView().setDefaultFocusHighlightEnabled(false);
         applyPostFx();
+        lockRefreshRate(); // la pantalla a ~60 Hz: a 120 Hz el ritmo de la consola daba tirones
+        new Handler(Looper.getMainLooper()).postDelayed(this::lockRefreshRate, 3000); // ya con la superficie
 
         // Gráficos del Duke 3D (letras) para el menú rápido.
         String grp = getIntent().getStringExtra(EXTRA_BASE_GRP);
@@ -464,7 +466,43 @@ public class PsxActivity extends SDLActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        lockRefreshRate();
         if (!menuOpen()) command(CMD_RESUME);
+    }
+
+    /** Pide el modo de pantalla más cercano a 60 Hz (la PlayStation va a 50/60 imágenes por segundo):
+     *  a 120 Hz cada imagen duraba a veces uno y a veces dos refrescos y el ritmo bailaba. */
+    private void lockRefreshRate() {
+        try {
+            android.view.Display d = getWindowManager().getDefaultDisplay();
+            android.view.Display.Mode cur = d.getMode(), best = cur;
+            float bestDiff = Float.MAX_VALUE;
+            for (android.view.Display.Mode m : d.getSupportedModes()) {
+                if (m.getPhysicalWidth() != cur.getPhysicalWidth() || m.getPhysicalHeight() != cur.getPhysicalHeight()) continue;
+                float diff = Math.abs(m.getRefreshRate() - 60f);
+                if (diff < bestDiff) {
+                    bestDiff = diff;
+                    best = m;
+                }
+            }
+            android.view.WindowManager.LayoutParams lp = getWindow().getAttributes();
+            lp.preferredDisplayModeId = best.getModeId();
+            lp.preferredRefreshRate = best.getRefreshRate();
+            getWindow().setAttributes(lp);
+            if (android.os.Build.VERSION.SDK_INT >= 30 && mSurface != null) {
+                android.view.Surface surf = mSurface.getHolder().getSurface();
+                if (surf != null && surf.isValid()) {
+                    if (android.os.Build.VERSION.SDK_INT >= 31)
+                        surf.setFrameRate(best.getRefreshRate(), android.view.Surface.FRAME_RATE_COMPATIBILITY_FIXED_SOURCE,
+                                android.view.Surface.CHANGE_FRAME_RATE_ALWAYS);
+                    else
+                        surf.setFrameRate(best.getRefreshRate(), android.view.Surface.FRAME_RATE_COMPATIBILITY_FIXED_SOURCE);
+                }
+            }
+            Log.i("Duke3D", "PSX: pantalla a " + best.getRefreshRate() + " Hz");
+        } catch (Exception e) {
+            Log.w("Duke3D", "PSX: no se pudo fijar la frecuencia", e);
+        }
     }
 
     @Override
