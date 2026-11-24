@@ -455,8 +455,18 @@ static void video_refresh(const void *data, unsigned w, unsigned h, size_t pitch
         if ((int)w != g_frame_w || (int)h != g_frame_h) g_frame.assign((size_t)w * h, 0);
         g_frame_w = w;
         g_frame_h = h;
+        // El dibujado por procesador de SwanStation entrega R,G,B,X en memoria (no el B,G,R,X de
+        // XRGB8888): sin cambiar rojo por azul todo salía azulado (Time to Kill, Dibujado: Procesador).
         for (unsigned y = 0; y < h; y++)
-            memcpy(&g_frame[(size_t)y * w], (const char *)data + y * pitch, w * 4);
+        {
+            const uint32_t *src = (const uint32_t *)((const char *)data + y * pitch);
+            uint32_t *dst = &g_frame[(size_t)y * w];
+            for (unsigned x = 0; x < w; x++)
+            {
+                uint32_t c = src[x];
+                dst[x] = (c & 0xFF00FF00u) | ((c >> 16) & 0xFFu) | ((c & 0xFFu) << 16);
+            }
+        }
     }
     present();
     core_current();
