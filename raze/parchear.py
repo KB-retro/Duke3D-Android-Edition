@@ -1003,7 +1003,7 @@ static void DukeSceneLights(TArray<HWSceneLight>& out, double interpfrac)
 		// Fuerte al principio y se apaga rápido al final (sin el corte de golpe).
 		float f = (float)(1. - (mt / 8.) * (mt / 8.));
 		auto pos = pact->getRenderPos(interpfrac) + DVector3(pact->spr.Angles.Yaw.ToVector() * 16, 8);
-		hw_AddSceneLight(out, pos, pact->sector(), 140, 1.3f * f, 1.0f * f, 0.6f * f);
+		hw_AddSceneLight(out, pos, pact->sector(), 56, 1.1f * f, 0.85f * f, 0.5f * f);	// solo lo cercano
 	}
 }
 
