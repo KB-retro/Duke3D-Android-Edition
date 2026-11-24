@@ -102,7 +102,7 @@ final class Guide {
                     "- En el menu principal, el boton Y (o tocar abajo) cambia de seccion: Legend (Duke Nukem 3D), Classic (Duke Nukem y Duke Nukem II) y Legacy (Time to Kill y Land of the Babes).",
                     "- Duke Nukem 1 y II (MS-DOS): en extras/duke1 y extras/duke2. Vale el zip descomprimido tal cual.",
                     "- Time to Kill y Land of the Babes (PlayStation): el disco (.cue y .bin, .chd, .pbp o .iso) en extras/timetokill y extras/landofthebabes, y, si la tienes, la BIOS de PlayStation (512 KB) en extras/bios (sin ella usa una libre, OpenBIOS).",
-                    "- Atras abre su menu rapido: guardado y carga rapida, graficos (en PlayStation tambien pantalla 4:3 o panoramica, resolucion y PAL a 60 Hz) y configurar mando.",
+                    "- Atras abre su menu rapido: guardado y carga rapida, graficos (en PlayStation tambien pantalla 4:3 o panoramica y resolucion), contador de FPS y configurar mando.",
             }, new String[]{
                     "- In the main menu, the Y button (or tapping the bottom) switches section: Legend (Duke Nukem 3D), Classic (Duke Nukem and Duke Nukem II) and Legacy (Time to Kill and Land of the Babes).",
                     "- Duke Nukem 1 and II (MS-DOS): in extras/duke1 and extras/duke2. The unzipped archive works as is.",
