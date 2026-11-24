@@ -60,8 +60,8 @@ tocando el pie del menú.
 - **Pack HD (HRP)**: texturas en alta resolución y **modelos 3D** animados de enemigos y objetos,
   con fundido entre posturas y giro suave. Las expansiones que redibujan gráficos (el Caribe)
   conservan los suyos.
-- **Luces dinámicas**: explosiones, cohetes, fuego, rayos del congelador y del reductor, láseres,
-  y el fogonazo de tu arma iluminan paredes, suelos, enemigos y modelos.
+- **Luces dinámicas**: explosiones, cohetes, fuego, rayos del congelador y del reductor, láseres y
+  el fogonazo de tu arma iluminan paredes, suelos, enemigos y modelos.
 - **Mods** (`Duke3D/mods/Graficos y sonido`): cada mod tiene su interruptor en **Opciones** del
   lanzador y en el menú rápido. El pack HD y el XXX vienen activados de serie (los que lleven
   «hrp», «hd» o «xxx» en el nombre).
