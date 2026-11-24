@@ -784,7 +784,8 @@ sub("source/core/gamefuncs.h",
     "\tsectortype* sect[MAXSECT];\n\tint nsect;\n};\n"
     "extern TArray<HWSceneLight> hw_scenelights;\n"
     "extern void (*hw_gamelights)(TArray<HWSceneLight>& out, double interpfrac);\n"
-    "void hw_AddSceneLight(TArray<HWSceneLight>& out, const DVector3& pos, sectortype* sect, float radius, float r, float g, float b);\n")
+    "void hw_AddSceneLight(TArray<HWSceneLight>& out, const DVector3& pos, sectortype* sect, float radius, float r, float g, float b);\n"
+    "bool hw_DynLightsOn();\n")
 sub("source/core/rendering/scene/hw_sprites.cpp",
     '#include "models/modeldata.h"\n#include "model.h"',
     '#include "models/modeldata.h"\n#include "model.h"\n#include "gamefuncs.h"\n#include "hw_dynlightdata.h"\n#include "hw_lightbuffer.h"')
@@ -794,6 +795,7 @@ sub("source/core/rendering/scene/hw_sprites.cpp",
 CVAR(Bool, hw_dynlights, true, CVAR_ARCHIVE | CVAR_GLOBALCONFIG)
 TArray<HWSceneLight> hw_scenelights;
 void (*hw_gamelights)(TArray<HWSceneLight>& out, double interpfrac) = nullptr;
+bool hw_DynLightsOn() { return hw_dynlights && hw_gamelights != nullptr; }
 
 void hw_AddSceneLight(TArray<HWSceneLight>& out, const DVector3& pos, sectortype* sect, float radius, float r, float g, float b)
 {
@@ -894,7 +896,7 @@ sub("source/core/rendering/scene/hw_sprites.cpp",
     "int hw_GetLights(sectortype* sec, const FVector3& mins, const FVector3& maxs, bool attenuate);\n"
     "void HWSprite::DrawSprite(HWDrawInfo* di, FRenderState& state, bool translucent)\n{\n"
     "\tdynlightindex = -1;\n"
-    "\tif (Sprite && hw_scenelights.Size() > 0 && RenderStyle.BlendOp != STYLEOP_Add)\n\t{\n"
+    "\tif (Sprite && Sprite->shade < 127 && hw_scenelights.Size() > 0 && RenderStyle.BlendOp != STYLEOP_Add)\n\t{\n"
     "\t\tFVector3 c((float)Sprite->pos.X, (float)-Sprite->pos.Z, (float)-Sprite->pos.Y);\n"
     "\t\tdynlightindex = hw_GetLights(Sprite->sectp, c - FVector3(24, 8, 24), c + FVector3(24, 72, 24), false);\n\t}\n"
     "\tbool additivefog = false;")
@@ -994,10 +996,14 @@ static void DukeSceneLights(TArray<HWSceneLight>& out, double interpfrac)
 	// Fogonazo del arma del jugador (unos 80 ms tras cada disparo).
 	auto p = getPlayer(screenpeek);
 	auto pact = p ? p->GetActor() : nullptr;
-	if (pact && pact->sector() && PlayClock - gDukeMuzzleClock >= 0 && PlayClock - gDukeMuzzleClock < 10)
+	// Se apaga poco a poco (de golpe parpadeaba toda la habitación) y alumbra solo lo cercano.
+	double mt = PlayClock - gDukeMuzzleClock + interpfrac;
+	if (pact && pact->sector() && mt >= 0 && mt < 8)
 	{
-		auto pos = pact->getRenderPos(interpfrac) + DVector3(pact->spr.Angles.Yaw.ToVector() * 12, 8);
-		hw_AddSceneLight(out, pos, pact->sector(), 120, 1.0f, 0.78f, 0.45f);
+		float f = (float)(1. - mt / 8.);
+		f *= f;
+		auto pos = pact->getRenderPos(interpfrac) + DVector3(pact->spr.Angles.Yaw.ToVector() * 16, 8);
+		hw_AddSceneLight(out, pos, pact->sector(), 80, 0.85f * f, 0.65f * f, 0.38f * f);
 	}
 }
 
@@ -1146,3 +1152,23 @@ sub("source/common/audio/sound/i_sound.cpp",
     "\t\t\t\t\t\tif (bits == 8)\n\t\t\t\t\t\t{\n\t\t\t\t\t\t\tmemset(data+j, 128, silength);",
     "\t\t\t\t\t\tsilength = std::min(silength, len - j);\n\t\t\t\t\t\tif (silength <= 0) break;\n"
     "\t\t\t\t\t\tif (bits == 8)\n\t\t\t\t\t\t{\n\t\t\t\t\t\t\tmemset(data+j, 128, silength);")
+
+# 37. Con las luces dinámicas, sin el destello del original: al disparar o con cada explosión
+#     el juego aclaraba el nivel entero de golpe (todas las paredes parpadeaban). Ahora lo hacen
+#     las luces (el fogonazo del arma y la de la explosión), solo alrededor.
+sub("source/games/duke/src/render.cpp",
+    "\tg_relvisibility = p->visibility - ud.const_visibility;",
+    "\tg_relvisibility = hw_DynLightsOn() ? 0 : p->visibility - ud.const_visibility;")
+
+# 38. Sombras de los enemigos con modelo 3D. El juego las pide como el modelo aplastado contra el
+#     suelo (alto 0, justo a la altura del suelo): con alto 0 no se veía nada y, a la misma
+#     altura, el suelo la tapaba. Ahora casi plano y un pelín por encima.
+sub("source/core/rendering/scene/hw_sprites.cpp",
+    "\tfloat sv = 0.64f * desc->bscale * (float)spr->scale.Y;\n",
+    "\tfloat sv = 0.64f * desc->bscale * (float)spr->scale.Y;\n"
+    "\tbool mdshadow = (spr->clipdist & TSPR_FLAGS_MDHACK) != 0;\n"
+    "\tif (mdshadow) sv = sh * 0.004f;\n")
+sub("source/core/rendering/scene/hw_sprites.cpp",
+    "\tz = -zpos;\n\ty = -(float)(spr->pos.Y + ownerActor->sprext.position_offset.Y);\n",
+    "\tz = -zpos;\n\ty = -(float)(spr->pos.Y + ownerActor->sprext.position_offset.Y);\n"
+    "\tif (mdshadow) { z += 0.15f; up = 0; }\n")
