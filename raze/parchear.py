@@ -951,31 +951,31 @@ static void DukeSceneLights(TArray<HWSceneLight>& out, double interpfrac)
 	if (!isDuke()) return;
 	struct LightDef { const char* cls; float radius, r, g, b; bool flicker; };
 	static const LightDef defs[] = {
-		{ "DukeExplosion2", 128, 1.0f, 0.6f, 0.25f, false },
-		{ "DukeExplosion2Bot", 128, 1.0f, 0.6f, 0.25f, false },
+		{ "DukeExplosion2", 171, 1.0f, 0.6f, 0.25f, false },
+		{ "DukeExplosion2Bot", 171, 1.0f, 0.6f, 0.25f, false },
 		{ "DukeSeenine", 0, 0, 0, 0, false },
-		{ "DukeRPG", 54, 1.0f, 0.6f, 0.25f, false },
-		{ "DukeFireball", 68, 1.0f, 0.55f, 0.2f, true },
-		{ "DukeFreezeBlast", 48, 0.3f, 0.55f, 1.0f, false },
-		{ "DukeShrinkSpark", 48, 0.35f, 1.0f, 0.35f, false },
-		{ "DukeShrinkerExplosion", 96, 0.35f, 1.0f, 0.35f, false },
-		{ "DukeGrowSpark", 48, 1.0f, 0.35f, 0.35f, false },
-		{ "DukeCoolExplosion1", 72, 0.8f, 0.35f, 1.0f, false },
-		{ "DukeFirelaser", 36, 1.0f, 0.3f, 0.15f, false },
-		{ "DukeDevastatorBlast", 54, 1.0f, 0.6f, 0.25f, false },
+		{ "DukeRPG", 72, 1.0f, 0.6f, 0.25f, false },
+		{ "DukeFireball", 91, 1.0f, 0.55f, 0.2f, true },
+		{ "DukeFreezeBlast", 64, 0.3f, 0.55f, 1.0f, false },
+		{ "DukeShrinkSpark", 64, 0.35f, 1.0f, 0.35f, false },
+		{ "DukeShrinkerExplosion", 128, 0.35f, 1.0f, 0.35f, false },
+		{ "DukeGrowSpark", 64, 1.0f, 0.35f, 0.35f, false },
+		{ "DukeCoolExplosion1", 96, 0.8f, 0.35f, 1.0f, false },
+		{ "DukeFirelaser", 48, 1.0f, 0.3f, 0.15f, false },
+		{ "DukeDevastatorBlast", 72, 1.0f, 0.6f, 0.25f, false },
 		// (sin luz en las chispas de las balas: cada disparo encendía las paredes lejanas donde daba)
-		{ "DukeBurning", 54, 1.0f, 0.5f, 0.15f, true },
-		{ "DukeBurning2", 54, 1.0f, 0.5f, 0.15f, true },
-		{ "DukeFire", 54, 1.0f, 0.5f, 0.15f, true },
-		{ "DukeFire2", 54, 1.0f, 0.5f, 0.15f, true },
-		{ "DukeOnFire", 42, 1.0f, 0.5f, 0.15f, true },
-		{ "DukeFloorFlame", 54, 1.0f, 0.5f, 0.15f, true },
-		{ "DukeFlamethrowerFlame", 48, 1.0f, 0.5f, 0.15f, true },
-		{ "DukeAtomicHealth", 36, 0.3f, 0.55f, 1.0f, false },
-		{ "DukeTransporterStar", 42, 0.4f, 0.6f, 1.0f, false },
-		{ "DukeTransporterBeam", 60, 0.4f, 0.6f, 1.0f, false },
-		{ "DukeReactorSpark", 48, 0.6f, 0.8f, 1.0f, false },
-		{ "DukeReactor2Spark", 48, 0.6f, 0.8f, 1.0f, false },
+		{ "DukeBurning", 72, 1.0f, 0.5f, 0.15f, true },
+		{ "DukeBurning2", 72, 1.0f, 0.5f, 0.15f, true },
+		{ "DukeFire", 72, 1.0f, 0.5f, 0.15f, true },
+		{ "DukeFire2", 72, 1.0f, 0.5f, 0.15f, true },
+		{ "DukeOnFire", 56, 1.0f, 0.5f, 0.15f, true },
+		{ "DukeFloorFlame", 72, 1.0f, 0.5f, 0.15f, true },
+		{ "DukeFlamethrowerFlame", 64, 1.0f, 0.5f, 0.15f, true },
+		{ "DukeAtomicHealth", 48, 0.3f, 0.55f, 1.0f, false },
+		{ "DukeTransporterStar", 56, 0.4f, 0.6f, 1.0f, false },
+		{ "DukeTransporterBeam", 80, 0.4f, 0.6f, 1.0f, false },
+		{ "DukeReactorSpark", 64, 0.6f, 0.8f, 1.0f, false },
+		{ "DukeReactor2Spark", 64, 0.6f, 0.8f, 1.0f, false },
 	};
 	static TMap<FName, int> map;
 	if (map.CountUsed() == 0)
@@ -1003,7 +1003,7 @@ static void DukeSceneLights(TArray<HWSceneLight>& out, double interpfrac)
 		// Fuerte al principio y se apaga rápido al final (sin el corte de golpe).
 		float f = (float)(1. - (mt / 8.) * (mt / 8.));
 		auto pos = pact->getRenderPos(interpfrac) + DVector3(pact->spr.Angles.Yaw.ToVector() * 16, 8);
-		hw_AddSceneLight(out, pos, pact->sector(), 56, 1.1f * f, 0.85f * f, 0.5f * f);	// solo lo cercano
+		hw_AddSceneLight(out, pos, pact->sector(), 100, 1.2f * f, 0.95f * f, 0.55f * f);
 	}
 }
 
@@ -1153,12 +1153,12 @@ sub("source/common/audio/sound/i_sound.cpp",
     "\t\t\t\t\t\tsilength = std::min(silength, len - j);\n\t\t\t\t\t\tif (silength <= 0) break;\n"
     "\t\t\t\t\t\tif (bits == 8)\n\t\t\t\t\t\t{\n\t\t\t\t\t\t\tmemset(data+j, 128, silength);")
 
-# 37. Con las luces dinámicas, sin el destello del original: al disparar o con cada explosión
+# 37. Sin el destello del original (con o sin luces dinámicas): al disparar o con cada explosión
 #     el juego aclaraba el nivel entero de golpe (todas las paredes parpadeaban). Ahora lo hacen
 #     las luces (el fogonazo del arma y la de la explosión), solo alrededor.
 sub("source/games/duke/src/render.cpp",
     "\tg_relvisibility = p->visibility - ud.const_visibility;",
-    "\tg_relvisibility = hw_DynLightsOn() ? 0 : p->visibility - ud.const_visibility;")
+    "\tg_relvisibility = 0;")
 
 # 38. Sombras de los enemigos con modelo 3D. El juego las pide como el modelo aplastado contra el
 #     suelo (alto 0, justo a la altura del suelo): con alto 0 no se veía nada y, a la misma
