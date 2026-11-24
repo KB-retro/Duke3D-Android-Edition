@@ -61,7 +61,7 @@ tocando el pie del menú.
   con fundido entre posturas y giro suave. Las expansiones que redibujan gráficos (el Caribe)
   conservan los suyos.
 - **Luces dinámicas**: explosiones, cohetes, fuego, rayos del congelador y del reductor, láseres,
-  chispas de las balas y el fogonazo de tu arma iluminan paredes, suelos, enemigos y modelos.
+  y el fogonazo de tu arma iluminan paredes, suelos, enemigos y modelos.
 - **Mods** (`Duke3D/mods/Graficos y sonido`): cada mod tiene su interruptor en **Opciones** del
   lanzador y en el menú rápido. El pack HD y el XXX vienen activados de serie (los que lleven
   «hrp», «hd» o «xxx» en el nombre).

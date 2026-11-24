@@ -963,7 +963,7 @@ static void DukeSceneLights(TArray<HWSceneLight>& out, double interpfrac)
 		{ "DukeCoolExplosion1", 96, 0.8f, 0.35f, 1.0f, false },
 		{ "DukeFirelaser", 48, 1.0f, 0.3f, 0.15f, false },
 		{ "DukeDevastatorBlast", 72, 1.0f, 0.6f, 0.25f, false },
-		{ "DukeShotSpark", 28, 1.0f, 0.8f, 0.45f, false },
+		// (sin luz en las chispas de las balas: cada disparo encendía las paredes lejanas donde daba)
 		{ "DukeBurning", 72, 1.0f, 0.5f, 0.15f, true },
 		{ "DukeBurning2", 72, 1.0f, 0.5f, 0.15f, true },
 		{ "DukeFire", 72, 1.0f, 0.5f, 0.15f, true },
