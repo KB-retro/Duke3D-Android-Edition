@@ -69,7 +69,7 @@ public final class ClassicApi {
     }
 
     /**
-     * Los mods que sirven en la Classic: sin el pack HD (HRP). El motor por software no usa sus
+     * Los mods que sirven en la Classic: sin el pack HD (HRP) ni el XXX. El motor por software no usa sus
      * texturas ni sus modelos, y leer sus definiciones dejaba la pantalla en negro casi un minuto.
      */
     public static List<File> mods(File gameDir) {
@@ -80,7 +80,8 @@ public final class ClassicApi {
 
     static boolean isHrp(File f) {
         String n = f.getName().toLowerCase(java.util.Locale.ROOT);
-        if (n.contains("hrp") || n.contains("texturas hd") || n.contains("texturas_hd")) return true;
+        // También el XXX: es un añadido del pack HD (texturas HD), y sin él no hace nada.
+        if (n.contains("hrp") || n.contains("texturas hd") || n.contains("texturas_hd") || n.contains("xxx")) return true;
         return f.isDirectory() && (new File(f, "duke3d_hrp.def").exists() || new File(f, "duke3d_hrp_megaton.def").exists());
     }
 
