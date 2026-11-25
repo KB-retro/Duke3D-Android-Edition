@@ -1439,7 +1439,12 @@ void OpenGLFrameBuffer::Swap()
 {
 	static double lastEnd = 0, t0 = 0, sumWork = 0, maxWork = 0, sumLimit = 0, sumSwap = 0, maxSwap = 0, maxFrame = 0;
 	static int frames = 0, slow = 0, slowWork = 0, slowSwap = 0;
+	static double sumProcess = 0, sumRender = 0, sumBsp = 0, sumAll = 0;
+	static long sumWalls = 0, sumFlats = 0, sumSprites = 0;
 	double tStart = diagNowMs();
+	// Fases del dibujado de este fotograma (contadores de Raze, siempre activos: ver checkBenchActive).
+	sumProcess += ProcessAll.TimeMS(); sumRender += RenderAll.TimeMS(); sumBsp += Bsp.TimeMS(); sumAll += All.TimeMS();
+	sumWalls += rendered_lines; sumFlats += rendered_flats; sumSprites += rendered_sprites;
 	if (t0 == 0) t0 = tStart;
 
 	Finish.Reset();
@@ -1466,13 +1471,21 @@ void OpenGLFrameBuffer::Swap()
 			"juego media %.1f / peor %.1f ms, limite %.1f ms, intercambio media %.1f / peor %.1f ms\n",
 			frames, frames * 1000.0 / (tEnd - t0), maxFrame, slow, slowWork, slowSwap,
 			sumWork / frames, maxWork, sumLimit / frames, sumSwap / frames, maxSwap);
+		Printf("Fases (media por fotograma): escena total %.1f ms = preparar %.1f (BSP %.1f) + dibujar %.1f; resto del juego %.1f ms; "
+			"paredes %ld, suelos %ld, sprites %ld\n",
+			sumAll / frames, sumProcess / frames, sumBsp / frames, sumRender / frames, sumWork / frames - sumAll / frames,
+			sumWalls / frames, sumFlats / frames, sumSprites / frames);
+		sumProcess = sumRender = sumBsp = sumAll = 0; sumWalls = sumFlats = sumSprites = 0;
 		t0 = tEnd; frames = slow = slowWork = slowSwap = 0;
 		sumWork = maxWork = sumLimit = sumSwap = maxSwap = maxFrame = 0;
 	}
 ''')
 sub("source/common/rendering/gles/gles_framebuffer.cpp",
     '#include "gles_framebuffer.h"',
-    '#include "gles_framebuffer.h"\n#include <chrono>')
+    '#include "gles_framebuffer.h"\n#include <chrono>\n#include "hw_clock.h"')
+sub("source/common/rendering/hwrenderer/data/hw_clock.cpp",
+    "\tglcycle_t::active = ((stat != NULL && stat->isActive()) || printstats);",
+    "\tglcycle_t::active = true;\t// siempre: el diagnóstico de fluidez del registro los usa\n\t(void)stat;")
 
 # 45. (Solo build Dimensity) Texturas: cada vez que se usa una (cientos de veces por fotograma) el
 #     modo GLES le volvía a poner sus parámetros (repetición, filtro, anisotrópico: cinco llamadas
