@@ -596,7 +596,7 @@ bool HWSprite::ProcessModel(HWDrawInfo* di, ModelTileFrame* pt, tspritetype* spr
 					pitch = (float)sy->pitch;
 					// Quieto: respira (cada uno a su ritmo, para que no vayan todos a la vez).
 					double idle = clamp(1. - sy->speed / 20., 0., 1.);
-					breathe = (float)(idle * 0.012 * sin(t * 2.2 + ownerActor->GetIndex() * 1.7));
+					(void)idle;	// la respiración va ahora en el juego para todos (sprites y modelos): ver 48
 				}
 				sy->px = spr->pos.X;
 				sy->py = spr->pos.Y;
@@ -1575,3 +1575,72 @@ sub("source/games/duke/src/animatesprites.cpp",
     "\t\t\tfloat shade = (float)hw_CeilingShade(sec);\n",
     "\t\t\tif (lt != SE_12_LIGHT_SWITCH) hw_MarkFlickerSector(sec);\t// la zona fija; parpadea solo la luz\n"
     "\t\t\tfloat shade = (float)hw_RawCeilingShade(sec);\n")
+
+# 48. Enemigos con más vida, también como sprites 2D (los modelos 3D vienen apagados de serie):
+#     un leve paso arriba y abajo al ritmo de lo que avanzan, respiración cuando están quietos
+#     (cada uno a su ritmo) y un encogimiento rápido al recibir un disparo. Solo el dibujo: el
+#     juego no cambia.
+sub("source/games/duke/src/funct.h",
+    "void drawobjectshadow(tspriteArray& tsprites, tspritetype* t, DDukeActor* h);",
+    "void drawobjectshadow(tspriteArray& tsprites, tspritetype* t, DDukeActor* h);\n"
+    "void enemylife(tspritetype* t, DDukeActor* h, double interpfrac);")
+sub("source/games/duke/src/animatesprites.cpp",
+    "void drawobjectshadow(tspriteArray& tsprites, tspritetype* t, DDukeActor* h)\n{",
+    r'''void enemylife(tspritetype* t, DDukeActor* h, double interpfrac)
+{
+	if (!badguy(h) || h->spr.extra <= 0 || h->spr.statnum != STAT_ACTOR) return;
+	struct Life { double px, py, speed, dist, t, hitT; int extra; };
+	static TMap<DDukeActor*, Life> lifes;
+	static double lastPurge = 0;
+	double now = ((double)PlayClock + 4. * interpfrac) / 120.;
+	if (now < lastPurge || now - lastPurge > 10)
+	{
+		TArray<DDukeActor*> old;
+		TMap<DDukeActor*, Life>::Iterator it(lifes);
+		TMap<DDukeActor*, Life>::Pair* pair;
+		while (it.NextPair(pair)) if (now < pair->Value.t || now - pair->Value.t > 1) old.Push(pair->Key);
+		for (auto a : old) lifes.Remove(a);
+		lastPurge = now;
+	}
+	Life* L = lifes.CheckKey(h);
+	if (!L || now < L->t || now - L->t > 0.5)
+	{
+		lifes.Insert(h, { h->spr.pos.X, h->spr.pos.Y, 0, 0, now, -10, h->spr.extra });
+		return;
+	}
+	double dt = now - L->t;
+	if (dt > 1e-4)
+	{
+		double d = hypot(h->spr.pos.X - L->px, h->spr.pos.Y - L->py);
+		if (d > 64) d = 0;	// teletransporte o reaparición
+		L->dist += d;
+		L->speed += (d / dt - L->speed) * (1. - exp(-dt / 0.15));
+		L->px = h->spr.pos.X; L->py = h->spr.pos.Y; L->t = now;
+	}
+	if (h->spr.extra < L->extra) L->hitT = now;	// le han dado
+	L->extra = h->spr.extra;
+
+	double move = clamp(L->speed / 40., 0., 1.);
+	float sx = 1.f, sy = 1.f;
+	// Paso: sube un poco a mitad de cada zancada (al ritmo de lo que avanza).
+	double dz = -move * fabs(sin(L->dist * 0.35)) * 0.8;
+	// Respiración en reposo, cada uno a su ritmo.
+	sy *= (float)(1. + (1. - move) * 0.012 * sin(now * 2.2 + h->GetIndex() * 1.7));
+	// Golpe: se encoge y se ensancha un instante.
+	double ht = now - L->hitT;
+	if (ht >= 0 && ht < 0.2)
+	{
+		double f = sin(ht / 0.2 * M_PI);
+		sx *= (float)(1. + 0.07 * f);
+		sy *= (float)(1. - 0.06 * f);
+	}
+	t->scale.X *= sx;
+	t->scale.Y *= sy;
+	t->pos.Z += dz;
+}
+
+void drawobjectshadow(tspriteArray& tsprites, tspritetype* t, DDukeActor* h)
+{''')
+sub("source/games/duke/src/animatesprites_d.cpp",
+    "\t\tapplyanimations(t, h, viewVec, viewang);\n",
+    "\t\tapplyanimations(t, h, viewVec, viewang);\n\t\tenemylife(t, h, interpfrac);\n")
