@@ -165,27 +165,44 @@ public final class ClassicApi {
     }
 
     /** Una partida «sola» sobre el juego base (Penthouse Paradise): sin mods ni traducción. */
-    public static Intent prepareAlone(Context c, File gameDir, String[] extraArgs) {
+    public static Intent prepareAlone(Context c, File gameDir, String[] extraArgs, boolean spanish) {
         I18n.load(c);
         List<GameData.Game> all = GameData.games(gameDir);
         if (all.isEmpty()) return null;
-        List<String> args = new ArrayList<>(Arrays.asList(GameData.arguments(c, gameDir, all.get(0), null)));
+        // En castellano, la traducción del juego base (menús y textos): Penthouse es el mismo juego.
+        String def = null;
+        if (spanish) {
+            try {
+                def = Translator.prepare(c, gameDir, all.get(0), all.get(0));
+            } catch (Throwable e) {
+                android.util.Log.e("Duke3D", "Classic: no se pudo preparar la traducción", e);
+            }
+        }
+        List<String> args = new ArrayList<>(Arrays.asList(GameData.arguments(c, gameDir, all.get(0), def)));
         args.addAll(Arrays.asList(extraArgs));
         Intent intent = new Intent(c, GameActivity.class);
         intent.putExtra(GameActivity.EXTRA_DIR, gameDir.getAbsolutePath());
         intent.putExtra(GameActivity.EXTRA_ARGS, args.toArray(new String[0]));
-        intent.putExtra(GameActivity.EXTRA_LANG, "en");
+        intent.putExtra(GameActivity.EXTRA_LANG, def != null ? "es" : "en");
         intent.putExtra(GameActivity.EXTRA_BASE_GRP, all.get(0).grp.getAbsolutePath());
         return intent;
     }
 
     // ---- Opciones (independientes de las de la Legacy) ----
 
-    /** FPS, vibración y controles táctiles. */
+    /** Vibración y controles táctiles (en el mismo orden que en la HD). */
     public static List<Option> options(Context c) {
         I18n.load(c);
         List<Option> out = new ArrayList<>();
-        out.add(new Option("FPS", () -> {
+        out.add(new Option(I18n.t("vibration"), () -> I18n.t(prefs(c).getBoolean("vibracion", true) ? "yes" : "no"),
+                () -> prefs(c).edit().putBoolean("vibracion", !prefs(c).getBoolean("vibracion", true)).apply(), null));
+        out.add(new Option(I18n.t("touch_controls"), () -> ControlSettings.touchModeLabel(c),
+                () -> ControlSettings.cycleTouchMode(c), null));
+        return out;
+    }
+
+    private static Option fpsOption(Context c) {
+        return new Option(I18n.t("fps_limit"), () -> {
             int f = prefs(c).getInt("fps", 120);
             return f <= 0 ? I18n.t("unlimited") : f + " FPS";
         }, () -> {
@@ -193,12 +210,7 @@ public final class ClassicApi {
             int cur = prefs(c).getInt("fps", 120), i = 0;
             for (int k = 0; k < values.length; k++) if (values[k] == cur) i = k;
             prefs(c).edit().putInt("fps", values[(i + 1) % values.length]).apply();
-        }, null));
-        out.add(new Option(I18n.t("vibration"), () -> I18n.t(prefs(c).getBoolean("vibracion", true) ? "yes" : "no"),
-                () -> prefs(c).edit().putBoolean("vibracion", !prefs(c).getBoolean("vibracion", true)).apply(), null));
-        out.add(new Option(I18n.t("touch_controls"), () -> ControlSettings.touchModeLabel(c),
-                () -> ControlSettings.cycleTouchMode(c), null));
-        return out;
+        }, null);
     }
 
     /** Gráficos de la Classic: resolución y filtros de imagen. */
@@ -208,6 +220,8 @@ public final class ClassicApi {
         GraphicsSettings.addTo(c, p, null, null);
         List<Option> out = new ArrayList<>();
         for (DukeMenuView.Entry e : p.entries) out.add(new Option(e.label, e.value, e.action, e.step));
+        // El límite de FPS, tras la resolución (como en la HD).
+        out.add(Math.min(1, out.size()), fpsOption(c));
         return out;
     }
 

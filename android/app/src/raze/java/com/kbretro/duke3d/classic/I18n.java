@@ -48,6 +48,7 @@ final class I18n {
         put("to_launcher", "Volver al lanzador", "Back to launcher");
         put("quit_game", "Salir del juego", "Quit game");
         put("unlimited", "Sin límite", "Unlimited");
+        put("fps_limit", "Límite de FPS", "FPS limit");
         put("resolution", "Resolución", "Resolution");
         put("cheat_god", "Modo dios", "God mode");
         put("cheat_noclip", "Atravesar paredes", "No clipping");

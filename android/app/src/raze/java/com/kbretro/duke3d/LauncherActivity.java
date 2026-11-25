@@ -352,8 +352,9 @@ public class LauncherActivity extends Activity {
             DukeMenuView.Entry e = root.entries.get(root.entries.size() - 1);
             e.coverTap = () -> penthouseTap(e);
         }
-        root.add(I18n.t("mods"), null, () -> menuView.push(classicModsPage(gameDir)));
+        // Mismo orden que en la HD: Opciones y, donde la HD tiene Extras, los Mods.
         root.add(I18n.t("options"), null, () -> menuView.push(classicOptionsPage(gameDir)));
+        root.add(I18n.t("mods"), null, () -> menuView.push(classicModsPage(gameDir)));
     }
 
     private void addClassicOptions(DukeMenuView.Page p, List<com.kbretro.duke3d.classic.ClassicApi.Option> opts) {
@@ -777,7 +778,8 @@ public class LauncherActivity extends Activity {
             Intent intent;
             try {
                 intent = com.kbretro.duke3d.classic.ClassicApi.prepareAlone(this, gameDir,
-                        new String[]{"-j", prep.getAbsolutePath(), "-x", "GAME.CON", "-map", "ppakpent.map"});
+                        new String[]{"-j", prep.getAbsolutePath(), "-x", "GAME.CON", "-map", "ppakpent.map"},
+                        I18n.ES.equals(I18n.lang()));
             } catch (Throwable t) {
                 android.util.Log.e("Duke3D", "Classic: no se pudo preparar Penthouse", t);
                 runOnUiThread(() -> {
