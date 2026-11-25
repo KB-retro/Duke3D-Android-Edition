@@ -459,7 +459,7 @@ static void ModelAnimate(DCoreActor* act, ModelDescriptor* desc, ModelTileFrame*
 		// se quedaba quieto hasta la siguiente postura.) Se funde durante lo que duró la anterior,
 		// así el modelo no para nunca entre una postura y la siguiente.
 		float dur = 0;
-		if (!first) dur = clamp(max(pt->smoothduration, (now - ext.mdanimtims) / 1000.f), 0.06f, 0.3f);
+		if (!first) dur = clamp(max(pt->smoothduration, (now - ext.mdanimtims) / 1000.f), 0.08f, 0.35f);
 		ext.mdanimcur = (int16_t)(target + 1);
 		ext.mdanimtims = now;
 		if (!first) sm.mdoldframe = sm.mdcurframe;
@@ -547,8 +547,13 @@ bool HWSprite::ProcessModel(HWDrawInfo* di, ModelTileFrame* pt, tspritetype* spr
 	// Giro suave: el ángulo de los enemigos cambia de golpe (Duke no guarda el anterior para
 	// interpolarlo), así que el modelo se va girando hacia él en unas décimas de segundo.
 	DAngle baseyaw = spr->Angles.Yaw;
+	// Enemigos vivos (y demás actores con vida): movimientos de más para que no parezcan robots.
+	bool living = ownerActor->spr.statnum == 1 && ownerActor->spr.extra > 0;
+	float roll = 0, pitch = 0, breathe = 0;
 	{
-		struct SmoothYaw { double yaw, t; };
+		// Además del giro: velocidad real (por lo que avanza), ladeo al girar, cabeceo al
+		// arrancar y frenar (ver más abajo).
+		struct SmoothYaw { double yaw, t, px, py, speed, roll, pitch; };
 		static TMap<DCoreActor*, SmoothYaw> yaws;
 		static double lastPurge = 0;
 		double t = ((double)PlayClock + 4. * di->Viewpoint.TicFrac) / 120.;
@@ -566,14 +571,36 @@ bool HWSprite::ProcessModel(HWDrawInfo* di, ModelTileFrame* pt, tspritetype* spr
 		{
 			SmoothYaw* sy = yaws.CheckKey(ownerActor);
 			double target = spr->Angles.Yaw.Degrees();
-			if (!sy || t < sy->t || t - sy->t > 0.5) yaws.Insert(ownerActor, { target, t });
-			else
+			if (!sy || t < sy->t || t - sy->t > 0.5) yaws.Insert(ownerActor, { target, t, spr->pos.X, spr->pos.Y, 0, 0, 0 });
+			else if (t - sy->t > 1e-4)
 			{
+				double dt = t - sy->t;
 				double d = remainder(target - sy->yaw, 360.);
-				double k = 1. - exp(-(t - sy->t) / 0.07);
+				double k = 1. - exp(-dt / 0.07);
 				sy->yaw += d * k;
-				sy->t = t;
 				baseyaw = DAngle::fromDeg(sy->yaw);
+				if (living)
+				{
+					double inst = hypot(spr->pos.X - sy->px, spr->pos.Y - sy->py) / dt;
+					if (inst > 2000) inst = sy->speed;	// teletransporte o reaparición
+					double newspeed = sy->speed + (inst - sy->speed) * (1. - exp(-dt / 0.12));
+					double accel = (newspeed - sy->speed) / dt;
+					sy->speed = newspeed;
+					// Se ladea hacia donde gira y cabecea al arrancar y al frenar (unos grados).
+					double rollT = clamp(remainder(target - sy->yaw, 360.) * 0.25, -7., 7.);
+					double pitchT = clamp(-accel * 0.005, -5., 5.);
+					double kl = 1. - exp(-dt / 0.15);
+					sy->roll += (rollT - sy->roll) * kl;
+					sy->pitch += (pitchT - sy->pitch) * kl;
+					roll = (float)sy->roll;
+					pitch = (float)sy->pitch;
+					// Quieto: respira (cada uno a su ritmo, para que no vayan todos a la vez).
+					double idle = clamp(1. - sy->speed / 20., 0., 1.);
+					breathe = (float)(idle * 0.012 * sin(t * 2.2 + ownerActor->GetIndex() * 1.7));
+				}
+				sy->px = spr->pos.X;
+				sy->py = spr->pos.Y;
+				sy->t = t;
 			}
 		}
 	}
@@ -605,7 +632,9 @@ bool HWSprite::ProcessModel(HWDrawInfo* di, ModelTileFrame* pt, tspritetype* spr
 	rotmat.loadIdentity();
 	rotmat.translate(x, z + up, y);
 	rotmat.rotate((float)ang.Degrees(), 0, 1, 0);
-	rotmat.scale(sh, yflip ? -sv : sv, xflip ? -sh : sh);
+	if (roll != 0) rotmat.rotate(roll, 1, 0, 0);
+	if (pitch != 0) rotmat.rotate(pitch, 0, 0, 1);
+	rotmat.scale(sh, (yflip ? -sv : sv) * (1.f + breathe), xflip ? -sh : sh);
 
 	auto vp = di->Viewpoint;
 	depth = (float)((x - vp.Pos.X) * vp.TanCos + (y - vp.Pos.Y) * vp.TanSin);
@@ -782,7 +811,7 @@ sub("source/core/gamefuncs.h",
     '#include "updatesector.h"',
     '#include "updatesector.h"\n\n'
     "struct HWSceneLight\n{\n\tenum { MAXSECT = 24 };\n\tFVector3 pos;\t\t// en coordenadas del render (x, altura, -y)\n"
-    "\tDVector3 mappos;\n\tfloat radius;\n\tFVector3 color;\n\tsectortype* sector;\n"
+    "\tDVector3 mappos;\n\tfloat radius;\n\tFVector3 color;\n\tsectortype* sector;\n\tconst void* owner;\t// a quien no alumbra (quien dispara)\n"
     "\tsectortype* sect[MAXSECT];\n\tint nsect;\n};\n"
     "extern TArray<HWSceneLight> hw_scenelights;\n"
     "extern void (*hw_gamelights)(TArray<HWSceneLight>& out, double interpfrac);\n"
@@ -808,6 +837,7 @@ void hw_AddSceneLight(TArray<HWSceneLight>& out, const DVector3& pos, sectortype
 	l.radius = radius;
 	l.color = FVector3(r, g, b);
 	l.sector = sect;
+	l.owner = nullptr;
 	l.nsect = 0;
 }
 
@@ -865,6 +895,8 @@ void hw_CollectSceneLights(double interpfrac)
 	}
 }
 
+const void* hw_lightskip;	// el actor que se está dibujando (sus propios disparos no lo alumbran)
+
 // Sube al búfer las luces que tocan una caja (coordenadas del render) en ese sector.
 // attenuate: según el ángulo con la superficie (paredes y suelos); los sprites no tienen normal.
 int hw_GetLights(sectortype* sec, const FVector3& mins, const FVector3& maxs, bool attenuate)
@@ -876,6 +908,7 @@ int hw_GetLights(sectortype* sec, const FVector3& mins, const FVector3& maxs, bo
 	int n = 0;
 	for (auto& l : hw_scenelights)
 	{
+		if (l.owner && l.owner == hw_lightskip) continue;
 		bool ok = false;
 		for (int k = 0; k < l.nsect; k++) if (l.sect[k] == sec) { ok = true; break; }
 		if (!ok) continue;
@@ -921,7 +954,9 @@ sub("source/core/rendering/scene/hw_sprites.cpp",
     "\tdynlightindex = -1;\n"
     "\tif (Sprite && Sprite->shade < 127 && hw_scenelights.Size() > 0 && !(RenderStyle.BlendOp == STYLEOP_Add && RenderStyle.DestAlpha == STYLEALPHA_One))\n\t{\n"
     "\t\tFVector3 c((float)Sprite->pos.X, (float)-Sprite->pos.Z, (float)-Sprite->pos.Y);\n"
-    "\t\tdynlightindex = hw_GetLights(Sprite->sectp, c - FVector3(24, 8, 24), c + FVector3(24, 72, 24), false);\n\t}\n"
+    "\t\textern const void* hw_lightskip;\n\t\thw_lightskip = Sprite->ownerActor;\n"
+    "\t\tdynlightindex = hw_GetLights(Sprite->sectp, c - FVector3(24, 8, 24), c + FVector3(24, 72, 24), false);\n"
+    "\t\thw_lightskip = nullptr;\n\t}\n"
     "\tbool additivefog = false;")
 sub("source/core/rendering/scene/hw_sprites.cpp",
     "\t\tstate.SetLightIndex(-1);\n\t\tstate.Draw(DT_TriangleStrip, vertexindex, 4);",
@@ -986,7 +1021,7 @@ static void DukeSceneLights(TArray<HWSceneLight>& out, double interpfrac)
 		{ "DukeCoolExplosion1", 96, 0.8f, 0.35f, 1.0f, false },
 		{ "DukeFirelaser", 48, 1.0f, 0.3f, 0.15f, false },
 		{ "DukeDevastatorBlast", 72, 1.0f, 0.6f, 0.25f, false },
-		// (sin luz en las chispas de las balas: cada disparo encendía las paredes lejanas donde daba)
+		{ "DukeShotSpark", 40, 1.0f, 0.8f, 0.45f, false },	// destello donde da la bala
 		{ "DukeBurning", 72, 1.0f, 0.5f, 0.15f, true },
 		{ "DukeBurning2", 72, 1.0f, 0.5f, 0.15f, true },
 		{ "DukeFire", 72, 1.0f, 0.5f, 0.15f, true },
@@ -1014,7 +1049,9 @@ static void DukeSceneLights(TArray<HWSceneLight>& out, double interpfrac)
 		if (d.radius <= 0) continue;
 		float rad = d.radius;
 		if (d.flicker) rad *= 0.85f + 0.15f * sinf(PlayClock * 0.35f + act->GetIndex() * 1.7f);
+		unsigned before = out.Size();
 		hw_AddSceneLight(out, act->interpolatedpos(interpfrac).plusZ(-6), act->sector(), rad, d.r, d.g, d.b);
+		if (out.Size() > before) out.Last().owner = act->GetOwner();	// el disparo no alumbra a quien lo lanza
 	}
 	// Fogonazo del arma del jugador (unos 80 ms tras cada disparo).
 	auto p = getPlayer(screenpeek);
