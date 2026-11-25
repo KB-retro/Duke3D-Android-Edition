@@ -1519,3 +1519,59 @@ sub("source/common/rendering/gles/gles_buffers.cpp",
     "gles.glesMode > GLES_MODE_GLES && gles.useMappedBuffers",
     "(gles.glesMode > GLES_MODE_GLES || gles_es_sync) && gles.useMappedBuffers", 2)
 
+
+# 47. Lámparas que parpadean: el juego oscurece y aclara zonas enteras del mapa (polígonos rectos),
+#     y con las luces dinámicas se veían bloques de sombra encendiéndose y apagándose. Con las
+#     luces activadas, esas zonas se quedan en su tono más oscuro y el parpadeo lo hace solo la luz
+#     de la lámpara, que se difumina con la distancia.
+sub("source/core/gamefuncs.h",
+    "int hw_CeilingShade(const sectortype* sec);\n",
+    "int hw_CeilingShade(const sectortype* sec);\n"
+    "int hw_RawCeilingShade(const sectortype* sec);\n"
+    "void hw_MarkFlickerSector(const sectortype* sec);\n")
+sub("source/core/rendering/scene/hw_sprites.cpp",
+    "static TArray<float> smWall, smFloor, smCeil;\n",
+    "static TArray<float> smWall, smFloor, smCeil;\n"
+    "static TArray<float> smDarkW, smDarkF, smDarkC;\t// el tono más oscuro visto (zonas con lámpara que parpadea)\n"
+    "static TArray<uint8_t> smFlicker;\t// zonas con lámpara que parpadea (las marca el juego cada fotograma)\n"
+    "void hw_MarkFlickerSector(const sectortype* sec)\n{\n"
+    "\tunsigned i = (unsigned)sectindex(sec);\n\tif (i < smFlicker.Size()) smFlicker[i] = 1;\n}\n")
+sub("source/core/rendering/scene/hw_sprites.cpp",
+    "\t\tfor (unsigned i = 0; i < wall.Size(); i++) smWall[i] = wall[i].shade;\n\t\treturn;\n\t}\n",
+    "\t\tfor (unsigned i = 0; i < wall.Size(); i++) smWall[i] = wall[i].shade;\n"
+    "\t\tsmDarkF = smFloor; smDarkC = smCeil; smDarkW = smWall;\n"
+    "\t\tsmFlicker.Resize(sector.Size());\n"
+    "\t\tfor (auto& f : smFlicker) f = 0;\n"
+    "\t\treturn;\n\t}\n"
+    "\tfor (auto& f : smFlicker) f = 0;\t// el juego las vuelve a marcar en este fotograma\n")
+sub("source/core/rendering/scene/hw_sprites.cpp",
+    "\tfor (unsigned i = 0; i < wall.Size(); i++) step(smWall[i], wall[i].shade);\n}\n",
+    "\tfor (unsigned i = 0; i < wall.Size(); i++) step(smWall[i], wall[i].shade);\n"
+    "\tfor (unsigned i = 0; i < sector.Size(); i++)\n\t{\n"
+    "\t\tsmDarkF[i] = max(smDarkF[i], (float)sector[i].floorshade);\n"
+    "\t\tsmDarkC[i] = max(smDarkC[i], (float)sector[i].ceilingshade);\n\t}\n"
+    "\tfor (unsigned i = 0; i < wall.Size(); i++) smDarkW[i] = max(smDarkW[i], (float)wall[i].shade);\n}\n")
+sub("source/core/rendering/scene/hw_sprites.cpp",
+    "\tunsigned i = (unsigned)wallindex(wal);\n\treturn i < smWall.Size() ? (int)lroundf(smWall[i]) : wal->shade;\n",
+    "\tunsigned i = (unsigned)wallindex(wal);\n"
+    "\tunsigned s = (unsigned)sectindex(wal->sectorp());\n"
+    "\tif (i < smDarkW.Size() && s < smFlicker.Size() && smFlicker[s]) return (int)lroundf(smDarkW[i]);\n"
+    "\treturn i < smWall.Size() ? (int)lroundf(smWall[i]) : wal->shade;\n")
+sub("source/core/rendering/scene/hw_sprites.cpp",
+    "\tunsigned i = (unsigned)sectindex(sec);\n\treturn i < smFloor.Size() ? (int)lroundf(smFloor[i]) : sec->floorshade;\n",
+    "\tunsigned i = (unsigned)sectindex(sec);\n"
+    "\tif (i < smFlicker.Size() && smFlicker[i]) return (int)lroundf(smDarkF[i]);\n"
+    "\treturn i < smFloor.Size() ? (int)lroundf(smFloor[i]) : sec->floorshade;\n")
+sub("source/core/rendering/scene/hw_sprites.cpp",
+    "\tunsigned i = (unsigned)sectindex(sec);\n\treturn i < smCeil.Size() ? (int)lroundf(smCeil[i]) : sec->ceilingshade;\n}\n",
+    "\tunsigned i = (unsigned)sectindex(sec);\n"
+    "\tif (i < smFlicker.Size() && smFlicker[i]) return (int)lroundf(smDarkC[i]);\n"
+    "\treturn i < smCeil.Size() ? (int)lroundf(smCeil[i]) : sec->ceilingshade;\n}\n"
+    "// El brillo que pone el juego (suavizado), aunque la zona se dibuje fija: para la luz de la lámpara.\n"
+    "int hw_RawCeilingShade(const sectortype* sec)\n{\n"
+    "\tunsigned i = (unsigned)sectindex(sec);\n"
+    "\treturn i < smCeil.Size() ? (int)lroundf(smCeil[i]) : sec->ceilingshade;\n}\n")
+sub("source/games/duke/src/animatesprites.cpp",
+    "\t\t\tfloat shade = (float)hw_CeilingShade(sec);\n",
+    "\t\t\tif (lt != SE_12_LIGHT_SWITCH) hw_MarkFlickerSector(sec);\t// la zona fija; parpadea solo la luz\n"
+    "\t\t\tfloat shade = (float)hw_RawCeilingShade(sec);\n")
