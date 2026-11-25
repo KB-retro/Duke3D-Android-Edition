@@ -776,6 +776,8 @@ sub("source/core/textures/tilesetbuilder.cpp",
 #     arma...) y cada pared, suelo, sprite y modelo 3D se lleva las que le tocan. Sin mapas de
 #     sombras: para que no atraviesen paredes, cada luz solo alumbra su sector y los contiguos a
 #     los que se asoma por un hueco abierto.
+#     (Aditivo = suma sobre lo de detrás, STYLEOP_Add con DestAlpha One: el estilo normal también
+#     es STYLEOP_Add, y mirar solo eso dejaba sin luz todas las superficies.)
 sub("source/core/gamefuncs.h",
     '#include "updatesector.h"',
     '#include "updatesector.h"\n\n'
@@ -917,7 +919,7 @@ sub("source/core/rendering/scene/hw_sprites.cpp",
     "int hw_GetLights(sectortype* sec, const FVector3& mins, const FVector3& maxs, bool attenuate);\n"
     "void HWSprite::DrawSprite(HWDrawInfo* di, FRenderState& state, bool translucent)\n{\n"
     "\tdynlightindex = -1;\n"
-    "\tif (Sprite && Sprite->shade < 127 && hw_scenelights.Size() > 0 && RenderStyle.BlendOp != STYLEOP_Add)\n\t{\n"
+    "\tif (Sprite && Sprite->shade < 127 && hw_scenelights.Size() > 0 && !(RenderStyle.BlendOp == STYLEOP_Add && RenderStyle.DestAlpha == STYLEALPHA_One))\n\t{\n"
     "\t\tFVector3 c((float)Sprite->pos.X, (float)-Sprite->pos.Z, (float)-Sprite->pos.Y);\n"
     "\t\tdynlightindex = hw_GetLights(Sprite->sectp, c - FVector3(24, 8, 24), c + FVector3(24, 72, 24), false);\n\t}\n"
     "\tbool additivefog = false;")
@@ -930,7 +932,7 @@ sub("source/core/rendering/scene/hw_walls.cpp",
     "int hw_GetLights(sectortype* sec, const FVector3& mins, const FVector3& maxs, bool attenuate);\n"
     "void HWWall::DrawWall(HWDrawInfo *di, FRenderState &state, bool translucent)\n{\n\trendered_lines++;\n"
     "\tdynlightindex = -1;\n"
-    "\tif (hw_scenelights.Size() > 0 && texture != nullptr && type != RENDERWALL_MIRRORSURFACE && RenderStyle.BlendOp != STYLEOP_Add)\n"
+    "\tif (hw_scenelights.Size() > 0 && texture != nullptr && type != RENDERWALL_MIRRORSURFACE && !(RenderStyle.BlendOp == STYLEOP_Add && RenderStyle.DestAlpha == STYLEALPHA_One))\n"
     "\t\tdynlightindex = hw_GetLights(frontsector,\n"
     "\t\t\tFVector3(min(glseg.x1, glseg.x2), min(zbottom[0], zbottom[1]), min(glseg.y1, glseg.y2)),\n"
     "\t\t\tFVector3(max(glseg.x1, glseg.x2), max(ztop[0], ztop[1]), max(glseg.y1, glseg.y2)), true);")
@@ -944,7 +946,7 @@ sub("source/core/rendering/scene/hw_walls.cpp",
 sub("source/core/rendering/scene/hw_flats.cpp",
     "\tstate.SetLightIndex(dynlightindex);\n\tstate.Draw(DT_Triangles, vertindex, vertcount);",
     "\t{\n\t\tint hw_GetFlatLights(sectortype* sec);\n"
-    "\t\tdynlightindex = (texture && RenderStyle.BlendOp != STYLEOP_Add) ? hw_GetFlatLights(sec) : -1;\n\t}\n"
+    "\t\tdynlightindex = (texture && !(RenderStyle.BlendOp == STYLEOP_Add && RenderStyle.DestAlpha == STYLEALPHA_One)) ? hw_GetFlatLights(sec) : -1;\n\t}\n"
     "\tstate.SetLightIndex(dynlightindex);\n\tstate.Draw(DT_Triangles, vertindex, vertcount);\n\tstate.SetLightIndex(-1);")
 sub("source/core/rendering/scene/hw_flats.cpp",
     '#include "hw_lightbuffer.h"',
