@@ -345,6 +345,13 @@ public class LauncherActivity extends Activity {
             if (campaign && g != classicGames.get(0)) continue;
             root.addGame(g.label, coverFor(g.title), () -> launchClassic(gameDir, g));
         }
+        // Penthouse Paradise también en la Classic (como en la HD; no con una campaña activada).
+        File pent = campaign ? null : findPenthouse(gameDir);
+        if (pent != null) {
+            root.addGame("Penthouse", box(R.drawable.caja_penthouse), () -> launchClassicPenthouse(gameDir, pent));
+            DukeMenuView.Entry e = root.entries.get(root.entries.size() - 1);
+            e.coverTap = () -> penthouseTap(e);
+        }
         root.add(I18n.t("mods"), null, () -> menuView.push(classicModsPage(gameDir)));
         root.add(I18n.t("options"), null, () -> menuView.push(classicOptionsPage(gameDir)));
     }
@@ -751,6 +758,49 @@ public class LauncherActivity extends Activity {
      * que espera el juego (GAME.CON, DEFS.CON, USER.CON). Así no se mezcla con nada más.
      */
     private void launchPenthouse(File gameDir, File src) {
+        File prep = preparePenthouse(src);
+        if (prep == null) return;
+        List<GameData.Game> all = GameData.games(gameDir);
+        if (all.isEmpty()) return;
+        launchAlone = true;
+        launch(gameDir, all.get(0), new String[]{"-j", prep.getAbsolutePath(), "-x", "GAME.CON", "-map", "ppakpent.map"});
+    }
+
+    /** Penthouse en la Classic: el mismo paquete, con EDuke32 y sin mods ni traducción. */
+    private void launchClassicPenthouse(File gameDir, File src) {
+        File prep = preparePenthouse(src);
+        if (prep == null || launching) return;
+        launching = true;
+        section = 0;
+        music.stop();
+        new Thread(() -> {
+            Intent intent;
+            try {
+                intent = com.kbretro.duke3d.classic.ClassicApi.prepareAlone(this, gameDir,
+                        new String[]{"-j", prep.getAbsolutePath(), "-x", "GAME.CON", "-map", "ppakpent.map"});
+            } catch (Throwable t) {
+                android.util.Log.e("Duke3D", "Classic: no se pudo preparar Penthouse", t);
+                runOnUiThread(() -> {
+                    launching = false;
+                    android.widget.Toast.makeText(this, String.valueOf(t), android.widget.Toast.LENGTH_LONG).show();
+                });
+                return;
+            }
+            runOnUiThread(() -> {
+                launching = false;
+                if (isFinishing() || isDestroyed() || intent == null) return;
+                getPreferences(MODE_PRIVATE).edit().putBoolean("jugando", true)
+                        .putString("inicio_partida", logTime(System.currentTimeMillis() - 2000)).apply();
+                startActivity(intent);
+            });
+        }, "Penthouse").start();
+    }
+
+    /**
+     * Prepara Penthouse Paradise (solo los archivos del DLC, con los nombres que espera el juego)
+     * en una carpeta aparte y la devuelve (null si falla).
+     */
+    private File preparePenthouse(File src) {
         File prep = new File(getFilesDir(), "penthouse");
         try {
             File[] old = prep.listFiles();
@@ -789,12 +839,9 @@ public class LauncherActivity extends Activity {
             }
         } catch (java.io.IOException e) {
             android.widget.Toast.makeText(this, "Penthouse Paradise: " + e, android.widget.Toast.LENGTH_LONG).show();
-            return;
+            return null;
         }
-        List<GameData.Game> all = GameData.games(gameDir);
-        if (all.isEmpty()) return;
-        launchAlone = true;
-        launch(gameDir, all.get(0), new String[]{"-j", prep.getAbsolutePath(), "-x", "GAME.CON", "-map", "ppakpent.map"});
+        return prep;
     }
 
     private static void copyFile(File in, File out) throws java.io.IOException {

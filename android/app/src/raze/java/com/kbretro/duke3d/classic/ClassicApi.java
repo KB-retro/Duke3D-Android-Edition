@@ -164,6 +164,21 @@ public final class ClassicApi {
         return intent;
     }
 
+    /** Una partida «sola» sobre el juego base (Penthouse Paradise): sin mods ni traducción. */
+    public static Intent prepareAlone(Context c, File gameDir, String[] extraArgs) {
+        I18n.load(c);
+        List<GameData.Game> all = GameData.games(gameDir);
+        if (all.isEmpty()) return null;
+        List<String> args = new ArrayList<>(Arrays.asList(GameData.arguments(c, gameDir, all.get(0), null)));
+        args.addAll(Arrays.asList(extraArgs));
+        Intent intent = new Intent(c, GameActivity.class);
+        intent.putExtra(GameActivity.EXTRA_DIR, gameDir.getAbsolutePath());
+        intent.putExtra(GameActivity.EXTRA_ARGS, args.toArray(new String[0]));
+        intent.putExtra(GameActivity.EXTRA_LANG, "en");
+        intent.putExtra(GameActivity.EXTRA_BASE_GRP, all.get(0).grp.getAbsolutePath());
+        return intent;
+    }
+
     // ---- Opciones (independientes de las de la Legacy) ----
 
     /** FPS, vibración y controles táctiles. */

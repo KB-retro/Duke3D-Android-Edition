@@ -540,9 +540,10 @@ final class DukeMenuView extends View {
                 if (cur) c.drawRect(vx(tx), vy(15), vx(tx + tw), vy(15) + Math.max(2, sy * 0.8f), tabLine);
             }
             shade.setColorFilter(null);
-            drawSmall(c, "/", x0 + w0 + gap / 2f, 9, 0.6f, true);
-            drawSmall(c, "START", 160, 19, 0.45f, true);
-            modeRect.set(vx(x0 - 8), 0, vx(x1 + w1 + 8), vy(26));
+            // La barra entre las dos, con las letras del juego (su rojo).
+            float sw = bigWidth("/") * ts;
+            drawBig(c, "/", x0 + w0 + (gap - sw) / 2f, 8, ts, pixel);
+            modeRect.set(vx(x0 - 8), 0, vx(x1 + w1 + 8), vy(22));
         }
 
         // Pie: una línea de información si la hay (carpeta, pista que suena...).
@@ -578,11 +579,10 @@ final class DukeMenuView extends View {
 
         // Versión de la app, pequeña, con las letras del juego, arriba a la derecha (lanzador).
         if (versionText != null && !overlay) {
-            String vt = clean(versionText);
-            float scale = 0.5f, wsum = 0;
-            for (char ch : vt.toCharArray()) wsum += smallAdvance(ch);
+            // Con las letras grandes del juego (el mismo rojo que el resto de textos), en pequeño.
+            float scale = 0.36f;
             float right = -ax / sx + w / sx - 4;
-            drawSmall(c, versionText, right - wsum * scale, 6, scale, false);
+            drawBig(c, versionText, right - bigWidth(versionText) * scale, 6, scale, pixel);
         }
         // Con la flecha de sección moviéndose, a 60 fps para que vaya suave.
         postInvalidateDelayed(stack.size() == 1 && p.otherSide != null ? 16 : 50);
