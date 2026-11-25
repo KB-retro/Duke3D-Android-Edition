@@ -442,11 +442,47 @@ public class LauncherActivity extends Activity {
         p.addValue(I18n.t("touch_controls"), () -> ControlSettings.dosTouchModeLabel(this),
                 () -> ControlSettings.cycleDosTouchMode(this));
         addFilters(p, "dos_");
+        addResetEntry(p, "dos_", null);
         addLogEntry(p);
         p.add(I18n.t("back"), null, () -> menuView.pop());
         p.onLeave = () -> logStatus = null;
         p.footer = () -> logStatus != null ? logStatus : "";
         return p;
+    }
+
+    /** Claves de los ajustes de Duke Nukem 3D (Raze): gráficos, imagen, sonido y controles. */
+    private static boolean isDukeKey(String k) {
+        return k.startsWith("raze_") || k.startsWith("img_") || k.startsWith("snd_") || k.startsWith("boton_")
+                || k.startsWith("tactil") || k.startsWith("giro") || k.startsWith("stick_")
+                || k.equals("escala") || k.equals("fps") || k.equals("vibracion_v2");
+    }
+
+    /** Borra los ajustes de una sección (vuelven los de serie). */
+    private void resetSection(String section, File gameDir) {
+        SharedPreferences sp = getSharedPreferences("ajustes", MODE_MULTI_PROCESS);
+        SharedPreferences.Editor e = sp.edit();
+        for (String k : sp.getAll().keySet()) {
+            boolean match = section.equals("duke") ? isDukeKey(k) : k.startsWith(section);
+            if (match) e.remove(k);
+        }
+        if (section.equals("duke")) e.remove("mods_activos").remove("mods_conocidos");
+        e.apply();
+        if (section.equals("duke") && gameDir != null) GameData.applyDefaultMods(this, gameDir);
+        logStatus = I18n.t("reset_done");
+    }
+
+    /** «Restablecer ajustes» con su confirmación. */
+    private void addResetEntry(DukeMenuView.Page p, String section, File gameDir) {
+        p.add(I18n.t("reset_settings"), null, () -> {
+            DukeMenuView.Page c = new DukeMenuView.Page();
+            c.add(I18n.t("reset_confirm"), null, () -> {
+                resetSection(section, gameDir);
+                menuView.pop();
+            });
+            c.add(I18n.t("back"), null, () -> menuView.pop());
+            c.footer = () -> I18n.t("reset_question");
+            menuView.push(c);
+        });
     }
 
     private static final String[] PSX_SCREEN_KEYS = {"psx_auto", "4:3", "psx_wide"};
@@ -462,6 +498,7 @@ public class LauncherActivity extends Activity {
         p.addValue(I18n.t("psx_pgxp"), () -> I18n.t(secPref("psx_", "pgxp2", 0, 2) == 1 ? "yes" : "no"),
                 () -> cycleSecPref("psx_", "pgxp2", 0, 2));
         addFilters(p, "psx_");
+        addResetEntry(p, "psx_", null);
         addLogEntry(p);
         p.add(I18n.t("back"), null, () -> menuView.pop());
         p.onLeave = () -> logStatus = null;
@@ -947,6 +984,7 @@ public class LauncherActivity extends Activity {
             if (!Motor.RAZE) g.footer = () -> I18n.t("gfx_soft_note");
             menuView.push(g);
         });
+        addResetEntry(p, "duke", gameDir);
         p.add(I18n.t("folder"), null, this::pickFolder);
         p.add(I18n.t("make_log"), null, () -> {
             logStatus = I18n.t("making_log");

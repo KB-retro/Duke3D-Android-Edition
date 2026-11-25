@@ -22,6 +22,10 @@ final class I18n {
         put("options", "Opciones", "Options");
         put("quit", "Salir", "Quit");
         put("back", "Volver", "Back");
+        put("reset_settings", "Restablecer ajustes", "Reset settings");
+        put("reset_confirm", "Sí, restablecer", "Yes, reset");
+        put("reset_question", "Todos los ajustes de esta sección vuelven a los de serie", "All settings in this section go back to their defaults");
+        put("reset_done", "Ajustes restablecidos", "Settings reset");
         put("language", "Idioma", "Language");
         put("language_value", "Español", "English");
         put("folder", "Carpeta del juego", "Game folder");
