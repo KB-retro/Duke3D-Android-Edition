@@ -924,7 +924,7 @@ int hw_GetLights(sectortype* sec, const FVector3& mins, const FVector3& maxs, bo
 		data[0] = l.pos.X; data[1] = l.pos.Y; data[2] = l.pos.Z; data[3] = l.radius;
 		data[4] = l.color.X; data[5] = l.color.Y; data[6] = l.color.Z; data[7] = attenuate ? -1.f : 1.f;
 		for (int i = 8; i < 16; i++) data[i] = 0;
-		if (++n >= 8) break;
+		if (++n >= 4) break;	// como mucho 4 por superficie (en las Mali, cada luz más cuesta)
 	}
 	if (n == 0) return -1;
 	int idx = screen->mLights->UploadLights(lightdata);
@@ -1088,6 +1088,19 @@ static void DukeSceneLights(TArray<HWSceneLight>& out, double interpfrac)
 		float f = (float)(1. - (mt / 8.) * (mt / 8.));
 		auto pos = pact->getRenderPos(interpfrac) + DVector3(pact->spr.Angles.Yaw.ToVector() * 16, 8);
 		hw_AddSceneLight(out, pos, pact->sector(), 100, 1.2f * f, 0.95f * f, 0.55f * f);
+	}
+	// Presupuesto: las 16 luces más cercanas a la cámara, y ninguna muy lejos (en el primer nivel
+	// llegaba a haber 64 a la vez y en la RG477M el procesador no daba abasto).
+	if (pact && out.Size() > 0)
+	{
+		DVector3 cam = pact->getRenderPos(interpfrac);
+		auto dist = [&](const HWSceneLight& l) { return (l.mappos.XY() - cam.XY()).LengthSquared(); };
+		TArray<HWSceneLight> kept;
+		for (auto& l : out)
+			if (dist(l) < (1400. + l.radius) * (1400. + l.radius)) kept.Push(l);
+		std::sort(kept.begin(), kept.end(), [&](const HWSceneLight& a, const HWSceneLight& b) { return dist(a) < dist(b); });
+		if (kept.Size() > 16) kept.Resize(16);
+		out = std::move(kept);
 	}
 }
 
