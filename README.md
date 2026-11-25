@@ -4,20 +4,21 @@
 
 Duke Nukem 3D para Android con los archivos de tu copia de **Duke Nukem 3D: Megaton Edition**
 (Steam), incluidas las expansiones *Duke It Out in D.C.*, *Nuclear Winter* y *Caribbean: Life's
-a Beach*. Hay dos versiones, que se pueden tener instaladas a la vez:
+a Beach*. Un solo APK, **Duke Legacy** (`Duke-Legacy-0.1.N.apk`), con dos versiones de Duke
+Nukem 3D que se eligen en el lanzador (**HD / CLASSIC**, con Start o tocando el selector):
 
-| | **Classic** | **Duke Legacy (HD)** |
+| | **HD** | **Classic** |
 |---|---|---|
-| Motor | [EDuke32](https://www.eduke32.com), dibujo por software | [Raze](https://github.com/ZDoom/Raze), OpenGL ES |
-| Aspecto | El original, con filtros de imagen | Pack HD (HRP) con modelos 3D, luces dinámicas |
-| Campañas y mods de EDuke32 | Sí (Alien Armageddon, DNF 2013, Duke 64...) | Solo mods de gráficos y sonido |
-| APK | `Duke3D-Android-Edition-0.1.N.apk` | `Duke-Legacy-0.1.N.apk` |
+| Motor | [Raze](https://github.com/ZDoom/Raze), OpenGL ES | [EDuke32](https://www.eduke32.com), dibujo por software |
+| Aspecto | Pack HD (HRP) con modelos 3D, luces dinámicas y sombras | El original, con filtros de imagen |
+| Campañas y mods de EDuke32 | Solo mods de gráficos y sonido | Sí (Alien Armageddon, DNF 2013, Duke 64...) |
+| Ajustes | Los suyos | Los suyos (independientes) |
 
 Los APK **no incluyen ningún archivo del juego**: hay que copiarlos de tu copia de Steam.
 
 ## Cómo jugar
 
-1. Instala el APK (o los dos).
+1. Instala el APK.
 2. En Steam: clic derecho en *Duke Nukem 3D: Megaton Edition* → *Administrar* → *Ver archivos
    locales*. Copia la carpeta **`gameroot`** al móvil o consola, dentro de una carpeta
    **`Duke3D`** en la raíz de la memoria:
@@ -46,8 +47,7 @@ Un menú con los gráficos del propio juego y con música:
   1997, si está en `Duke3D/extras`). En **Extras**: guía, reproductor de la música del juego y
   logros.
 - **Duke Nukem** (los tres episodios) y **Duke Nukem II**, de MS-DOS, con DOSBox Pure. Van en
-  `Duke3D/extras/duke1` y `Duke3D/extras/duke2`. En la Classic están en **Extras**; en Duke
-  Legacy, en la sección **Classic**.
+  `Duke3D/extras/duke1` y `Duke3D/extras/duke2`, en la sección **Classic** del lanzador.
 - Solo en Duke Legacy, sección **Legacy**: *Duke Nukem: Time to Kill* y *Land of the Babes*, de
   PlayStation, con SwanStation. Los discos van en `Duke3D/extras/timetokill` y
   `Duke3D/extras/landofthebabes`; la BIOS es opcional (junto al disco o en `extras/bios`).
@@ -80,10 +80,13 @@ tocando el pie del menú.
 
 ## Classic
 
+- Dentro de Duke Legacy: en la sección Duke Nukem 3D, **Start** (o tocar el selector de arriba)
+  cambia entre **HD** y **CLASSIC**. Sus ajustes, mods y campañas son independientes de la HD.
 - El motor EDuke32 original, con filtros de imagen: escalado, FXAA, nitidez, resplandor, color
   y efecto CRT / LCD.
-- **Mods** en `Duke3D/mods`: campañas completas (`Campanas`) y mods de gráficos y sonido
-  (`Graficos y sonido`), en carpeta, `.zip`, `.pk3` o `.grp`.
+- **Mods** en `Duke3D/mods`: campañas completas (`Campanas Classic`, solo para la Classic) y
+  mods de gráficos y sonido (`Graficos y sonido`), en carpeta, `.zip`, `.pk3` o `.grp`. El pack
+  HD y el XXX no salen en la Classic (el dibujo por software no los usa).
 - El mismo menú rápido: trucos, gráficos, controles, vibración, volver al lanzador y salir.
 
 ## Controles
@@ -105,11 +108,9 @@ la traducción de Raze.
 
 ## Compilar
 
-Con GitHub Actions (**Actions → Run workflow**); el APK sale como artefacto del run:
-
-- **Android**: la Classic (EDuke32).
-- **Raze**: Duke Legacy (Raze, DOSBox Pure y SwanStation se descargan y se parchean al compilar;
-  los cambios a Raze están en `raze/parchear.py`).
+Con GitHub Actions (**Actions → Run workflow → Raze**); el APK sale como artefacto del run.
+Raze, DOSBox Pure y SwanStation se descargan y se parchean al compilar (los cambios a Raze están
+en `raze/parchear.py`); EDuke32 (la Classic) se compila desde `eduke32/`.
 
 Para que cada APK se instale encima del anterior, añade estos secretos del repositorio (si no,
 se firma con una clave de depuración distinta en cada compilación):

@@ -113,7 +113,7 @@ final class GameData {
     }
 
     /** Subcarpetas de "mods" que agrupan: campañas y gráficos/sonido. */
-    static final String CAMPAIGN_DIR = "Campanas", GFX_DIR = "Graficos y sonido";
+    static final String CAMPAIGN_DIR = "Campanas Classic", GFX_DIR = "Graficos y sonido";	// las campañas solo van en la Classic
 
     private static String plainName(String s) {
         return java.text.Normalizer.normalize(s, java.text.Normalizer.Form.NFD).replaceAll("\\p{M}", "")
@@ -123,7 +123,7 @@ final class GameData {
     /** 1 carpeta de campañas, 2 de gráficos y sonido, 0 otra. */
     private static int categoryDir(File d) {
         String n = plainName(d.getName());
-        if (n.equals("campanas") || n.equals("campaigns") || n.equals("campaign")) return 1;
+        if (n.startsWith("campanas") || n.startsWith("campaign")) return 1;	// también «Campanas Classic»
         if (n.startsWith("graficos") || n.startsWith("graphics") || n.equals("sonido") || n.equals("sound")) return 2;
         return 0;
     }
@@ -133,6 +133,10 @@ final class GameData {
         File mods = new File(gameDir, "mods");
         File found = findChild(gameDir, "mods");
         if (found != null) mods = found;
+        // La carpeta de campañas de antes («Campanas») pasa a llamarse «Campanas Classic».
+        File oldCamp = new File(mods, "Campanas"), newCamp = new File(mods, CAMPAIGN_DIR);
+        if (oldCamp.isDirectory() && !newCamp.exists() && !oldCamp.renameTo(newCamp))
+            android.util.Log.w("Duke3D", "No se pudo renombrar " + oldCamp);
         boolean camp = false, gfx = false;
         File[] kids = mods.listFiles();
         if (kids != null) for (File k : kids) {

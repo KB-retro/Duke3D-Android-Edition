@@ -120,7 +120,7 @@ final class GameData {
     /** 1 carpeta de campañas, 2 de gráficos y sonido, 0 otra. */
     private static int categoryDir(File d) {
         String n = plainName(d.getName());
-        if (n.equals("campanas") || n.equals("campaigns") || n.equals("campaign")) return 1;
+        if (n.startsWith("campanas") || n.startsWith("campaign")) return 1;	// también «Campanas Classic»
         if (n.startsWith("graficos") || n.startsWith("graphics") || n.equals("sonido") || n.equals("sound")) return 2;
         return 0;
     }
