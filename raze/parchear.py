@@ -1439,11 +1439,12 @@ void OpenGLFrameBuffer::Swap()
 {
 	static double lastEnd = 0, t0 = 0, sumWork = 0, maxWork = 0, sumLimit = 0, sumSwap = 0, maxSwap = 0, maxFrame = 0;
 	static int frames = 0, slow = 0, slowWork = 0, slowSwap = 0;
-	static double sumProcess = 0, sumRender = 0, sumBsp = 0, sumAll = 0;
+	static double sumProcess = 0, sumRender = 0, sumBsp = 0, sumAll = 0, sumPost = 0, sum2D = 0, sumPortal = 0;
 	static long sumWalls = 0, sumFlats = 0, sumSprites = 0;
 	double tStart = diagNowMs();
 	// Fases del dibujado de este fotograma (contadores de Raze, siempre activos: ver checkBenchActive).
 	sumProcess += ProcessAll.TimeMS(); sumRender += RenderAll.TimeMS(); sumBsp += Bsp.TimeMS(); sumAll += All.TimeMS();
+	sumPost += PostProcess.TimeMS(); sum2D += twoD.TimeMS(); sumPortal += PortalAll.TimeMS();
 	sumWalls += rendered_lines; sumFlats += rendered_flats; sumSprites += rendered_sprites;
 	if (t0 == 0) t0 = tStart;
 
@@ -1471,11 +1472,11 @@ void OpenGLFrameBuffer::Swap()
 			"juego media %.1f / peor %.1f ms, limite %.1f ms, intercambio media %.1f / peor %.1f ms\n",
 			frames, frames * 1000.0 / (tEnd - t0), maxFrame, slow, slowWork, slowSwap,
 			sumWork / frames, maxWork, sumLimit / frames, sumSwap / frames, maxSwap);
-		Printf("Fases (media por fotograma): escena total %.1f ms = preparar %.1f (BSP %.1f) + dibujar %.1f; resto del juego %.1f ms; "
-			"paredes %ld, suelos %ld, sprites %ld\n",
-			sumAll / frames, sumProcess / frames, sumBsp / frames, sumRender / frames, sumWork / frames - sumAll / frames,
-			sumWalls / frames, sumFlats / frames, sumSprites / frames);
-		sumProcess = sumRender = sumBsp = sumAll = 0; sumWalls = sumFlats = sumSprites = 0;
+		Printf("Fases (media por fotograma): escena total %.1f ms = preparar %.1f (BSP %.1f) + dibujar %.1f + posproceso %.1f "
+			"(2D %.1f) + portales %.1f; resto del juego %.1f ms; paredes %ld, suelos %ld, sprites %ld\n",
+			sumAll / frames, sumProcess / frames, sumBsp / frames, sumRender / frames, sumPost / frames, sum2D / frames,
+			sumPortal / frames, sumWork / frames - sumAll / frames, sumWalls / frames, sumFlats / frames, sumSprites / frames);
+		sumProcess = sumRender = sumBsp = sumAll = sumPost = sum2D = sumPortal = 0; sumWalls = sumFlats = sumSprites = 0;
 		t0 = tEnd; frames = slow = slowWork = slowSwap = 0;
 		sumWork = maxWork = sumLimit = sumSwap = maxSwap = maxFrame = 0;
 	}
