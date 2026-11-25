@@ -18,5 +18,14 @@
             android:preferMinimalPostProcessing="true"
             android:theme="@android:style/Theme.NoTitleBar.Fullscreen"
             android:configChanges="layoutDirection|locale|orientation|uiMode|screenLayout|screenSize|smallestScreenSize|keyboard|keyboardHidden|navigation" />
+        <!-- Duke Nukem 3D Classic (EDuke32 por software, libeduke32.so), en su propio proceso. -->
+        <activity
+            android:name=".classic.GameActivity"
+            android:process=":classic"
+            android:exported="false"
+            android:screenOrientation="sensorLandscape"
+            android:preferMinimalPostProcessing="true"
+            android:theme="@android:style/Theme.NoTitleBar.Fullscreen"
+            android:configChanges="layoutDirection|locale|orientation|uiMode|screenLayout|screenSize|smallestScreenSize|keyboard|keyboardHidden|navigation" />
     </application>
 </manifest>

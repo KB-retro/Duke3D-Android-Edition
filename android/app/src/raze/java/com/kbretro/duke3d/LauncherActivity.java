@@ -284,23 +284,40 @@ public class LauncherActivity extends Activity {
         if (pendingRelaunch != null) relaunchPending(gameDir);
     }
 
+    /** Duke Nukem 3D en versión Classic (EDuke32 por software) en vez de HD (Raze). */
+    private boolean classicMode() {
+        return getSharedPreferences("ajustes", MODE_MULTI_PROCESS).getBoolean("modo_classic", false);
+    }
+
     private DukeMenuView.Page rootPage(File gameDir) {
         DukeMenuView.Page root = new DukeMenuView.Page();
-        for (GameData.Game g : assets.games) {
-            Bitmap cover = cover(g);
-            if (cover != null) root.addGame(g.menuLabel(), cover, () -> launch(gameDir, g));
-            else root.add(g.menuLabel(), assets.icons.get(g.title), () -> launch(gameDir, g));
+        if (classicMode()) {
+            addClassicEntries(root, gameDir);
+        } else {
+            for (GameData.Game g : assets.games) {
+                Bitmap cover = cover(g);
+                if (cover != null) root.addGame(g.menuLabel(), cover, () -> launch(gameDir, g));
+                else root.add(g.menuLabel(), assets.icons.get(g.title), () -> launch(gameDir, g));
+            }
+            // Penthouse Paradise (DLC gratuito de 1997), si está en extras/.
+            File pent = findPenthouse(gameDir);
+            if (pent != null) {
+                root.addGame("Penthouse", box(R.drawable.caja_penthouse), () -> launchPenthouse(gameDir, pent));
+                DukeMenuView.Entry e = root.entries.get(root.entries.size() - 1);
+                e.coverTap = () -> penthouseTap(e);
+            }
+            root.add(I18n.t("options"), null, () -> menuView.push(optionsPage(gameDir)));
+            root.add(I18n.t("extras"), null, () -> menuView.push(extrasPage(gameDir)));
         }
-        // Penthouse Paradise (DLC gratuito de 1997), si está en extras/.
-        File pent = findPenthouse(gameDir);
-        if (pent != null) {
-            root.addGame("Penthouse", box(R.drawable.caja_penthouse), () -> launchPenthouse(gameDir, pent));
-            DukeMenuView.Entry e = root.entries.get(root.entries.size() - 1);
-            e.coverTap = () -> penthouseTap(e);
-        }
-        root.add(I18n.t("options"), null, () -> menuView.push(optionsPage(gameDir)));
-        root.add(I18n.t("extras"), null, () -> menuView.push(extrasPage(gameDir)));
         root.add(I18n.t("quit"), null, this::finishAffinity);
+        // Selector de versión arriba: HD (Raze) o CLASSIC (EDuke32); Start o tocarlo lo cambia.
+        root.modes = new String[]{"HD", "CLASSIC"};
+        root.mode = classicMode() ? 1 : 0;
+        root.onModeSwitch = () -> {
+            getSharedPreferences("ajustes", MODE_MULTI_PROCESS).edit().putBoolean("modo_classic", !classicMode()).apply();
+            section = 0;
+            menuView.setRoot(rootPage(gameDir), this::finish);
+        };
 
         // Secciones del menú principal (botón Y o tocando el pie): Legend (Duke 3D), Classic
         // (Duke Nukem 1 y 2, MS-DOS) y Legacy (los de PlayStation). Todas con la caja a la derecha.
@@ -314,6 +331,133 @@ public class LauncherActivity extends Activity {
         legacy.otherSide = root;
         // Abajo solo el símbolo nuclear con la Y (lo dibuja DukeMenuView).
         return section == 1 ? classic : section == 2 ? legacy : root;
+    }
+
+    // ---- Duke Nukem 3D Classic (EDuke32 por software, ajustes propios) ----
+
+    private List<com.kbretro.duke3d.classic.ClassicApi.Game> classicGames;
+
+    private void addClassicEntries(DukeMenuView.Page root, File gameDir) {
+        if (classicGames == null) classicGames = com.kbretro.duke3d.classic.ClassicApi.games(this, gameDir);
+        // Con una campaña activada solo se juega al juego base (es sobre el que corre).
+        boolean campaign = com.kbretro.duke3d.classic.ClassicApi.activeCampaign(this, gameDir) != null;
+        for (com.kbretro.duke3d.classic.ClassicApi.Game g : classicGames) {
+            if (campaign && g != classicGames.get(0)) continue;
+            root.addGame(g.label, coverFor(g.title), () -> launchClassic(gameDir, g));
+        }
+        root.add(I18n.t("mods"), null, () -> menuView.push(classicModsPage(gameDir)));
+        root.add(I18n.t("options"), null, () -> menuView.push(classicOptionsPage(gameDir)));
+    }
+
+    private void addClassicOptions(DukeMenuView.Page p, List<com.kbretro.duke3d.classic.ClassicApi.Option> opts) {
+        for (com.kbretro.duke3d.classic.ClassicApi.Option o : opts) {
+            p.addValue(o.label, o.value, o.action);
+            if (o.step != null) p.entries.get(p.entries.size() - 1).step = o.step;
+        }
+    }
+
+    private DukeMenuView.Page classicOptionsPage(File gameDir) {
+        DukeMenuView.Page p = new DukeMenuView.Page();
+        addClassicOptions(p, com.kbretro.duke3d.classic.ClassicApi.options(this));
+        p.add(I18n.t("graphics"), null, () -> {
+            DukeMenuView.Page g = new DukeMenuView.Page();
+            addClassicOptions(g, com.kbretro.duke3d.classic.ClassicApi.graphics(this));
+            g.add(I18n.t("back"), null, () -> menuView.pop());
+            g.footer = com.kbretro.duke3d.classic.ClassicApi::graphicsNote;
+            menuView.push(g);
+        });
+        p.add(I18n.t("reset_settings"), null, () -> {
+            DukeMenuView.Page c = new DukeMenuView.Page();
+            c.add(I18n.t("reset_confirm"), null, () -> {
+                com.kbretro.duke3d.classic.ClassicApi.resetSettings(this);
+                logStatus = I18n.t("reset_done");
+                menuView.pop();
+            });
+            c.add(I18n.t("back"), null, () -> menuView.pop());
+            c.footer = () -> I18n.t("reset_question");
+            menuView.push(c);
+        });
+        addLogEntry(p);
+        p.add(I18n.t("back"), null, () -> menuView.pop());
+        p.onLeave = () -> logStatus = null;
+        p.footer = () -> logStatus != null ? logStatus : "Classic - EDuke32";
+        return p;
+    }
+
+    /** Mods de la Classic: Campañas (una sola a la vez) y Gráficos y sonido (varios). */
+    private DukeMenuView.Page classicModsPage(File gameDir) {
+        DukeMenuView.Page p = new DukeMenuView.Page();
+        com.kbretro.duke3d.classic.ClassicApi.makeCategoryDirs(gameDir);
+        List<File> campaigns = new ArrayList<>(), others = new ArrayList<>();
+        for (File f : com.kbretro.duke3d.classic.ClassicApi.mods(gameDir))
+            (com.kbretro.duke3d.classic.ClassicApi.isCampaign(f) ? campaigns : others).add(f);
+        p.addGame(I18n.t("mods_campaigns"), box(R.drawable.caja_campanas),
+                () -> menuView.push(classicModListPage(gameDir, campaigns, true)));
+        p.addGame(I18n.t("mods_gfx"), box(R.drawable.caja_graficos),
+                () -> menuView.push(classicModListPage(gameDir, others, false)));
+        p.add(I18n.t("back"), null, () -> menuView.pop());
+        // Al volver, el menú principal se rehace (con campaña solo se ve el juego base).
+        p.onLeave = () -> menuView.post(() -> menuView.setRoot(rootPage(gameDir), this::finish));
+        File dir = com.kbretro.duke3d.classic.ClassicApi.findChild(gameDir, "mods");
+        String path = (dir != null ? dir : new File(gameDir, "mods")).getAbsolutePath();
+        p.footer = () -> p.selected <= 1 ? I18n.t("mods_one_campaign") : I18n.t("mods_where") + path;
+        return p;
+    }
+
+    private DukeMenuView.Page classicModListPage(File gameDir, List<File> mods, boolean campaigns) {
+        DukeMenuView.Page p = new DukeMenuView.Page();
+        for (File f : mods) {
+            String name = f.getName();
+            String label = name.replaceAll("(?i)\\.(zip|pk3|grp)$", "").replace('_', ' ');
+            p.addValue(label, () -> I18n.t(com.kbretro.duke3d.classic.ClassicApi.enabledMods(this).contains(name) ? "yes" : "no"),
+                    () -> com.kbretro.duke3d.classic.ClassicApi.toggleMod(this, gameDir, name, campaigns));
+            DukeMenuView.Entry e = p.entries.get(p.entries.size() - 1);
+            e.active = () -> com.kbretro.duke3d.classic.ClassicApi.enabledMods(this).contains(name);
+        }
+        p.add(I18n.t("back"), null, () -> menuView.pop());
+        File base = com.kbretro.duke3d.classic.ClassicApi.findChild(gameDir, "mods");
+        File dir = new File(base != null ? base : new File(gameDir, "mods"),
+                campaigns ? com.kbretro.duke3d.classic.ClassicApi.CAMPAIGN_DIR : com.kbretro.duke3d.classic.ClassicApi.GFX_DIR);
+        p.footer = () -> mods.isEmpty() ? I18n.t("mods_empty") + dir.getAbsolutePath()
+                : (p.selected < mods.size() ? mods.get(p.selected).getName() + " - " : "")
+                + I18n.t(campaigns ? "mods_campaign_alone" : "mods_note");
+        return p;
+    }
+
+    private void launchClassic(File gameDir, com.kbretro.duke3d.classic.ClassicApi.Game game) {
+        section = 0;
+        if (launching) return;
+        launching = true;
+        music.stop();
+        DukeMenuView.Page wait = new DukeMenuView.Page();
+        if (!com.kbretro.duke3d.classic.ClassicApi.enabledMods(this).isEmpty()) {
+            wait.addValue(I18n.t("mods_preparing"), com.kbretro.duke3d.classic.ClassicApi::progressValue, null);
+            wait.footer = () -> com.kbretro.duke3d.classic.ClassicApi.progress() + " - " + I18n.t("mods_wait");
+            menuView.push(wait);
+        }
+        boolean spanish = I18n.ES.equals(I18n.lang());
+        new Thread(() -> {
+            Intent intent;
+            try {
+                intent = com.kbretro.duke3d.classic.ClassicApi.prepareLaunch(this, gameDir, game, spanish);
+            } catch (Throwable t) {
+                android.util.Log.e("Duke3D", "Classic: no se pudo preparar el juego", t);
+                runOnUiThread(() -> {
+                    launching = false;
+                    if (menuView.top() == wait) menuView.pop();
+                    android.widget.Toast.makeText(this, String.valueOf(t), android.widget.Toast.LENGTH_LONG).show();
+                });
+                return;
+            }
+            runOnUiThread(() -> {
+                launching = false;
+                if (menuView.top() == wait) menuView.pop();
+                if (isFinishing() || isDestroyed()) return;
+                getPreferences(MODE_PRIVATE).edit().putBoolean("jugando", true)
+                        .putString("inicio_partida", logTime(System.currentTimeMillis() - 2000)).apply();
+                startActivity(intent);
+            });
+        }, "Classic").start();
     }
 
     /** El menú principal vuelve a la sección del último juego lanzado (0 Legend, 1 Classic, 2 Legacy). */
@@ -532,7 +676,11 @@ public class LauncherActivity extends Activity {
 
     /** La caja de cada juego (imágenes del APK). */
     private Bitmap cover(GameData.Game g) {
-        String t = g.title.toLowerCase(java.util.Locale.ROOT);
+        return coverFor(g.title);
+    }
+
+    private Bitmap coverFor(String title) {
+        String t = title.toLowerCase(java.util.Locale.ROOT);
         int res = t.contains("d.c.") ? R.drawable.caja_dc
                 : t.contains("winter") ? R.drawable.caja_nw
                 : t.contains("caribbean") ? R.drawable.caja_caribbean

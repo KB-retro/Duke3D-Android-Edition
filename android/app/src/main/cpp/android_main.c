@@ -118,7 +118,14 @@ static char cmd_queue[CMD_MAX][CMD_LEN];
 static int cmd_head, cmd_count;
 static pthread_mutex_t cmd_lock = PTHREAD_MUTEX_INITIALIZER;
 
-JNIEXPORT void JNICALL Java_com_kbretro_duke3d_GameActivity_nativeCommand(JNIEnv *env, jclass cls, jstring cmd)
+// Nombres JNI: GameActivity de la Classic suelta o, dentro de Duke Legacy, la del paquete classic.
+#ifdef CLASSIC_PKG
+#define JNI_GAME(name) Java_com_kbretro_duke3d_classic_GameActivity_##name
+#else
+#define JNI_GAME(name) Java_com_kbretro_duke3d_GameActivity_##name
+#endif
+
+JNIEXPORT void JNICALL JNI_GAME(nativeCommand)(JNIEnv *env, jclass cls, jstring cmd)
 {
     (void)cls;
     const char *c = (*env)->GetStringUTFChars(env, cmd, NULL);
@@ -152,7 +159,7 @@ JNIEXPORT jint JNI_OnLoad(JavaVM *vm, void *reserved)
 }
 
 /** Desde Java (hilo principal): se guarda la clase, que el hilo del juego no puede buscar. */
-JNIEXPORT void JNICALL Java_com_kbretro_duke3d_GameActivity_nativeInit(JNIEnv *env, jclass cls)
+JNIEXPORT void JNICALL JNI_GAME(nativeInit)(JNIEnv *env, jclass cls)
 {
     if (!game_class) game_class = (*env)->NewGlobalRef(env, cls);
     vibrate_method = (*env)->GetStaticMethodID(env, cls, "vibrate", "(II)V");
@@ -193,7 +200,7 @@ void duke3d_android_event(int type, int a, int b, int c)
 
 int duke3d_android_in_game(void);
 
-JNIEXPORT jboolean JNICALL Java_com_kbretro_duke3d_GameActivity_nativeInGame(JNIEnv *env, jclass cls)
+JNIEXPORT jboolean JNICALL JNI_GAME(nativeInGame)(JNIEnv *env, jclass cls)
 {
     (void)env;
     (void)cls;
@@ -307,7 +314,7 @@ static pthread_mutex_t touch_lock = PTHREAD_MUTEX_INITIALIZER;
 static float touch_mx, touch_my, touch_lx, touch_ly, touch_sens = 1.f;
 static uint64_t touch_buttons;
 
-JNIEXPORT void JNICALL Java_com_kbretro_duke3d_GameActivity_nativeTouchMove(JNIEnv *env, jclass cls, jfloat x, jfloat y)
+JNIEXPORT void JNICALL JNI_GAME(nativeTouchMove)(JNIEnv *env, jclass cls, jfloat x, jfloat y)
 {
     (void)env;
     (void)cls;
@@ -317,7 +324,7 @@ JNIEXPORT void JNICALL Java_com_kbretro_duke3d_GameActivity_nativeTouchMove(JNIE
     pthread_mutex_unlock(&touch_lock);
 }
 
-JNIEXPORT void JNICALL Java_com_kbretro_duke3d_GameActivity_nativeTouchLook(JNIEnv *env, jclass cls, jfloat dx, jfloat dy, jfloat sens)
+JNIEXPORT void JNICALL JNI_GAME(nativeTouchLook)(JNIEnv *env, jclass cls, jfloat dx, jfloat dy, jfloat sens)
 {
     (void)env;
     (void)cls;
@@ -328,7 +335,7 @@ JNIEXPORT void JNICALL Java_com_kbretro_duke3d_GameActivity_nativeTouchLook(JNIE
     pthread_mutex_unlock(&touch_lock);
 }
 
-JNIEXPORT void JNICALL Java_com_kbretro_duke3d_GameActivity_nativeButton(JNIEnv *env, jclass cls, jint func, jboolean down)
+JNIEXPORT void JNICALL JNI_GAME(nativeButton)(JNIEnv *env, jclass cls, jint func, jboolean down)
 {
     (void)env;
     (void)cls;

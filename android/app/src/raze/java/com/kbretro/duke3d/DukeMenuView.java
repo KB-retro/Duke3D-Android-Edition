@@ -78,6 +78,13 @@ final class DukeMenuView extends View {
         String[] tabs;
         /** Este lado es la pestaña de la derecha. */
         boolean rightTab;
+        /**
+         * Selector de versión (Duke Nukem 3D: «HD» y «CLASSIC»): se ve arriba, el elegido brillando
+         * y subrayado; Start o tocarlo cambia de uno a otro (onModeSwitch).
+         */
+        String[] modes;
+        int mode;
+        Runnable onModeSwitch;
 
         Page add(String label, Bitmap icon, Runnable action) {
             entries.add(new Entry(label, icon, action, null));
@@ -517,6 +524,27 @@ final class DukeMenuView extends View {
             shade.setColorFilter(null);
         }
 
+        // Selector HD / CLASSIC arriba (menú principal de Duke Nukem 3D).
+        modeRect.setEmpty();
+        if (stack.size() == 1 && p.modes != null && p.modes.length == 2) {
+            float ts = 0.6f, gap = 18;
+            float w0 = bigWidth(p.modes[0]) * ts, w1 = bigWidth(p.modes[1]) * ts;
+            float total = w0 + gap + w1;
+            float x0 = 160 - total / 2f, x1 = x0 + w0 + gap;
+            for (int t = 0; t < 2; t++) {
+                boolean cur = t == p.mode;
+                int lvl = cur ? 205 + (int) (50 * Math.abs(Math.sin(now / 300.0))) : 95;
+                shade.setColorFilter(new LightingColorFilter(Color.rgb(lvl, lvl, lvl), 0));
+                float tx = t == 0 ? x0 : x1, tw = t == 0 ? w0 : w1;
+                drawBig(c, p.modes[t], tx, 8, ts, shade);
+                if (cur) c.drawRect(vx(tx), vy(15), vx(tx + tw), vy(15) + Math.max(2, sy * 0.8f), tabLine);
+            }
+            shade.setColorFilter(null);
+            drawSmall(c, "/", x0 + w0 + gap / 2f, 9, 0.6f, true);
+            drawSmall(c, "START", 160, 19, 0.45f, true);
+            modeRect.set(vx(x0 - 8), 0, vx(x1 + w1 + 8), vy(26));
+        }
+
         // Pie: una línea de información si la hay (carpeta, pista que suena...).
         String ft = p.footer != null ? p.footer.get() : "";
         if (!ft.isEmpty()) drawSmall(c, ft, 160, 191, 0.6f, true);
@@ -560,7 +588,7 @@ final class DukeMenuView extends View {
         postInvalidateDelayed(stack.size() == 1 && p.otherSide != null ? 16 : 50);
     }
 
-    private final RectF arrowRect = new RectF(), arrowBackRect = new RectF();
+    private final RectF arrowRect = new RectF(), arrowBackRect = new RectF(), modeRect = new RectF();
 
     /** La flecha de sección, en píxeles del juego (se dibuja escalada sin suavizar, como las letras). */
     private Bitmap sectionArrow;
@@ -914,6 +942,12 @@ final class DukeMenuView extends View {
             case KeyEvent.KEYCODE_NUMPAD_ENTER:
             case KeyEvent.KEYCODE_BUTTON_START: {
                 Page p = page();
+                // En el menú principal con selector de versión, Start cambia HD / CLASSIC.
+                if (keyCode == KeyEvent.KEYCODE_BUTTON_START && stack.size() == 1 && p.onModeSwitch != null) {
+                    p.onModeSwitch.run();
+                    invalidate();
+                    return true;
+                }
                 Entry e = p.entries.isEmpty() ? null : p.entries.get(p.selected);
                 if (e != null && e.reset != null) {
                     e.reset.run();
@@ -978,6 +1012,7 @@ final class DukeMenuView extends View {
                     else if (tabRects[1].contains(ev.getX(), ev.getY())) switchSide(1);
                     else if (arrowRect.contains(ev.getX(), ev.getY())) nextSection();
                     else if (arrowBackRect.contains(ev.getX(), ev.getY())) prevSection();
+                    else if (modeRect.contains(ev.getX(), ev.getY()) && page().onModeSwitch != null) page().onModeSwitch.run();
                 }
                 if (!dragged && idx < 0 && touched < 0 && !arrowRect.contains(ev.getX(), ev.getY())
                         && coverRect.contains(ev.getX(), ev.getY())) {

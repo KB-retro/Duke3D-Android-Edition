@@ -50,6 +50,9 @@ void android_postfx_set_aspect(float aspect)
 #elif defined(POSTFX_DOS)
 // Juegos de MS-DOS (dos/dos_main.cpp): los ajustes llegan desde DosActivity.
 #define POSTFX_JNI Java_com_kbretro_duke3d_DosActivity_nativePostFx
+#elif defined(CLASSIC_PKG)
+// La Classic dentro de Duke Legacy (paquete classic).
+#define POSTFX_JNI Java_com_kbretro_duke3d_classic_GameActivity_nativePostFx
 #else
 #define POSTFX_JNI Java_com_kbretro_duke3d_GameActivity_nativePostFx
 #endif
