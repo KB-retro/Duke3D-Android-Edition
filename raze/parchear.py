@@ -1473,3 +1473,23 @@ void OpenGLFrameBuffer::Swap()
 sub("source/common/rendering/gles/gles_framebuffer.cpp",
     '#include "gles_framebuffer.h"',
     '#include "gles_framebuffer.h"\n#include <chrono>')
+
+# 45. (Solo build Dimensity) Texturas: cada vez que se usa una (cientos de veces por fotograma) el
+#     modo GLES le volvía a poner sus parámetros (repetición, filtro, anisotrópico: cinco llamadas
+#     al driver) aunque no hubieran cambiado. En las Mali eso revalida la textura y es caro: los
+#     tirones de la RG477M no dependían de luces ni modelos. Ahora solo si cambian.
+sub("source/common/rendering/gles/gles_hwtexture.h",
+    "\tbool mipmapped = false;\n",
+    "\tbool mipmapped = false;\n\tint lastSamplerKey = -1;\t// parámetros ya puestos en esta textura (build Dimensity)\n")
+sub("source/common/rendering/gles/gles_hwtexture.cpp",
+    "\t\tif (!CreateTexture(texbuffer.mBuffer, w, h, texunit, needmipmap, \"FHardwareTexture.BindOrCreate\"))\n\t\t{\n\t\t\t// could not create texture\n\t\t\treturn false;\n\t\t}\n\t}\n"
+    "\tif (forcenofilter && clampmode <= CLAMP_XY) clampmode += CLAMP_NOFILTER - CLAMP_NONE;\n"
+    "\tGLRenderer->mSamplerManager->Bind(texunit, clampmode, 255);\n",
+    "\t\tif (!CreateTexture(texbuffer.mBuffer, w, h, texunit, needmipmap, \"FHardwareTexture.BindOrCreate\"))\n\t\t{\n\t\t\t// could not create texture\n\t\t\treturn false;\n\t\t}\n"
+    "\t\tlastSamplerKey = -1;\n\t}\n"
+    "\tif (forcenofilter && clampmode <= CLAMP_XY) clampmode += CLAMP_NOFILTER - CLAMP_NONE;\n"
+    "#ifdef DUKE_DIMENSITY\n"
+    "\t{\n\t\tint key = clampmode + 64 * (int)gl_texture_filter + 4096 * (int)gl_texture_filter_anisotropic;\n"
+    "\t\tif (key == lastSamplerKey) return true;\n\t\tlastSamplerKey = key;\n\t}\n"
+    "#endif\n"
+    "\tGLRenderer->mSamplerManager->Bind(texunit, clampmode, 255);\n")
