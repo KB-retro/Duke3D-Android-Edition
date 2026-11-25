@@ -58,7 +58,8 @@ tocando el pie del menú.
 ## Duke Legacy (HD)
 
 - **Pack HD (HRP)**: texturas en alta resolución y **modelos 3D** animados de enemigos y objetos,
-  con fundido entre posturas y giro suave. Las expansiones que redibujan gráficos (el Caribe)
+  con fundido entre posturas, giro suave, ladeo y respiración (vienen apagados de serie: se
+  activan en **Gráficos → Modelos 3D**). Las expansiones que redibujan gráficos (el Caribe)
   conservan los suyos.
 - **Luces dinámicas**: explosiones, cohetes, fuego, rayos del congelador y del reductor, láseres y
   el fogonazo de tu arma iluminan paredes, suelos, enemigos y modelos.

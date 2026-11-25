@@ -31,11 +31,11 @@ final class GraphicsSettings {
     }
 
     static int sharp(Context c) {
-        return clamp(prefs(c).getInt("nitidez", 0), SHARP_KEYS.length);
+        return clamp(prefs(c).getInt("nitidez", 2), SHARP_KEYS.length);
     }
 
     static int crt(Context c) {
-        return clamp(prefs(c).getInt("crt", 0), CRT_KEYS.length);
+        return clamp(prefs(c).getInt("crt", 2), CRT_KEYS.length);
     }
 
     static int color(Context c) {

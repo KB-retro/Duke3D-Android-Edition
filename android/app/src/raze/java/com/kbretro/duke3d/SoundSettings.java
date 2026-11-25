@@ -38,7 +38,7 @@ final class SoundSettings {
 
     private static final Opt[] OPTS = {
             new Opt("snd_master", "snd_general", "snd_mastervolume", 10, false),
-            new Opt("snd_music", "snd_musica", "snd_musicvolume", 5, false),
+            new Opt("snd_music", "snd_musica", "snd_musicvolume", 7, false),
             new Opt("snd_sfx", "snd_efectos", "snd_sfxvolume", 10, false),
             new Opt("snd_music_on", "snd_musica_si", "mus_enabled", 1, true),
     };

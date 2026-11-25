@@ -478,7 +478,7 @@ public class GameActivity extends SDLActivity {
     }
 
     private int fps() {
-        return prefs().getInt("fps", 60);
+        return prefs().getInt("fps", 120);
     }
 
     private int scale() {

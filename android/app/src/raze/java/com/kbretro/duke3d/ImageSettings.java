@@ -30,7 +30,7 @@ final class ImageSettings {
                     new String[]{"70°", "80°", "90°", "100°", "110°", "120°"},
                     new String[]{"r_fov 70", "r_fov 80", "r_fov 90", "r_fov 100", "r_fov 110", "r_fov 120"}),
             // hud_size de Raze: 0-4 marco (pantalla reducida), 5 barra de estado, ... 10 sin HUD.
-            new Opt("img_screen", "img_pantalla", 5,
+            new Opt("img_screen", "img_pantalla", 8,
                     new String[]{"img_frame50", "img_frame60", "img_frame70", "img_frame80", "img_frame90",
                             "img_stbar", "img_stbar_overlay", "img_mini", "img_full", "img_althud", "img_nothing"},
                     new String[]{"hud_size 0", "hud_size 1", "hud_size 2", "hud_size 3", "hud_size 4",

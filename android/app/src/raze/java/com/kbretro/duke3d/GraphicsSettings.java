@@ -165,7 +165,7 @@ final class GraphicsSettings {
                     // de memoria (Mali de la RG477M) aunque el procesador fuera holgado.
                     new String[]{"gl_texture_filter 1", "gl_texture_filter 5", "gl_texture_filter 3", "gl_texture_filter 4"}),
             // De serie 4x: con mipmaps, 8x ya pesa en las GPU de gama media (Mali).
-            new RazeOpt("gfx_aniso", "raze_aniso", 1,
+            new RazeOpt("gfx_aniso", "raze_aniso", 2,
                     new String[]{"no", "4x", "8x", "16x"},
                     new String[]{"gl_texture_filter_anisotropic 1", "gl_texture_filter_anisotropic 4",
                             "gl_texture_filter_anisotropic 8", "gl_texture_filter_anisotropic 16"}),
@@ -175,7 +175,7 @@ final class GraphicsSettings {
                             "gl_texture_hqresizemult 2;gl_texture_hqresizemode 4",
                             "gl_texture_hqresizemult 3;gl_texture_hqresizemode 4"}),
             // Raze trae los modelos apagados (hw_models false): con el HRP salían los sprites planos.
-            new RazeOpt("gfx_models", "raze_modelos", 1,
+            new RazeOpt("gfx_models", "raze_modelos", 0,
                     new String[]{"no", "yes"}, new String[]{"hw_models 0", "hw_models 1"}),
             // Hasta dónde se ven los modelos 3D (más lejos, sprite 2D HD): menos trabajo para el
             // procesador en zonas amplias.

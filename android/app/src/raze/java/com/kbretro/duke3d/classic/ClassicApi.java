@@ -186,11 +186,11 @@ public final class ClassicApi {
         I18n.load(c);
         List<Option> out = new ArrayList<>();
         out.add(new Option("FPS", () -> {
-            int f = prefs(c).getInt("fps", 60);
+            int f = prefs(c).getInt("fps", 120);
             return f <= 0 ? I18n.t("unlimited") : f + " FPS";
         }, () -> {
             int[] values = {60, 120, 0};
-            int cur = prefs(c).getInt("fps", 60), i = 0;
+            int cur = prefs(c).getInt("fps", 120), i = 0;
             for (int k = 0; k < values.length; k++) if (values[k] == cur) i = k;
             prefs(c).edit().putInt("fps", values[(i + 1) % values.length]).apply();
         }, null));
