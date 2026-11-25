@@ -117,10 +117,11 @@ final class GameData {
                 .toLowerCase(java.util.Locale.ROOT).replaceAll("[^a-z]", "");
     }
 
-    /** 1 carpeta de campañas, 2 de gráficos y sonido, 0 otra. */
+    /** 1 carpeta de campañas, 2 de gráficos y sonido, 3 de la Classic (no es de la HD), 0 otra. */
     private static int categoryDir(File d) {
         String n = plainName(d.getName());
-        if (n.startsWith("campanas") || n.startsWith("campaign")) return 1;	// también «Campanas Classic»
+        if (n.endsWith("classic")) return 3;	// «Graficos y sonido Classic», «Campanas Classic»
+        if (n.startsWith("campanas") || n.startsWith("campaign")) return 1;
         if (n.startsWith("graficos") || n.startsWith("graphics") || n.equals("sonido") || n.equals("sound")) return 2;
         return 0;
     }
@@ -148,7 +149,9 @@ final class GameData {
             if (n.startsWith(".")) continue;
             if (f.isFile() && (n.endsWith(".zip") || n.endsWith(".pk3") || n.endsWith(".grp"))) out.add(f);
             else if (f.isDirectory()) {
-                if (top && categoryDir(f) != 0) addMods(f, out, false); // Campañas / Gráficos y sonido
+                int c = top ? categoryDir(f) : 0;
+                if (c == 3) continue; // los de la Classic no son de la HD
+                if (c != 0) addMods(f, out, false); // Campañas / Gráficos y sonido
                 else out.add(f); // mod ya descomprimido
             }
         }

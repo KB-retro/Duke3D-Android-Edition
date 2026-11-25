@@ -113,18 +113,20 @@ final class GameData {
     }
 
     /** Subcarpetas de "mods" que agrupan: campañas y gráficos/sonido. */
-    static final String CAMPAIGN_DIR = "Campanas Classic", GFX_DIR = "Graficos y sonido";	// las campañas solo van en la Classic
+    // Carpetas propias de la Classic: sus mods son distintos de los de la HD («Graficos y sonido»).
+    static final String CAMPAIGN_DIR = "Campanas Classic", GFX_DIR = "Graficos y sonido Classic";
 
     private static String plainName(String s) {
         return java.text.Normalizer.normalize(s, java.text.Normalizer.Form.NFD).replaceAll("\\p{M}", "")
                 .toLowerCase(java.util.Locale.ROOT).replaceAll("[^a-z]", "");
     }
 
-    /** 1 carpeta de campañas, 2 de gráficos y sonido, 0 otra. */
+    /** 1 carpeta de campañas, 2 de gráficos y sonido de la Classic, 3 la de la HD, 0 otra. */
     private static int categoryDir(File d) {
         String n = plainName(d.getName());
         if (n.startsWith("campanas") || n.startsWith("campaign")) return 1;	// también «Campanas Classic»
-        if (n.startsWith("graficos") || n.startsWith("graphics") || n.equals("sonido") || n.equals("sound")) return 2;
+        if (n.startsWith("graficos") || n.startsWith("graphics") || n.startsWith("sonido") || n.startsWith("sound"))
+            return n.endsWith("classic") ? 2 : 3;
         return 0;
     }
 
@@ -155,10 +157,13 @@ final class GameData {
         for (File f : files) {
             String n = f.getName().toLowerCase(java.util.Locale.ROOT);
             if (n.startsWith(".")) continue;
-            if (f.isFile() && (n.endsWith(".zip") || n.endsWith(".pk3") || n.endsWith(".grp"))) out.add(f);
-            else if (f.isDirectory()) {
-                if (top && categoryDir(f) != 0) addMods(f, out, false); // Campañas / Gráficos y sonido
-                else out.add(f); // mod ya descomprimido
+            if (f.isFile() && (n.endsWith(".zip") || n.endsWith(".pk3") || n.endsWith(".grp"))) {
+                if (!top) out.add(f);
+            } else if (f.isDirectory()) {
+                int c = top ? categoryDir(f) : 0;
+                if (c == 1 || c == 2) addMods(f, out, false); // Campañas Classic / Gráficos y sonido Classic
+                else if (!top) out.add(f); // mod ya descomprimido
+                // Arriba, fuera de sus carpetas (o en la de la HD): no son de la Classic.
             }
         }
     }

@@ -62,7 +62,7 @@ tocando el pie del menú.
   conservan los suyos.
 - **Luces dinámicas**: explosiones, cohetes, fuego, rayos del congelador y del reductor, láseres y
   el fogonazo de tu arma iluminan paredes, suelos, enemigos y modelos.
-- **Mods** (`Duke3D/mods/Graficos y sonido`): cada mod tiene su interruptor en **Opciones** del
+- **Mods** (`Duke3D/mods/Graficos y sonido`, solo de la HD): cada mod tiene su interruptor en **Opciones** del
   lanzador y en el menú rápido. El pack HD y el XXX vienen activados de serie (los que lleven
   «hrp», «hd» o «xxx» en el nombre).
 - **Menú rápido** (Atrás, solo en plena partida):
@@ -84,9 +84,10 @@ tocando el pie del menú.
   cambia entre **HD** y **CLASSIC**. Sus ajustes, mods y campañas son independientes de la HD.
 - El motor EDuke32 original, con filtros de imagen: escalado, FXAA, nitidez, resplandor, color
   y efecto CRT / LCD.
-- **Mods** en `Duke3D/mods`: campañas completas (`Campanas Classic`, solo para la Classic) y
-  mods de gráficos y sonido (`Graficos y sonido`), en carpeta, `.zip`, `.pk3` o `.grp`. El pack
-  HD y el XXX no salen en la Classic (el dibujo por software no los usa).
+- **Mods propios**, distintos de los de la HD: campañas completas en `Duke3D/mods/Campanas Classic`
+  y mods de gráficos y sonido (audio HD, vóxeles...) en `Duke3D/mods/Graficos y sonido Classic`,
+  en carpeta, `.zip`, `.pk3` o `.grp`. Los de `Graficos y sonido` son solo de la HD. El pack HD y
+  el XXX no salen en la Classic (el dibujo por software no los usa).
 - El mismo menú rápido: trucos, gráficos, controles, vibración, volver al lanzador y salir.
 
 ## Controles
