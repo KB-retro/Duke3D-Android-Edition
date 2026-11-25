@@ -1507,3 +1507,24 @@ sub("source/common/rendering/gles/gles_hwtexture.cpp",
     "\t\tif (key == lastSamplerKey) return true;\n\t\tlastSamplerKey = key;\n\t}\n"
     "#endif\n"
     "\tGLRenderer->mSamplerManager->Bind(texunit, clampmode, 255);\n")
+
+# 46. (Solo build Dimensity) Vértices con búferes mapeados en vez de glBufferSubData. En las Mali,
+#     actualizar con glBufferSubData un búfer que la gráfica aún usa obliga al driver a copiarlo
+#     entero, y el de vértices de Raze es enorme (2 millones de vértices): al dibujar el cielo
+#     (portales) y cada lista se repetía la copia y daba 15-30 ms por fotograma, con cualquier
+#     ajuste y a cualquier resolución. Mapeado sin sincronizar (cada fotograma escribe en su
+#     propio búfer y en zonas nuevas) y con barreras (fences) de OpenGL ES 3 entre fotogramas.
+sub("source/common/rendering/gles/gles_system.cpp",
+    "\t\tsetGlVersion(glVersion);",
+    "#ifdef DUKE_DIMENSITY\n"
+    "\t\tif (gles.glesMode == GLES_MODE_GLES && glMapBufferRange && glUnmapBuffer && glFenceSync && glClientWaitSync && glDeleteSync)\n"
+    "\t\t{\n\t\t\tgles.useMappedBuffers = true;\n\t\t\tPrintf(\"GLES: búferes mapeados (build Dimensity)\\n\");\n\t\t}\n"
+    "#endif\n"
+    "\t\tsetGlVersion(glVersion);")
+sub("source/common/rendering/gles/gles_buffers.cpp",
+    '#include "flatvertices.h"',
+    '#include "flatvertices.h"\n'
+    '#ifdef DUKE_DIMENSITY\n#define GLES_SYNC_ON_ES 1\t// barreras también en OpenGL ES (build Dimensity)\n#else\n#define GLES_SYNC_ON_ES 0\n#endif')
+sub("source/common/rendering/gles/gles_buffers.cpp",
+    "gles.glesMode > GLES_MODE_GLES && gles.useMappedBuffers",
+    "(gles.glesMode > GLES_MODE_GLES || GLES_SYNC_ON_ES) && gles.useMappedBuffers", 2)
