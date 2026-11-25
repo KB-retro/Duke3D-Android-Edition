@@ -24,7 +24,7 @@ android {
         minSdk = 26
         targetSdk = 35
         versionCode = config("VERSION_CODE", "1").toInt()
-        versionName = "0.1.${config("VERSION_CODE", "0")}"
+        versionName = "0.1.${config("VERSION_CODE", "0")}" + (if (System.getenv("DUKE_DIMENSITY") == "1") " Dimensity" else "")
 
         ndk {
             abiFilters += listOf("arm64-v8a")
