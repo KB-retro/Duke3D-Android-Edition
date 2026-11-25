@@ -12,8 +12,6 @@
 #include <android/log.h>
 #include <dlfcn.h>
 #include <pthread.h>
-#include <sched.h>
-#include <sys/resource.h>
 #include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -500,52 +498,9 @@ struct GameArgs
     int rc;
 };
 
-#ifdef DUKE_DIMENSITY
-// Build para Dimensity (MediaTek, GPU Mali): Raze dibuja y piensa en un solo hilo, y el sistema
-// lo movía a veces a los núcleos pequeños (tirones de golpe aunque se bajaran los ajustes). Aquí
-// el hilo del juego se queda en los núcleos grandes (los de más frecuencia) y con más prioridad.
-static void pin_to_big_cores()
-{
-    int n = (int)sysconf(_SC_NPROCESSORS_CONF);
-    if (n <= 0 || n > 64) return;
-    std::vector<long> maxf(n, 0);
-    long best = 0;
-    for (int i = 0; i < n; i++)
-    {
-        char path[96];
-        snprintf(path, sizeof(path), "/sys/devices/system/cpu/cpu%d/cpufreq/cpuinfo_max_freq", i);
-        if (FILE *f = fopen(path, "r"))
-        {
-            if (fscanf(f, "%ld", &maxf[i]) != 1) maxf[i] = 0;
-            fclose(f);
-        }
-        if (maxf[i] > best) best = maxf[i];
-    }
-    if (best <= 0) return;
-    // Los grandes: los que llegan al menos al 85 % de la frecuencia del más rápido (en los
-    // Dimensity con núcleo «prime», el prime y los grandes; nunca los pequeños).
-    cpu_set_t set;
-    CPU_ZERO(&set);
-    std::string list;
-    for (int i = 0; i < n; i++)
-        if (maxf[i] >= best * 85 / 100)
-        {
-            CPU_SET(i, &set);
-            list += " " + std::to_string(i);
-        }
-    int r = sched_setaffinity(0, sizeof(set), &set);
-    setpriority(PRIO_PROCESS, 0, -8);
-    __android_log_print(ANDROID_LOG_INFO, "Duke3D", "Dimensity: hilo del juego en los núcleos%s (%s)",
-                        list.c_str(), r == 0 ? "ok" : "no se pudo");
-}
-#endif
-
 void *game_thread(void *p)
 {
     GameArgs *ga = (GameArgs *)p;
-#ifdef DUKE_DIMENSITY
-    pin_to_big_cores();
-#endif
     ga->rc = raze_main(ga->argc, ga->argv);
     return nullptr;
 }

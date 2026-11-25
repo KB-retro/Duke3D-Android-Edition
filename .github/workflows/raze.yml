@@ -3,17 +3,11 @@ name: Raze
 # Motor Raze para Android (APK aparte). Se compila a mano: Actions → Raze → Run workflow.
 # De momento compila solo el código nativo (libmain.so y sus bibliotecas) y enseña todos los
 # errores de una vez en el resumen del run.
-# En la lista de Actions se ve cuál es cuál.
-run-name: ${{ inputs.dimensity && 'Raze (Dimensity)' || 'Raze' }}
 on:
   workflow_dispatch:
     inputs:
       diagnostico:
         description: "Diagnóstico de memoria (HWASan): más lento; para cazar escrituras fuera de sitio"
-        type: boolean
-        default: false
-      dimensity:
-        description: "Build para Dimensity (RG477M y demás MediaTek): el juego en los núcleos grandes"
         type: boolean
         default: false
 
@@ -102,9 +96,6 @@ jobs:
           # Diagnóstico de memoria: HWASan (Android 14+) marca la escritura fuera de sitio en el acto.
           SAN=""; SANLD=""
           if [ "${{ inputs.diagnostico }}" = "true" ]; then SAN="-fsanitize=hwaddress -fno-omit-frame-pointer"; SANLD="-fsanitize=hwaddress"; fi
-          # Build para Dimensity: ver DUKE_DIMENSITY en raze/android/android_raze.cpp. La app lo dice
-          # en su versión (arriba a la derecha del lanzador: «Duke Legacy 0.1.N Dimensity»).
-          if [ "${{ inputs.dimensity }}" = "true" ]; then SAN="$SAN -DDUKE_DIMENSITY"; echo "DUKE_DIMENSITY=1" >> "$GITHUB_ENV"; fi
           cmake -S raze-src -B raze-a -G Ninja -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_TOOLCHAIN_FILE=$NDK/build/cmake/android.toolchain.cmake \
             -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=$API -DANDROID_STL=c++_shared \
@@ -205,12 +196,11 @@ jobs:
             unzip -l app/build/outputs/apk/raze/release/app-raze-release.apk | grep -q "lib/arm64-v8a/$L" || { echo "Falta $L"; exit 1; }
           done
           SUF=""; if [ "$RAZE_DIAG" = "1" ]; then SUF="-diagnostico"; fi
-          if [ "${{ inputs.dimensity }}" = "true" ]; then SUF="$SUF-dimensity"; fi
           cp app/build/outputs/apk/raze/release/app-raze-release.apk "../salida/Duke-Legacy-0.1.${VERSION_CODE}${SUF}.apk"
 
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: Duke-Legacy-0.1.${{ github.run_number }}${{ inputs.dimensity && '-dimensity' || '' }}
+          name: Duke-Legacy-0.1.${{ github.run_number }}
           path: salida
           retention-days: 14

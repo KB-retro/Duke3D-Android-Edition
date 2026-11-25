@@ -1053,28 +1053,31 @@ static void DukeSceneLights(TArray<HWSceneLight>& out, double interpfrac)
 		hw_AddSceneLight(out, act->interpolatedpos(interpfrac).plusZ(-6), act->sector(), rad, d.r, d.g, d.b);
 		if (out.Size() > before) out.Last().owner = act->GetOwner();	// el disparo no alumbra a quien lo lanza
 	}
-	// Lámparas del mapa que parpadean o laten (efectores 3 y 4): una luz de verdad en su zona que
+	// Lámparas del mapa que parpadean o laten, y luces con interruptor (efectores 3, 4 y 12): una luz de verdad en su zona que
 	// sube y baja con su brillo (el ya suavizado de la pantalla), en vez de aclarar la zona entera.
 	{
 		DukeStatIterator eit(STAT_EFFECTOR);
 		while (auto ef = eit.Next())
 		{
 			int lt = ef->spr.lotag;
-			if (lt != SE_3_RANDOM_LIGHTS_AFTER_SHOT_OUT && lt != SE_4_RANDOM_LIGHTS) continue;
+			if (lt != SE_3_RANDOM_LIGHTS_AFTER_SHOT_OUT && lt != SE_4_RANDOM_LIGHTS && lt != SE_12_LIGHT_SWITCH) continue;
 			auto sec = ef->sector();
 			if (!sec || sec->walls.Size() == 0) continue;
 			float shade = (float)hw_CeilingShade(sec);
-			float k = clamp((26.f - shade) / 30.f, 0.f, 1.f);
-			if (k <= 0.05f) continue;
+			// Más fuerte cuanto más luz tiene la zona (con el interruptor apagado, o la lámpara en su
+			// parpadeo oscuro, casi nada).
+			float k = clamp((24.f - shade) / 24.f, 0.f, 1.f);
+			if (k <= 0.08f) continue;
 			double x0 = 1e30, x1 = -1e30, y0 = 1e30, y1 = -1e30;
 			for (auto& wal : sec->walls)
 			{
 				x0 = min(x0, wal.pos.X); x1 = max(x1, wal.pos.X);
 				y0 = min(y0, wal.pos.Y); y1 = max(y1, wal.pos.Y);
 			}
-			float rad = (float)clamp(max(x1 - x0, y1 - y0) * 0.6, 48., 220.);
-			DVector3 pos(ef->spr.pos.X, ef->spr.pos.Y, sec->ceilingz * 0.7 + sec->floorz * 0.3);
-			hw_AddSceneLight(out, pos, sec, rad, 0.8f * k, 0.72f * k, 0.55f * k);
+			// Arriba, donde suele estar la lámpara, y alcanzando toda la zona y algo de las de al lado.
+			float rad = (float)clamp(max(x1 - x0, y1 - y0) * 0.9, 64., 320.);
+			DVector3 pos(ef->spr.pos.X, ef->spr.pos.Y, sec->ceilingz * 0.85 + sec->floorz * 0.15);
+			hw_AddSceneLight(out, pos, sec, rad, 1.1f * k, 0.98f * k, 0.75f * k);
 		}
 	}
 	// Fogonazo del arma del jugador (unos 80 ms tras cada disparo).
@@ -1490,23 +1493,29 @@ sub("source/common/rendering/hwrenderer/data/hw_clock.cpp",
 
 # 45. (Quitado: no reconfigurar las texturas en cada uso no mejoraba nada en la Mali.)
 
-# 46. (Solo build Dimensity) Vértices con búferes mapeados en vez de glBufferSubData. En las Mali,
-#     actualizar con glBufferSubData un búfer que la gráfica aún usa obliga al driver a copiarlo
-#     entero, y el de vértices de Raze es enorme (2 millones de vértices): al dibujar el cielo
-#     (portales) y cada lista se repetía la copia y daba 15-30 ms por fotograma, con cualquier
-#     ajuste y a cualquier resolución. Mapeado sin sincronizar (cada fotograma escribe en su
-#     propio búfer y en zonas nuevas) y con barreras (fences) de OpenGL ES 3 entre fotogramas.
+# 46. Gráficas Mali (RG477M y demás): vértices con búferes mapeados en vez de glBufferSubData.
+#     En las Mali, actualizar con glBufferSubData un búfer que la gráfica aún usa obliga al driver
+#     a copiarlo entero, y el de vértices de Raze es enorme (2 millones de vértices): al dibujar el
+#     cielo (portales) y cada lista se repetía la copia y daba 15-30 ms por fotograma, con
+#     cualquier ajuste y a cualquier resolución. Mapeado sin sincronizar (cada fotograma escribe en
+#     su propio búfer y en zonas nuevas) y con barreras (fences) de OpenGL ES 3 entre fotogramas.
+#     Se decide al arrancar según la gráfica: con Adreno (la Portal) todo sigue como siempre.
+sub("source/common/rendering/gles/gles_system.cpp",
+    "namespace OpenGLESRenderer\n{\n\tRenderContextGLES gles;",
+    "namespace OpenGLESRenderer\n{\n\tRenderContextGLES gles;\n\tbool gles_es_sync = false;\t// barreras también en OpenGL ES (gráficas Mali)")
 sub("source/common/rendering/gles/gles_system.cpp",
     "\t\tsetGlVersion(glVersion);",
-    "#ifdef DUKE_DIMENSITY\n"
-    "\t\tif (gles.glesMode == GLES_MODE_GLES && glMapBufferRange && glUnmapBuffer && glFenceSync && glClientWaitSync && glDeleteSync)\n"
-    "\t\t{\n\t\t\tgles.useMappedBuffers = true;\n\t\t\tPrintf(\"GLES: búferes mapeados (build Dimensity)\\n\");\n\t\t}\n"
-    "#endif\n"
+    "\t\t{\n"
+    "\t\t\tconst char* rend = (const char*)glGetString(GL_RENDERER);\n"
+    "\t\t\tif (gles.glesMode == GLES_MODE_GLES && rend && strstr(rend, \"Mali\") && glMapBufferRange && glUnmapBuffer\n"
+    "\t\t\t\t&& glFenceSync && glClientWaitSync && glDeleteSync)\n"
+    "\t\t\t{\n\t\t\t\tgles.useMappedBuffers = true;\n\t\t\t\tgles_es_sync = true;\n"
+    "\t\t\t\tPrintf(\"GLES: búferes mapeados (gráfica Mali)\\n\");\n\t\t\t}\n\t\t}\n"
     "\t\tsetGlVersion(glVersion);")
 sub("source/common/rendering/gles/gles_buffers.cpp",
-    '#include "flatvertices.h"',
-    '#include "flatvertices.h"\n'
-    '#ifdef DUKE_DIMENSITY\n#define GLES_SYNC_ON_ES 1\t// barreras también en OpenGL ES (build Dimensity)\n#else\n#define GLES_SYNC_ON_ES 0\n#endif')
+    "namespace OpenGLESRenderer\n{\n",
+    "namespace OpenGLESRenderer\n{\nextern bool gles_es_sync;\n")
 sub("source/common/rendering/gles/gles_buffers.cpp",
     "gles.glesMode > GLES_MODE_GLES && gles.useMappedBuffers",
-    "(gles.glesMode > GLES_MODE_GLES || GLES_SYNC_ON_ES) && gles.useMappedBuffers", 2)
+    "(gles.glesMode > GLES_MODE_GLES || gles_es_sync) && gles.useMappedBuffers", 2)
+
