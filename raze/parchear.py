@@ -1323,3 +1323,67 @@ sub("source/core/gamehud.cpp",
     "\t\tDTA_ScaleX, sz, DTA_ScaleY, sz,\n"
     "\t\tDTA_SrcX, 0.25, DTA_SrcY, 0.25,\n"
     "\t\tDTA_SrcWidth, tex->GetDisplayWidth() - 0.5, DTA_SrcHeight, tex->GetDisplayHeight() - 0.5,\n")
+
+# 43. Luces del mapa (lámparas rotas que parpadean, luces que laten, interruptores): el juego
+#     cambia de golpe el brillo de suelo, techo y paredes de la zona. En pantalla, ahora el
+#     cambio dura unas décimas (sube y baja suave), sin tocar el juego: titila en vez de
+#     encenderse y apagarse como un interruptor.
+sub("source/core/gamefuncs.h",
+    "bool hw_DynLightsOn();\n",
+    "bool hw_DynLightsOn();\n"
+    "int hw_WallShade(const walltype* wal);\n"
+    "int hw_FloorShade(const sectortype* sec);\n"
+    "int hw_CeilingShade(const sectortype* sec);\n")
+sub("source/core/rendering/scene/hw_sprites.cpp",
+    "// Diagnóstico al registro, cada 5 s: luces creadas y superficies alumbradas.\n",
+    r'''// Brillo de paredes, suelos y techos tal como se ven (sigue al del juego en unas décimas).
+static TArray<float> smWall, smFloor, smCeil;
+static const void* smKey;
+static uint64_t smTime;
+
+static void hw_SmoothShades()
+{
+	uint64_t now = I_msTime();
+	bool reset = smKey != (sector.Size() ? (const void*)&sector[0] : nullptr) || smFloor.Size() != sector.Size() || smWall.Size() != wall.Size()
+		|| now < smTime || now - smTime > 500;
+	double dt = reset ? 0 : (now - smTime) / 1000.;
+	smTime = now;
+	if (reset)
+	{
+		smKey = sector.Size() ? (const void*)&sector[0] : nullptr;
+		smFloor.Resize(sector.Size()); smCeil.Resize(sector.Size()); smWall.Resize(wall.Size());
+		for (unsigned i = 0; i < sector.Size(); i++) { smFloor[i] = sector[i].floorshade; smCeil[i] = sector[i].ceilingshade; }
+		for (unsigned i = 0; i < wall.Size(); i++) smWall[i] = wall[i].shade;
+		return;
+	}
+	float k = (float)(1. - exp(-dt / 0.07));
+	auto step = [k](float& s, int target) { s += (target - s) * k; if (fabsf(target - s) < 0.05f) s = (float)target; };
+	for (unsigned i = 0; i < sector.Size(); i++) { step(smFloor[i], sector[i].floorshade); step(smCeil[i], sector[i].ceilingshade); }
+	for (unsigned i = 0; i < wall.Size(); i++) step(smWall[i], wall[i].shade);
+}
+
+int hw_WallShade(const walltype* wal)
+{
+	unsigned i = (unsigned)wallindex(wal);
+	return i < smWall.Size() ? (int)lroundf(smWall[i]) : wal->shade;
+}
+int hw_FloorShade(const sectortype* sec)
+{
+	unsigned i = (unsigned)sectindex(sec);
+	return i < smFloor.Size() ? (int)lroundf(smFloor[i]) : sec->floorshade;
+}
+int hw_CeilingShade(const sectortype* sec)
+{
+	unsigned i = (unsigned)sectindex(sec);
+	return i < smCeil.Size() ? (int)lroundf(smCeil[i]) : sec->ceilingshade;
+}
+
+// Diagnóstico al registro, cada 5 s: luces creadas y superficies alumbradas.
+''')
+sub("source/core/rendering/scene/hw_sprites.cpp",
+    "void hw_CollectSceneLights(double interpfrac)\n{\n",
+    "void hw_CollectSceneLights(double interpfrac)\n{\n\thw_SmoothShades();\n")
+sub("source/core/rendering/scene/hw_walls.cpp", "\tshade = refwall->shade;\n", "\tshade = hw_WallShade(refwall);\n")
+sub("source/core/rendering/scene/hw_walls.cpp", "\tshade = wal->shade;\n", "\tshade = hw_WallShade(wal);\n")
+sub("source/core/rendering/scene/hw_flats.cpp", "\t\tshade = frontsector->floorshade;\n", "\t\tshade = hw_FloorShade(frontsector);\n")
+sub("source/core/rendering/scene/hw_flats.cpp", "\t\tshade = frontsector->ceilingshade;\n", "\t\tshade = hw_CeilingShade(frontsector);\n")
