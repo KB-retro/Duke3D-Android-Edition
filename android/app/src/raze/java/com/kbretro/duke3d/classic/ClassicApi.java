@@ -68,8 +68,20 @@ public final class ClassicApi {
         GameData.makeCategoryDirs(gameDir);
     }
 
+    /**
+     * Los mods que sirven en la Classic: sin el pack HD (HRP). El motor por software no usa sus
+     * texturas ni sus modelos, y leer sus definiciones dejaba la pantalla en negro casi un minuto.
+     */
     public static List<File> mods(File gameDir) {
-        return GameData.mods(gameDir);
+        List<File> out = new ArrayList<>();
+        for (File f : GameData.mods(gameDir)) if (!isHrp(f)) out.add(f);
+        return out;
+    }
+
+    static boolean isHrp(File f) {
+        String n = f.getName().toLowerCase(java.util.Locale.ROOT);
+        if (n.contains("hrp") || n.contains("texturas hd") || n.contains("texturas_hd")) return true;
+        return f.isDirectory() && (new File(f, "duke3d_hrp.def").exists() || new File(f, "duke3d_hrp_megaton.def").exists());
     }
 
     public static boolean isCampaign(File mod) {
@@ -92,7 +104,7 @@ public final class ClassicApi {
     public static File activeCampaign(Context c, File gameDir) {
         Set<String> enabled = enabledMods(c);
         if (enabled.isEmpty()) return null;
-        for (File f : GameData.mods(gameDir)) if (enabled.contains(f.getName()) && GameData.isCampaign(f)) return f;
+        for (File f : mods(gameDir)) if (enabled.contains(f.getName()) && GameData.isCampaign(f)) return f;
         return null;
     }
 
@@ -135,6 +147,9 @@ public final class ClassicApi {
         }
         File camp = activeCampaign(c, gameDir);
         Set<String> enabled = camp != null ? java.util.Collections.singleton(camp.getName()) : enabledMods(c);
+        Set<String> usable = new HashSet<>();
+        for (File f : mods(gameDir)) if (enabled.contains(f.getName())) usable.add(f.getName());
+        enabled = usable;
         List<String> modArgs = GameData.modArguments(gameDir, enabled);
         List<String> args = new ArrayList<>(Arrays.asList(GameData.arguments(c, gameDir, game.game, def)));
         GameData.chainModCons(c, args, modArgs);
