@@ -1411,3 +1411,52 @@ sub("source/core/rendering/scene/hw_walls.cpp", "\tshade = refwall->shade;\n", "
 sub("source/core/rendering/scene/hw_walls.cpp", "\tshade = wal->shade;\n", "\tshade = hw_WallShade(wal);\n")
 sub("source/core/rendering/scene/hw_flats.cpp", "\t\tshade = frontsector->floorshade;\n", "\t\tshade = hw_FloorShade(frontsector);\n")
 sub("source/core/rendering/scene/hw_flats.cpp", "\t\tshade = frontsector->ceilingshade;\n", "\t\tshade = hw_CeilingShade(frontsector);\n")
+
+# 44. Diagnóstico de fluidez al registro (cada 5 s): cuánto tarda cada fotograma en prepararse
+#     (el juego y el envío a la gráfica, en el procesador) y cuánto espera al intercambio de
+#     pantalla (la gráfica y su driver). Para saber de dónde vienen los tirones en cada consola.
+sub("source/common/rendering/gles/gles_framebuffer.cpp",
+    "void OpenGLFrameBuffer::Swap()\n{\n\n\tFinish.Reset();\n\tFinish.Clock();\n\n\tmVertexData->DropSync();\n\n\tFPSLimit();\n\tSwapBuffers();\n",
+    r'''static double diagNowMs()
+{
+	return std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now().time_since_epoch()).count();
+}
+
+void OpenGLFrameBuffer::Swap()
+{
+	static double lastEnd = 0, t0 = 0, sumWork = 0, maxWork = 0, sumLimit = 0, sumSwap = 0, maxSwap = 0, maxFrame = 0;
+	static int frames = 0, slow = 0, slowWork = 0, slowSwap = 0;
+	double tStart = diagNowMs();
+	if (t0 == 0) t0 = tStart;
+
+	Finish.Reset();
+	Finish.Clock();
+
+	mVertexData->DropSync();
+
+	FPSLimit();
+	double tLimit = diagNowMs();
+	SwapBuffers();
+	double tEnd = diagNowMs();
+	if (lastEnd > 0)
+	{
+		double work = tStart - lastEnd, limit = tLimit - tStart, swap = tEnd - tLimit, frame = tEnd - lastEnd;
+		frames++;
+		sumWork += work; sumLimit += limit; sumSwap += swap;
+		maxWork = max(maxWork, work); maxSwap = max(maxSwap, swap); maxFrame = max(maxFrame, frame);
+		if (frame > 25) { slow++; if (work > swap) slowWork++; else slowSwap++; }
+	}
+	lastEnd = tEnd;
+	if (tEnd - t0 >= 5000 && frames > 0)
+	{
+		Printf("Fluidez: %d fotogramas (%.0f fps), peor %.1f ms, lentos (>25 ms) %d [por el juego %d, por la grafica %d]; "
+			"juego media %.1f / peor %.1f ms, limite %.1f ms, intercambio media %.1f / peor %.1f ms\n",
+			frames, frames * 1000.0 / (tEnd - t0), maxFrame, slow, slowWork, slowSwap,
+			sumWork / frames, maxWork, sumLimit / frames, sumSwap / frames, maxSwap);
+		t0 = tEnd; frames = slow = slowWork = slowSwap = 0;
+		sumWork = maxWork = sumLimit = sumSwap = maxSwap = maxFrame = 0;
+	}
+''')
+sub("source/common/rendering/gles/gles_framebuffer.cpp",
+    '#include "gles_framebuffer.h"',
+    '#include "gles_framebuffer.h"\n#include <chrono>')
