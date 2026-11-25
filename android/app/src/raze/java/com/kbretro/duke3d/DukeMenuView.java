@@ -394,6 +394,15 @@ final class DukeMenuView extends View {
             Entry cur = n > 0 ? p.entries.get(p.selected) : null;
             coverRect.setEmpty();
             if (cur != null && cur.cover != null) drawCover(c, cur.cover, boxLeft, 100 - boxH / 2f, boxW, boxH);
+            // Versión Classic elegida: «CLASSIC» en amarillo, en horizontal, encima de la caja.
+            if (stack.size() == 1 && p.modes != null && p.mode == 1 && !coverRect.isEmpty()) {
+                float cw = coverRect.width() / sx, cxv = (coverRect.centerX() - ax) / sx, topv = (coverRect.top - ay) / sy;
+                String word = p.modes[1];
+                float ws = Math.min(1.1f, cw * 0.86f / Math.max(1f, bigWidth(word)));
+                float wx = cxv - bigWidth(word) * ws / 2f, wy = topv + (coverRect.height() / sy) * 0.16f;
+                drawBig(c, word, wx + 1.2f, wy + 1.2f, ws, shadowText());
+                drawBig(c, word, wx, wy, ws, yellowText());
+            }
         }
         // Listas largas (las pistas de música): se ven unas cuantas y se desplazan con la elegida.
         int visible = Math.min(n, MAX_VISIBLE);
@@ -589,6 +598,35 @@ final class DukeMenuView extends View {
     }
 
     private final RectF arrowRect = new RectF(), arrowBackRect = new RectF(), modeRect = new RectF();
+
+    private Paint yellowText, shadowText;
+
+    /** Las letras grandes del juego en amarillo (como el logo de Duke Nukem), con su degradado. */
+    private Paint yellowText() {
+        if (yellowText == null) {
+            yellowText = new Paint(pixel);
+            // Del rojo de las letras (canal R) sale el amarillo: R y G altos, B casi nada.
+            yellowText.setColorFilter(new android.graphics.ColorMatrixColorFilter(new float[]{
+                    1.15f, 0, 0, 0, 20,
+                    1.0f, 0, 0, 0, 10,
+                    0.12f, 0, 0, 0, 0,
+                    0, 0, 0, 1, 0}));
+        }
+        return yellowText;
+    }
+
+    /** Sombra oscura para que el texto se lea encima de la caja. */
+    private Paint shadowText() {
+        if (shadowText == null) {
+            shadowText = new Paint(pixel);
+            shadowText.setColorFilter(new android.graphics.ColorMatrixColorFilter(new float[]{
+                    0, 0, 0, 0, 0,
+                    0, 0, 0, 0, 0,
+                    0, 0, 0, 0, 0,
+                    0, 0, 0, 0.85f, 0}));
+        }
+        return shadowText;
+    }
 
     /** La flecha de sección, en píxeles del juego (se dibuja escalada sin suavizar, como las letras). */
     private Bitmap sectionArrow;
