@@ -10,6 +10,10 @@ on:
         description: "Diagnóstico de memoria (HWASan): más lento; para cazar escrituras fuera de sitio"
         type: boolean
         default: false
+      dimensity:
+        description: "Build para Dimensity (RG477M y demás MediaTek): el juego en los núcleos grandes"
+        type: boolean
+        default: false
 
 env:
   SDL_VERSION: "2.30.9"
@@ -96,6 +100,8 @@ jobs:
           # Diagnóstico de memoria: HWASan (Android 14+) marca la escritura fuera de sitio en el acto.
           SAN=""; SANLD=""
           if [ "${{ inputs.diagnostico }}" = "true" ]; then SAN="-fsanitize=hwaddress -fno-omit-frame-pointer"; SANLD="-fsanitize=hwaddress"; fi
+          # Build para Dimensity: ver DUKE_DIMENSITY en raze/android/android_raze.cpp.
+          if [ "${{ inputs.dimensity }}" = "true" ]; then SAN="$SAN -DDUKE_DIMENSITY"; fi
           cmake -S raze-src -B raze-a -G Ninja -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_TOOLCHAIN_FILE=$NDK/build/cmake/android.toolchain.cmake \
             -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=$API -DANDROID_STL=c++_shared \
@@ -196,11 +202,12 @@ jobs:
             unzip -l app/build/outputs/apk/raze/release/app-raze-release.apk | grep -q "lib/arm64-v8a/$L" || { echo "Falta $L"; exit 1; }
           done
           SUF=""; if [ "$RAZE_DIAG" = "1" ]; then SUF="-diagnostico"; fi
+          if [ "${{ inputs.dimensity }}" = "true" ]; then SUF="$SUF-dimensity"; fi
           cp app/build/outputs/apk/raze/release/app-raze-release.apk "../salida/Duke-Legacy-0.1.${VERSION_CODE}${SUF}.apk"
 
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: Duke-Legacy-0.1.${{ github.run_number }}
+          name: Duke-Legacy-0.1.${{ github.run_number }}${{ inputs.dimensity && '-dimensity' || '' }}
           path: salida
           retention-days: 14

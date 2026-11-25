@@ -1053,6 +1053,30 @@ static void DukeSceneLights(TArray<HWSceneLight>& out, double interpfrac)
 		hw_AddSceneLight(out, act->interpolatedpos(interpfrac).plusZ(-6), act->sector(), rad, d.r, d.g, d.b);
 		if (out.Size() > before) out.Last().owner = act->GetOwner();	// el disparo no alumbra a quien lo lanza
 	}
+	// Lámparas del mapa que parpadean o laten (efectores 3 y 4): una luz de verdad en su zona que
+	// sube y baja con su brillo (el ya suavizado de la pantalla), en vez de aclarar la zona entera.
+	{
+		DukeStatIterator eit(STAT_EFFECTOR);
+		while (auto ef = eit.Next())
+		{
+			int lt = ef->spr.lotag;
+			if (lt != SE_3_RANDOM_LIGHTS_AFTER_SHOT_OUT && lt != SE_4_RANDOM_LIGHTS) continue;
+			auto sec = ef->sector();
+			if (!sec || sec->walls.Size() == 0) continue;
+			float shade = (float)hw_CeilingShade(sec);
+			float k = clamp((26.f - shade) / 30.f, 0.f, 1.f);
+			if (k <= 0.05f) continue;
+			double x0 = 1e30, x1 = -1e30, y0 = 1e30, y1 = -1e30;
+			for (auto& wal : sec->walls)
+			{
+				x0 = min(x0, wal.pos.X); x1 = max(x1, wal.pos.X);
+				y0 = min(y0, wal.pos.Y); y1 = max(y1, wal.pos.Y);
+			}
+			float rad = (float)clamp(max(x1 - x0, y1 - y0) * 0.6, 48., 220.);
+			DVector3 pos(ef->spr.pos.X, ef->spr.pos.Y, sec->ceilingz * 0.7 + sec->floorz * 0.3);
+			hw_AddSceneLight(out, pos, sec, rad, 0.8f * k, 0.72f * k, 0.55f * k);
+		}
+	}
 	// Fogonazo del arma del jugador (unos 80 ms tras cada disparo).
 	auto p = getPlayer(screenpeek);
 	auto pact = p ? p->GetActor() : nullptr;

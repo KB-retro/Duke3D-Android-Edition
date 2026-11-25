@@ -379,7 +379,7 @@ static void open_audio(int rate)
     want.freq = rate;
     want.format = AUDIO_S16SYS;
     want.channels = 2;
-    want.samples = 1024;
+    want.samples = 2048;  // bloques más grandes: menos cortes si el sistema tarda en pedir sonido
     g_audio = SDL_OpenAudioDevice(NULL, 0, &want, &have, 0);
     g_audio_rate = rate;
     if (!g_audio) LOGE("Sin sonido: %s", SDL_GetError());
@@ -472,11 +472,12 @@ extern "C" int SDL_main(int argc, char *argv[])
 
         retro_run();
 
-        // Ritmo: el del sonido (unos 60 ms en cola); sin sonido, el del reloj.
+        // Ritmo: el del sonido (unos 100 ms en cola); sin sonido, el del reloj. Con 60 ms, en las
+        // consolas más justas (RG477M) un fotograma algo lento dejaba la cola vacía y petardeaba.
         double fps = g_av.timing.fps > 1 ? g_av.timing.fps : 60.0;
         if (g_audio)
         {
-            Uint32 limit = (Uint32)(g_audio_rate * 4 * 0.06);
+            Uint32 limit = (Uint32)(g_audio_rate * 4 * 0.10);
             if (SDL_GetQueuedAudioSize(g_audio) > limit * 4) SDL_ClearQueuedAudio(g_audio);  // muy atrasado
             // Con un tope: si el sonido del sistema se atasca (auriculares que se desconectan,
             // cambio de salida), la cola no baja y el juego se quedaba aquí sin atender el menú.
