@@ -85,6 +85,8 @@ final class DukeMenuView extends View {
         String[] modes;
         int mode;
         Runnable onModeSwitch;
+        /** Texto pequeño arriba a la derecha, en el gris de las descripciones (la versión en Opciones). */
+        String corner;
 
         Page add(String label, Bitmap icon, Runnable action) {
             entries.add(new Entry(label, icon, action, null));
@@ -586,6 +588,14 @@ final class DukeMenuView extends View {
         }
         footerRect.set(0, vy(183), w, h);
 
+        // Texto de la esquina de la página (la versión, en Opciones), en el gris de las descripciones.
+        if (p.corner != null && !overlay) {
+            String ct = clean(p.corner);
+            float scale = 0.5f, wsum = 0;
+            for (char ch : ct.toCharArray()) wsum += smallAdvance(ch);
+            float right = -ax / sx + w / sx - 4;
+            drawSmall(c, p.corner, right - wsum * scale, 6, scale, false);
+        }
         // Versión de la app, pequeña, con las letras del juego, arriba a la derecha (lanzador).
         if (versionText != null && !overlay) {
             // Con las letras grandes del juego (el mismo rojo que el resto de textos), en pequeño.

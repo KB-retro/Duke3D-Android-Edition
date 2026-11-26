@@ -283,6 +283,11 @@ public class LauncherActivity extends Activity {
         if (pendingRelaunch != null) relaunchPending(gameDir);
     }
 
+    /** «Duke Legacy 0.1.N», para la esquina de Opciones. */
+    private static String versionLabel() {
+        return "Duke Legacy " + BuildConfig.VERSION_NAME.replace("-raze", "");
+    }
+
     /** Duke Nukem 3D en versión Classic (EDuke32 por software) en vez de HD (Raze). */
     private boolean classicMode() {
         return getSharedPreferences("ajustes", MODE_MULTI_PROCESS).getBoolean("modo_classic", false);
@@ -388,6 +393,7 @@ public class LauncherActivity extends Activity {
         p.add(I18n.t("back"), null, () -> menuView.pop());
         p.onLeave = () -> logStatus = null;
         p.footer = () -> logStatus != null ? logStatus : "Classic - EDuke32";
+        p.corner = versionLabel();
         return p;
     }
 
@@ -595,6 +601,7 @@ public class LauncherActivity extends Activity {
         addFilters(p, "dos_");
         addResetEntry(p, "dos_", null);
         addLogEntry(p);
+        p.corner = versionLabel();
         p.add(I18n.t("back"), null, () -> menuView.pop());
         p.onLeave = () -> logStatus = null;
         p.footer = () -> logStatus != null ? logStatus : "";
@@ -651,6 +658,7 @@ public class LauncherActivity extends Activity {
         addFilters(p, "psx_");
         addResetEntry(p, "psx_", null);
         addLogEntry(p);
+        p.corner = versionLabel();
         p.add(I18n.t("back"), null, () -> menuView.pop());
         p.onLeave = () -> logStatus = null;
         p.footer = () -> logStatus != null ? logStatus : "";
@@ -1182,6 +1190,7 @@ public class LauncherActivity extends Activity {
         });
         addResetEntry(p, "duke", gameDir);
         p.add(I18n.t("folder"), null, this::pickFolder);
+        p.corner = versionLabel();
         p.add(I18n.t("make_log"), null, () -> {
             logStatus = I18n.t("making_log");
             new Thread(() -> {
