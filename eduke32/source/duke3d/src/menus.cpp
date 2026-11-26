@@ -2120,9 +2120,8 @@ void Menu_Init(void)
     k--;
 #endif
 #ifdef __ANDROID__
-    // En las expansiones (DLC), sin «Mapas» (User Map): solo en el juego base.
-    if (getenv("DUKE3D_ADDON") || (g_selectedGrp && (g_selectedGrp->type->game & GAMEFLAG_ADDON)))
-        M_EPISODE.numEntries = g_volumeCnt;
+    // Sin «Mapas» (User Map) en ningún juego: en la consola no hay mapas sueltos que elegir.
+    M_EPISODE.numEntries = g_volumeCnt;
 #endif
     MEOS_NETOPTIONS_EPISODE.numOptions = k + 1;
     NetEpisode = MEOSV_NetEpisodes[0];

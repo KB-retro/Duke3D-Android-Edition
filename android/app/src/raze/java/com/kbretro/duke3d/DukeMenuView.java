@@ -538,22 +538,21 @@ final class DukeMenuView extends View {
         // Selector HD / CLASSIC arriba (menú principal de Duke Nukem 3D).
         modeRect.setEmpty();
         if (stack.size() == 1 && p.modes != null && p.modes.length == 2) {
-            float ts = 0.6f, gap = 18;
-            float w0 = bigWidth(p.modes[0]) * ts, w1 = bigWidth(p.modes[1]) * ts;
+            // En el gris de las descripciones (letra pequeña del juego): la elegida subrayada y
+            // la otra más apagada.
+            float ts = 0.9f, gap = 14;
+            float w0 = smallWidth(p.modes[0]) * ts, w1 = smallWidth(p.modes[1]) * ts;
             float total = w0 + gap + w1;
             float x0 = 160 - total / 2f, x1 = x0 + w0 + gap;
             for (int t = 0; t < 2; t++) {
                 boolean cur = t == p.mode;
-                int lvl = cur ? 205 + (int) (50 * Math.abs(Math.sin(now / 300.0))) : 95;
-                shade.setColorFilter(new LightingColorFilter(Color.rgb(lvl, lvl, lvl), 0));
+                pixel.setColorFilter(cur ? null : new LightingColorFilter(Color.rgb(110, 110, 110), 0));
                 float tx = t == 0 ? x0 : x1, tw = t == 0 ? w0 : w1;
-                drawBig(c, p.modes[t], tx, 8, ts, shade);
-                if (cur) c.drawRect(vx(tx), vy(15), vx(tx + tw), vy(15) + Math.max(2, sy * 0.8f), tabLine);
+                drawSmall(c, p.modes[t], tx, 8, ts, false);
+                if (cur) c.drawRect(vx(tx), vy(13), vx(tx + tw), vy(13) + Math.max(2, sy * 0.6f), grayLine);
             }
-            shade.setColorFilter(null);
-            // La barra entre las dos, con las letras del juego (su rojo).
-            float sw = bigWidth("/") * ts;
-            drawBig(c, "/", x0 + w0 + (gap - sw) / 2f, 8, ts, pixel);
+            pixel.setColorFilter(null);
+            drawSmall(c, "/", x0 + w0 + gap / 2f, 8, ts, true);
             modeRect.set(vx(x0 - 8), 0, vx(x1 + w1 + 8), vy(22));
         }
 
@@ -574,14 +573,14 @@ final class DukeMenuView extends View {
                 float arBottomV = (h - ay) / sy - 3, arTopV = arBottomV - ab.getHeight();
                 float arRightV = (w - ax) / sx - 6 + arBob;
                 dst.set(vx(arRightV - ab.getWidth()), vy(arTopV), vx(arRightV), vy(arBottomV));
-                c.drawBitmap(ab, null, dst, pixel);
+                c.drawBitmap(ab, null, dst, grayArrow());
                 arrowRect.set(dst.left - 10 * sx, dst.top - 10 * sy, w, h);
                 // La de atrás: la misma, en espejo.
                 float arLeftV = -ax / sx + 6 - arBob;
                 dst.set(vx(arLeftV), vy(arTopV), vx(arLeftV + ab.getWidth()), vy(arBottomV));
                 c.save();
                 c.scale(-1, 1, dst.centerX(), dst.centerY());
-                c.drawBitmap(ab, null, dst, pixel);
+                c.drawBitmap(ab, null, dst, grayArrow());
                 c.restore();
                 arrowBackRect.set(0, dst.top - 10 * sy, dst.right + 10 * sx, h);
             }
@@ -609,7 +608,35 @@ final class DukeMenuView extends View {
 
     private final RectF arrowRect = new RectF(), arrowBackRect = new RectF(), modeRect = new RectF();
 
-    private Paint yellowText, shadowText;
+    private Paint yellowText, shadowText, grayArrowPaint;
+    private final Paint grayLine = new Paint();
+    {
+        grayLine.setColor(Color.rgb(160, 160, 160));
+    }
+
+    /** Las flechas de sección en gris, como las descripciones (sin color, algo más claras). */
+    private Paint grayArrow() {
+        if (grayArrowPaint == null) {
+            grayArrowPaint = new Paint(pixel);
+            android.graphics.ColorMatrix m = new android.graphics.ColorMatrix();
+            m.setSaturation(0);
+            android.graphics.ColorMatrix lift = new android.graphics.ColorMatrix(new float[]{
+                    1.25f, 0, 0, 0, 30,
+                    0, 1.25f, 0, 0, 30,
+                    0, 0, 1.25f, 0, 30,
+                    0, 0, 0, 1, 0});
+            m.postConcat(lift);
+            grayArrowPaint.setColorFilter(new android.graphics.ColorMatrixColorFilter(m));
+        }
+        return grayArrowPaint;
+    }
+
+    /** Ancho de un texto con la letra pequeña (sin escalar). */
+    private float smallWidth(String s) {
+        float w = 0;
+        for (char ch : clean(s).toCharArray()) w += smallAdvance(ch);
+        return w;
+    }
 
     /** Las letras grandes del juego en amarillo (como el logo de Duke Nukem), con su degradado. */
     private Paint yellowText() {

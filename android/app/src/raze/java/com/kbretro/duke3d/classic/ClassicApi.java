@@ -155,6 +155,9 @@ public final class ClassicApi {
         List<String> args = new ArrayList<>(Arrays.asList(GameData.arguments(c, gameDir, game.game, def)));
         GameData.chainModCons(c, args, modArgs);
         args.addAll(modArgs);
+        // Con una campaña, sin vídeo de inicio (el de algunas, como Total Meltdown, sale con los
+        // colores mal en el dibujo por software).
+        if (camp != null) args.add("-nologo");
         List<GameData.Game> all = GameData.games(gameDir);
         Intent intent = new Intent(c, GameActivity.class);
         intent.putExtra(GameActivity.EXTRA_DIR, gameDir.getAbsolutePath());

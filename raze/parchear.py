@@ -1622,3 +1622,9 @@ void drawobjectshadow(tspriteArray& tsprites, tspritetype* t, DDukeActor* h)
 sub("source/games/duke/src/animatesprites_d.cpp",
     "\t\tapplyanimations(t, h, viewVec, viewang);\n",
     "\t\tapplyanimations(t, h, viewVec, viewang);\n\t\tenemylife(t, h, interpfrac);\n")
+
+# 49. Sin «Mapas» (mapas sueltos del usuario) en el menú de episodios: en la consola no hay
+#     mapas sueltos que elegir (con un solo episodio, el menú se salta como en las expansiones).
+sub("source/core/menu/razemenu.cpp",
+    "\t\tif (!(g_gameType & GAMEFLAG_SHAREWARE))\n\t\t{\n\t\t\ty += ld->mLinespacing / 3;",
+    "\t\tif (false && !(g_gameType & GAMEFLAG_SHAREWARE))\n\t\t{\n\t\t\ty += ld->mLinespacing / 3;")
