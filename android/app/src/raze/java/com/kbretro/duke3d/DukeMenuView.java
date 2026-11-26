@@ -574,14 +574,14 @@ final class DukeMenuView extends View {
                 float arBottomV = (h - ay) / sy - 3, arTopV = arBottomV - ab.getHeight();
                 float arRightV = (w - ax) / sx - 6 + arBob;
                 dst.set(vx(arRightV - ab.getWidth()), vy(arTopV), vx(arRightV), vy(arBottomV));
-                c.drawBitmap(ab, null, dst, grayArrow());
+                c.drawBitmap(ab, null, dst, pixel);
                 arrowRect.set(dst.left - 10 * sx, dst.top - 10 * sy, w, h);
                 // La de atrás: la misma, en espejo.
                 float arLeftV = -ax / sx + 6 - arBob;
                 dst.set(vx(arLeftV), vy(arTopV), vx(arLeftV + ab.getWidth()), vy(arBottomV));
                 c.save();
                 c.scale(-1, 1, dst.centerX(), dst.centerY());
-                c.drawBitmap(ab, null, dst, grayArrow());
+                c.drawBitmap(ab, null, dst, pixel);
                 c.restore();
                 arrowBackRect.set(0, dst.top - 10 * sy, dst.right + 10 * sx, h);
             }
@@ -609,53 +609,10 @@ final class DukeMenuView extends View {
 
     private final RectF arrowRect = new RectF(), arrowBackRect = new RectF(), modeRect = new RectF();
 
-    private Paint yellowText, shadowText, grayArrowPaint;
+    private Paint yellowText, shadowText;
     private final Paint grayLine = new Paint();
     {
         grayLine.setColor(Color.rgb(160, 160, 160));
-    }
-
-    /** Las flechas de sección en gris, como las descripciones (sin color, algo más claras). */
-    private Paint grayArrow() {
-        if (grayArrowPaint == null) {
-            // El gris de la letra pequeña (el del texto HD / CLASSIC elegido): su color más claro.
-            int target = 200;
-            Bitmap g = art.tile(DukeArt.STARTALPHANUM + ('H' - '!'));
-            if (g != null) {
-                int best = 0;
-                for (int y = 0; y < g.getHeight(); y++)
-                    for (int x = 0; x < g.getWidth(); x++) {
-                        int px = g.getPixel(x, y);
-                        if (Color.alpha(px) < 200) continue;
-                        int l = (Color.red(px) * 30 + Color.green(px) * 59 + Color.blue(px) * 11) / 100;
-                        if (l > best) best = l;
-                    }
-                if (best > 0) target = best;
-            }
-            // La flecha sin color y su parte más clara llevada a ese gris (conserva el relieve).
-            float maxLum = 255f;
-            Bitmap ab = sectionArrowBitmap();
-            if (ab != null) {
-                int best = 0;
-                for (int y = 0; y < ab.getHeight(); y++)
-                    for (int x = 0; x < ab.getWidth(); x++) {
-                        int px = ab.getPixel(x, y);
-                        if (Color.alpha(px) < 200) continue;
-                        int l = (Color.red(px) * 30 + Color.green(px) * 59 + Color.blue(px) * 11) / 100;
-                        if (l > best) best = l;
-                    }
-                if (best > 0) maxLum = best;
-            }
-            float k = target / maxLum;
-            float r = 0.30f * k, gg = 0.59f * k, b = 0.11f * k;
-            grayArrowPaint = new Paint(pixel);
-            grayArrowPaint.setColorFilter(new android.graphics.ColorMatrixColorFilter(new float[]{
-                    r, gg, b, 0, 0,
-                    r, gg, b, 0, 0,
-                    r, gg, b, 0, 0,
-                    0, 0, 0, 1, 0}));
-        }
-        return grayArrowPaint;
     }
 
     /** Ancho de un texto con la letra pequeña (sin escalar). */
@@ -702,9 +659,14 @@ final class DukeMenuView extends View {
      */
     private Bitmap sectionArrowBitmap() {
         if (sectionArrow != null) return sectionArrow;
-        Bitmap glyph = art.tile(bigTile('I'));
-        if (glyph == null) glyph = art.tile(bigTile('H'));
-        if (glyph == null) return null;
+        Bitmap big = art.tile(bigTile('I'));
+        if (big == null) big = art.tile(bigTile('H'));
+        if (big == null) return null;
+        // Los colores, de la letra pequeña (el gris azulado del texto HD / CLASSIC, con su
+        // degradado y su borde); el tamaño, el de las letras grandes.
+        Bitmap glyph = art.tile(DukeArt.STARTALPHANUM + ('I' - '!'));
+        if (glyph == null) glyph = art.tile(DukeArt.STARTALPHANUM + ('H' - '!'));
+        if (glyph == null) glyph = big;
         int gh = glyph.getHeight(), gw = glyph.getWidth();
         // Color de cada fila (columna central de la letra) y el del borde (el primer píxel
         // opaco desde la izquierda en la fila del medio).
@@ -722,8 +684,8 @@ final class DukeMenuView extends View {
         int y0 = 0, y1 = gh - 1;
         while (y0 < gh && Color.alpha(rows[y0]) < 200) y0++;
         while (y1 > y0 && Color.alpha(rows[y1]) < 200) y1--;
-        if (y1 - y0 < 4) return null;
-        int H = gh, W = Math.round(gh * 1.6f);
+        if (y1 - y0 < 2) return null;
+        int H = big.getHeight(), W = Math.round(H * 1.6f);
         int[] px = new int[W * H];
         boolean[] in = new boolean[W * H];
         float shaft = H * 0.24f; // medio grosor del cuerpo
