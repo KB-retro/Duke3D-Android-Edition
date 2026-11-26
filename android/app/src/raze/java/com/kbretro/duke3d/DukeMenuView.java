@@ -551,8 +551,9 @@ final class DukeMenuView extends View {
                 drawSmall(c, p.modes[t], tx, 8, ts, false);
                 if (cur) c.drawRect(vx(tx), vy(13), vx(tx + tw), vy(13) + Math.max(2, sy * 0.6f), grayLine);
             }
-            pixel.setColorFilter(null);
+            pixel.setColorFilter(new LightingColorFilter(Color.rgb(110, 110, 110), 0));	// la barra, apagada
             drawSmall(c, "/", x0 + w0 + gap / 2f, 8, ts, true);
+            pixel.setColorFilter(null);
             modeRect.set(vx(x0 - 8), 0, vx(x1 + w1 + 8), vy(22));
         }
 
@@ -617,16 +618,42 @@ final class DukeMenuView extends View {
     /** Las flechas de sección en gris, como las descripciones (sin color, algo más claras). */
     private Paint grayArrow() {
         if (grayArrowPaint == null) {
+            // El gris de la letra pequeña (el del texto HD / CLASSIC elegido): su color más claro.
+            int target = 200;
+            Bitmap g = art.tile(DukeArt.STARTALPHANUM + ('H' - '!'));
+            if (g != null) {
+                int best = 0;
+                for (int y = 0; y < g.getHeight(); y++)
+                    for (int x = 0; x < g.getWidth(); x++) {
+                        int px = g.getPixel(x, y);
+                        if (Color.alpha(px) < 200) continue;
+                        int l = (Color.red(px) * 30 + Color.green(px) * 59 + Color.blue(px) * 11) / 100;
+                        if (l > best) best = l;
+                    }
+                if (best > 0) target = best;
+            }
+            // La flecha sin color y su parte más clara llevada a ese gris (conserva el relieve).
+            float maxLum = 255f;
+            Bitmap ab = sectionArrowBitmap();
+            if (ab != null) {
+                int best = 0;
+                for (int y = 0; y < ab.getHeight(); y++)
+                    for (int x = 0; x < ab.getWidth(); x++) {
+                        int px = ab.getPixel(x, y);
+                        if (Color.alpha(px) < 200) continue;
+                        int l = (Color.red(px) * 30 + Color.green(px) * 59 + Color.blue(px) * 11) / 100;
+                        if (l > best) best = l;
+                    }
+                if (best > 0) maxLum = best;
+            }
+            float k = target / maxLum;
+            float r = 0.30f * k, gg = 0.59f * k, b = 0.11f * k;
             grayArrowPaint = new Paint(pixel);
-            android.graphics.ColorMatrix m = new android.graphics.ColorMatrix();
-            m.setSaturation(0);
-            android.graphics.ColorMatrix lift = new android.graphics.ColorMatrix(new float[]{
-                    1.25f, 0, 0, 0, 30,
-                    0, 1.25f, 0, 0, 30,
-                    0, 0, 1.25f, 0, 30,
-                    0, 0, 0, 1, 0});
-            m.postConcat(lift);
-            grayArrowPaint.setColorFilter(new android.graphics.ColorMatrixColorFilter(m));
+            grayArrowPaint.setColorFilter(new android.graphics.ColorMatrixColorFilter(new float[]{
+                    r, gg, b, 0, 0,
+                    r, gg, b, 0, 0,
+                    r, gg, b, 0, 0,
+                    0, 0, 0, 1, 0}));
         }
         return grayArrowPaint;
     }
