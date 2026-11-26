@@ -1039,6 +1039,21 @@ static void DukeSceneLights(TArray<HWSceneLight>& out, double interpfrac)
 	if (map.CountUsed() == 0)
 		for (int i = 0; i < (int)countof(defs); i++) map.Insert(FName(defs[i].cls), i);
 
+	// Destellos (explosiones, chispas): su luz se apaga en su tiempo, aunque el sprite siga en el
+	// juego un rato más (antes las paredes quedaban iluminadas hasta un segundo de más).
+	static TMap<DDukeActor*, double> born;
+	static double lastPurge = 0;
+	double now = ((double)PlayClock + 4. * interpfrac) / 120.;
+	if (now < lastPurge || now - lastPurge > 5)
+	{
+		TArray<DDukeActor*> old;
+		TMap<DDukeActor*, double>::Iterator bit(born);
+		TMap<DDukeActor*, double>::Pair* pair;
+		while (bit.NextPair(pair)) if (now < pair->Value || now - pair->Value > 5) old.Push(pair->Key);
+		for (auto a : old) born.Remove(a);
+		lastPurge = now;
+	}
+
 	DukeSpriteIterator it;
 	while (auto act = it.Next())
 	{
@@ -1049,8 +1064,22 @@ static void DukeSceneLights(TArray<HWSceneLight>& out, double interpfrac)
 		if (d.radius <= 0) continue;
 		float rad = d.radius;
 		if (d.flicker) rad *= 0.85f + 0.15f * sinf(PlayClock * 0.35f + act->GetIndex() * 1.7f);
+		float bright = 1.f;
+		{
+			const char* cn = d.cls;
+			double life = strstr(cn, "Explosion") ? 0.45 : strstr(cn, "ShotSpark") ? 0.15 : 0;
+			if (life > 0)
+			{
+				double* b = born.CheckKey(act);
+				if (!b) { born.Insert(act, now); b = born.CheckKey(act); }
+				double age = now - *b;
+				if (age >= life) continue;
+				double f = 1. - age / life;
+				bright = (float)(f * f);	// fuerte al principio y se apaga rápido
+			}
+		}
 		unsigned before = out.Size();
-		hw_AddSceneLight(out, act->interpolatedpos(interpfrac).plusZ(-6), act->sector(), rad, d.r, d.g, d.b);
+		hw_AddSceneLight(out, act->interpolatedpos(interpfrac).plusZ(-6), act->sector(), rad, d.r * bright, d.g * bright, d.b * bright);
 		if (out.Size() > before) out.Last().owner = act->GetOwner();	// el disparo no alumbra a quien lo lanza
 	}
 	// Lámparas del mapa que parpadean o laten, y luces con interruptor (efectores 3, 4 y 12): una luz de verdad en su zona que
@@ -1570,16 +1599,18 @@ sub("source/games/duke/src/animatesprites.cpp",
 	double move = clamp(L->speed / 40., 0., 1.);
 	float sx = 1.f, sy = 1.f;
 	// Paso: sube un poco a mitad de cada zancada (al ritmo de lo que avanza).
-	double dz = -move * fabs(sin(L->dist * 0.35)) * 0.8;
+	double dz = -move * fabs(sin(L->dist * 0.35)) * 2.2;
 	// Respiración en reposo, cada uno a su ritmo.
-	sy *= (float)(1. + (1. - move) * 0.012 * sin(now * 2.2 + h->GetIndex() * 1.7));
+	sy *= (float)(1. + (1. - move) * 0.028 * sin(now * 2.2 + h->GetIndex() * 1.7));
 	// Golpe: se encoge y se ensancha un instante.
 	double ht = now - L->hitT;
-	if (ht >= 0 && ht < 0.2)
+	if (ht >= 0 && ht < 0.3)
 	{
-		double f = sin(ht / 0.2 * M_PI);
-		sx *= (float)(1. + 0.07 * f);
-		sy *= (float)(1. - 0.06 * f);
+		// Se encoge de golpe y vuelve con un pequeño rebote.
+		double p = ht / 0.3;
+		double f = sin(p * M_PI) * (1. - 0.5 * p) + 0.25 * sin(p * 3. * M_PI) * (1. - p);
+		sx *= (float)(1. + 0.16 * f);
+		sy *= (float)(1. - 0.14 * f);
 	}
 	t->scale.X *= sx;
 	t->scale.Y *= sy;

@@ -272,8 +272,7 @@ public class LauncherActivity extends Activity {
     private void buildMenu(File gameDir, boolean fresh) {
         if (menuView == null || fresh) {
             menuView = new DukeMenuView(this, assets.art);
-            menuView.versionText = (Motor.RAZE ? "Duke Legacy " : "Duke Nukem 3D Classic Edition ")
-                    + BuildConfig.VERSION_NAME.replace("-raze", "");
+            // Sin el texto de la versión en el menú (se ve en Ajustes de Android → Aplicaciones).
             menuView.setBackground(android.graphics.BitmapFactory.decodeResource(getResources(), R.drawable.fondo_menu));
         }
         menuView.setRoot(rootPage(gameDir), this::finish);
