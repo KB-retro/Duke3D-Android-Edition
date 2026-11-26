@@ -4,7 +4,7 @@
 
 Duke Nukem 3D para Android con los archivos de tu copia de **Duke Nukem 3D: Megaton Edition**
 (Steam), incluidas las expansiones *Duke It Out in D.C.*, *Nuclear Winter* y *Caribbean: Life's
-a Beach*. Un solo APK, **Duke Legacy** (`Duke-Legacy-0.1.N.apk`), con dos versiones de Duke
+a Beach*. Un solo APK, **Duke Legacy** (`Duke-Legacy-1.0.0.apk`, y cada compilación sube un número: 1.0.1… 1.0.9 → 1.1.0), con dos versiones de Duke
 Nukem 3D que se eligen en el lanzador (**HD / CLASSIC**, con Start o tocando el selector):
 
 | | **HD** | **Classic** |

@@ -24,7 +24,8 @@ android {
         minSdk = 26
         targetSdk = 35
         versionCode = config("VERSION_CODE", "1").toInt()
-        versionName = "0.1.${config("VERSION_CODE", "0")}"
+        // La versión (1.0.0, 1.0.1…) la calcula el workflow a partir del número de compilación.
+        versionName = config("APP_VERSION", "1.0.0")
 
         ndk {
             abiFilters += listOf("arm64-v8a")

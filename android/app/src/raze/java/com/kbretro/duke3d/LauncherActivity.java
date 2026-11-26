@@ -283,7 +283,7 @@ public class LauncherActivity extends Activity {
         if (pendingRelaunch != null) relaunchPending(gameDir);
     }
 
-    /** «Duke Legacy 0.1.N», para la esquina de Opciones. */
+    /** «Duke Legacy 1.0.0», para la esquina de Opciones. */
     private static String versionLabel() {
         return "Duke Legacy " + BuildConfig.VERSION_NAME.replace("-raze", "");
     }
